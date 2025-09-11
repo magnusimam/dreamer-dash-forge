@@ -65,7 +65,7 @@ export default function Redeem({ balance, onUpdateBalance }: RedeemProps) {
     if (balance < item.cost) {
       toast({
         title: "Insufficient Balance",
-        description: `You need ${item.cost - balance} more DC to redeem this item.`,
+        description: `You need ${item.cost - balance} more DR to redeem this item.`,
         variant: "destructive",
       });
       return;
@@ -119,7 +119,7 @@ export default function Redeem({ balance, onUpdateBalance }: RedeemProps) {
           <div className="flex items-center justify-center gap-3">
             <Coins className="w-6 h-6 text-primary" />
             <span className="text-lg font-semibold text-foreground">
-              Available Balance: {balance.toLocaleString()} DC
+              Available Balance: {balance.toLocaleString()} DR
             </span>
           </div>
         </Card>
@@ -163,7 +163,7 @@ export default function Redeem({ balance, onUpdateBalance }: RedeemProps) {
                 <div className="flex items-center gap-2">
                   <Coins className="w-4 h-4 text-primary" />
                   <span className="text-primary font-semibold">
-                    {item.cost.toLocaleString()} DC
+                    {item.cost.toLocaleString()} DR
                   </span>
                 </div>
 

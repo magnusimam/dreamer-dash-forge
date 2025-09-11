@@ -23,7 +23,7 @@ export default function BalanceCard({ balance, dailyEarnings }: BalanceCardProps
             <div>
               <p className="text-sm text-muted-foreground">Total Balance</p>
               <h2 className="text-2xl font-bold text-foreground">
-                {balance.toLocaleString()} DC
+                {balance.toLocaleString()} DR
               </h2>
             </div>
           </div>
@@ -32,7 +32,7 @@ export default function BalanceCard({ balance, dailyEarnings }: BalanceCardProps
         <div className="flex items-center gap-2 text-sm">
           <TrendingUp className="w-4 h-4 text-primary" />
           <span className="text-muted-foreground">Daily earnings:</span>
-          <span className="text-primary font-semibold">+{dailyEarnings} DC</span>
+          <span className="text-primary font-semibold">+{dailyEarnings} DR</span>
         </div>
         
         <div className="mt-4 pt-4 border-t border-border/50">

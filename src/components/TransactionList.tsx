@@ -81,7 +81,7 @@ export default function TransactionList({ transactions, showAll = false }: Trans
                     "font-bold",
                     getTransactionColor(transaction.type)
                   )}>
-                    {isPositive ? "+" : "-"}{transaction.amount} DC
+                    {isPositive ? "+" : "-"}{transaction.amount} DR
                   </p>
                 </div>
               </div>

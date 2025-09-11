@@ -28,7 +28,7 @@ export default function MissionCard({ mission, onComplete }: MissionCardProps) {
     onComplete(mission.id);
     toast({
       title: "Mission Completed!",
-      description: `+${mission.reward} DC added to your balance`,
+      description: `+${mission.reward} DR added to your balance`,
     });
   };
 
@@ -63,7 +63,7 @@ export default function MissionCard({ mission, onComplete }: MissionCardProps) {
           <div className="flex items-center gap-2">
             <Coins className="w-4 h-4 text-primary" />
             <span className="text-primary font-semibold">
-              +{mission.reward} DC
+              +{mission.reward} DR
             </span>
           </div>
           

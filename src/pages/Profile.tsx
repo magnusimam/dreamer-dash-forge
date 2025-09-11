@@ -58,11 +58,11 @@ export default function Profile({ balance }: ProfileProps) {
             <Avatar className="w-16 h-16">
               <AvatarImage src="/placeholder-avatar.png" />
               <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                DC
+                MI
               </AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-xl font-bold text-foreground">Dreamer User</h2>
+              <h2 className="text-xl font-bold text-foreground">Magnus Imam</h2>
               <p className="text-muted-foreground">Member since Jan 2024</p>
               <div className="flex items-center gap-2 mt-2">
                 <Badge className="bg-primary/20 text-primary border-primary/30">
@@ -118,7 +118,7 @@ export default function Profile({ balance }: ProfileProps) {
           className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
         >
           <User className="w-5 h-5 mr-2" />
-          Transfer DC
+          Transfer DR
         </Button>
         
         <Button
