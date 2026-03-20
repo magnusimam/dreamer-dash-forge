@@ -1,4 +1,4 @@
-import { Home, Target, Gift, Receipt, User } from "lucide-react";
+import { Home, ClipboardList, Rocket, Gift, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -9,9 +9,9 @@ interface BottomNavProps {
 
 const navItems = [
   { id: "home", icon: Home, label: "Home" },
-  { id: "missions", icon: Target, label: "Missions" },
+  { id: "activities", icon: ClipboardList, label: "Log" },
+  { id: "hackathons", icon: Rocket, label: "Hacks" },
   { id: "redeem", icon: Gift, label: "Redeem" },
-  { id: "transactions", icon: Receipt, label: "History" },
   { id: "profile", icon: User, label: "Profile" },
 ];
 
@@ -22,14 +22,16 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
-          
+
           return (
             <motion.button
               key={item.id}
               onClick={() => onTabChange(item.id)}
               className={cn(
                 "flex flex-col items-center p-2 rounded-lg transition-smooth relative",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               whileTap={{ scale: 0.95 }}
             >
@@ -42,7 +44,9 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 />
               )}
               <Icon className="w-5 h-5 mb-1 relative z-10" />
-              <span className="text-xs font-medium relative z-10">{item.label}</span>
+              <span className="text-xs font-medium relative z-10">
+                {item.label}
+              </span>
             </motion.button>
           );
         })}

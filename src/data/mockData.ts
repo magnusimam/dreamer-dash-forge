@@ -100,3 +100,118 @@ export const mockTransactions = [
     timestamp: "2024-01-13T12:00:00Z",
   },
 ];
+
+export interface Activity {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  reward: number;
+  code: string;
+  maxParticipants: number;
+  currentParticipants: number;
+  category: "meeting" | "workshop" | "event" | "outreach";
+}
+
+export const mockActivities: Activity[] = [
+  {
+    id: "a1",
+    title: "Dream Circle Meeting — Q1",
+    description: "First quarter community gathering to align vision and goals for the year ahead.",
+    date: "2024-03-15",
+    reward: 200,
+    code: "DREAM-Q1-2024",
+    maxParticipants: 50,
+    currentParticipants: 32,
+    category: "meeting",
+  },
+  {
+    id: "a2",
+    title: "Vision Board Workshop",
+    description: "Hands-on session crafting personal and community vision boards together.",
+    date: "2024-03-22",
+    reward: 150,
+    code: "VISION-WS-03",
+    maxParticipants: 30,
+    currentParticipants: 18,
+    category: "workshop",
+  },
+  {
+    id: "a3",
+    title: "Community Outreach — Lagos",
+    description: "On-ground outreach and onboarding drive in Lagos communities.",
+    date: "2024-04-05",
+    reward: 300,
+    code: "OUTREACH-LG-04",
+    maxParticipants: 100,
+    currentParticipants: 67,
+    category: "outreach",
+  },
+  {
+    id: "a4",
+    title: "Dream Circle Meeting — Q2",
+    description: "Second quarter check-in. Review progress, celebrate wins, plan next steps.",
+    date: "2024-06-10",
+    reward: 200,
+    code: "DREAM-Q2-2024",
+    maxParticipants: 50,
+    currentParticipants: 0,
+    category: "meeting",
+  },
+];
+
+export interface Hackathon {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  entryFee: number;
+  prize: string;
+  maxTeams: number;
+  registeredTeams: number;
+  tags: string[];
+  status: "upcoming" | "active" | "completed";
+}
+
+export const mockHackathons: Hackathon[] = [
+  {
+    id: "h1",
+    title: "DreamBuild Hackathon 2024",
+    description: "Build solutions that empower dreamers in African communities. 48 hours of hacking, mentorship, and prizes.",
+    startDate: "2024-04-20",
+    endDate: "2024-04-22",
+    entryFee: 500,
+    prize: "₦500,000 + Mentorship",
+    maxTeams: 20,
+    registeredTeams: 12,
+    tags: ["Web3", "Community", "Impact"],
+    status: "upcoming",
+  },
+  {
+    id: "h2",
+    title: "AI for Good Challenge",
+    description: "Leverage AI to solve real problems in education, health, and agriculture across Africa.",
+    startDate: "2024-05-10",
+    endDate: "2024-05-12",
+    entryFee: 300,
+    prize: "₦300,000 + Incubation",
+    maxTeams: 30,
+    registeredTeams: 8,
+    tags: ["AI", "EdTech", "Health"],
+    status: "upcoming",
+  },
+  {
+    id: "h3",
+    title: "Fintech Dreamers Sprint",
+    description: "Design financial tools that give dreamers access to savings, lending, and investment products.",
+    startDate: "2024-02-01",
+    endDate: "2024-02-03",
+    entryFee: 400,
+    prize: "₦400,000",
+    maxTeams: 15,
+    registeredTeams: 15,
+    tags: ["Fintech", "Payments", "Savings"],
+    status: "completed",
+  },
+];
