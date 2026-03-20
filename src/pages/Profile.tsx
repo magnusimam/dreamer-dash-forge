@@ -8,9 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface ProfileProps {
   balance: number;
+  onTabChange?: (tab: string) => void;
 }
 
-export default function Profile({ balance }: ProfileProps) {
+export default function Profile({ balance, onTabChange }: ProfileProps) {
   const { toast } = useToast();
   
   const userStats = {
