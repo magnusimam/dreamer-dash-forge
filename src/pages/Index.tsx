@@ -6,6 +6,7 @@ import ActivityLog from "@/pages/ActivityLog";
 import Hackathons from "@/pages/Hackathons";
 import Redeem from "@/pages/Redeem";
 import Profile from "@/pages/Profile";
+import Admin from "@/pages/Admin";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("home");
@@ -33,7 +34,9 @@ const Index = () => {
           <Redeem balance={balance} onUpdateBalance={handleUpdateBalance} />
         );
       case "profile":
-        return <Profile balance={balance} />;
+        return <Profile balance={balance} onTabChange={setActiveTab} />;
+      case "admin":
+        return <Admin />;
       default:
         return <Home balance={balance} onTabChange={setActiveTab} />;
     }
