@@ -27,7 +27,7 @@ serve(async (req) => {
         : WEBAPP_URL;
 
       // Send cover photo with caption
-      const coverUrl = "https://res.cloudinary.com/dckgjhlsq/image/upload/v1774114669/dreamer-dash/app-cover.jpg";
+      const coverUrl = "https://res.cloudinary.com/dckgjhlsq/image/upload/v1774116926/dreamer-dash/start-cover.png";
 
       // Try sending photo first
       const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
