@@ -99,7 +99,11 @@ export default function Home({ onTabChange }: HomeProps) {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+        className="mb-6 -mx-4 -mt-6 px-4 pt-6 pb-4"
+        style={{
+          background: "linear-gradient(180deg, hsl(45 100% 50% / 0.06) 0%, transparent 100%)",
+          borderBottom: "1px solid hsl(45 100% 50% / 0.08)",
+        }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
