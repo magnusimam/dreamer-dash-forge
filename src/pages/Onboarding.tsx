@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Gift, Trophy, Rocket } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ClipboardList, Gift, Trophy, Rocket, Users } from "lucide-react";
 import logoImg from "@/assets/dreamers-coin-logo.png";
+import { useProcessReferral } from "@/hooks/useSupabase";
+import { useToast } from "@/hooks/use-toast";
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -38,9 +41,30 @@ const steps = [
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralApplied, setReferralApplied] = useState(false);
+  const processReferral = useProcessReferral();
+  const { toast } = useToast();
+
   const current = steps[step];
   const Icon = current.icon;
   const isLast = step === steps.length - 1;
+
+  const handleApplyReferral = async () => {
+    const code = referralCode.trim().toUpperCase();
+    if (!code) return;
+    try {
+      const result = await processReferral.mutateAsync(code);
+      if (result?.success) {
+        setReferralApplied(true);
+        toast({ title: "Referral Applied!", description: `+20 DR welcome bonus credited!` });
+      } else {
+        toast({ title: "Invalid code", description: result?.error || "Check the code and try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Invalid code", description: "Check the code and try again.", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6">
@@ -70,6 +94,50 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </p>
         </motion.div>
       </AnimatePresence>
+
+      {/* Referral code input on last step */}
+      {isLast && !referralApplied && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm mb-6"
+        >
+          <div className="bg-secondary/50 rounded-xl p-4 border border-border/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">Have a referral code?</span>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g. DR-7609C77C"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                className="bg-background border-border text-sm"
+              />
+              <Button
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
+                onClick={handleApplyReferral}
+                disabled={!referralCode.trim() || processReferral.isPending}
+              >
+                {processReferral.isPending ? "..." : "Apply"}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {isLast && referralApplied && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm mb-6"
+        >
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-center">
+            <p className="text-sm text-emerald-400 font-medium">Referral applied! +20 DR credited</p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Dots */}
       <div className="flex gap-2 mb-8">

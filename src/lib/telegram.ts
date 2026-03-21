@@ -165,7 +165,20 @@ export function setMainButtonLoading(loading: boolean) {
 
 export function getStartParam(): string | undefined {
   try {
-    return WebApp.initDataUnsafe?.start_param;
+    // Try Telegram SDK first
+    const param = WebApp.initDataUnsafe?.start_param;
+    if (param) return param;
+
+    // Fallback: check URL hash and query params
+    const hash = window.location.hash;
+    const hashMatch = hash.match(/[?&]tgWebAppStartParam=([^&]+)/);
+    if (hashMatch) return decodeURIComponent(hashMatch[1]);
+
+    const url = new URL(window.location.href);
+    const queryParam = url.searchParams.get("tgWebAppStartParam");
+    if (queryParam) return queryParam;
+
+    return undefined;
   } catch {
     return undefined;
   }
