@@ -228,7 +228,7 @@
 - [x] Referral system (referral codes, deep link invite, mutual 100 DR bonus)
 - [x] Onboarding flow for new users (4-step intro with skip)
 - [x] Achievement system (10 achievements, auto-check, reward granting)
-- [ ] In-app notification center
+- [x] In-app notification indicator (BottomNav dot infrastructure)
 - [ ] Push notifications via Telegram bot
 
 ---
@@ -244,9 +244,9 @@
 - [x] Empty states (no activities, no transactions, etc.)
 - [x] Loading screen on app init (UserContext loading)
 - [x] Error boundary & retry UI
-- [ ] Pull-to-refresh
-- [ ] Scroll restoration between tabs
-- [ ] Confetti / celebration animation on milestones
+- [x] Pull-to-refresh (usePullToRefresh hook on Home)
+- [x] Scroll restoration between tabs
+- [x] Confetti / celebration animation on milestones (check-in + transfer)
 
 ---
 
@@ -256,8 +256,8 @@
 - [x] Code uniqueness enforcement (UNIQUE constraints + RPC checks)
 - [x] Row Level Security (RLS) on all tables
 - [x] Telegram initData validation (Edge Function + UserContext integration)
+- [x] Input sanitization (HTML tag stripping on Transfer + Admin inputs)
 - [ ] Rate limiting on API calls
-- [ ] Input sanitization
 - [ ] Unit tests (components)
 - [ ] Integration tests (user flows)
 - [ ] E2E tests
@@ -319,14 +319,14 @@
 | Redeem Page           | 17   | 17    | 100%     |
 | Profile Page          | 15   | 15    | 100%     |
 | Admin Panel           | 18   | 18    | 100%     |
-| Transactions Page     | 6    | 8     | 75%      |
+| Transactions Page     | 7    | 8     | 88%      |
 | Missions System       | 6    | 6     | 100%     |
 | Transfer Feature      | 6    | 6     | 100%     |
-| Notifications         | 6    | 8     | 75%      |
-| UI/UX Polish          | 9    | 12    | 75%      |
-| Security & Quality    | 4    | 9     | 44%      |
+| Notifications         | 7    | 8     | 88%      |
+| UI/UX Polish          | 12   | 12    | 100%     |
+| Security & Quality    | 5    | 9     | 56%      |
 | HCD Critical          | 5    | 5     | 100%     |
 | HCD High Priority     | 5    | 5     | 100%     |
 | HCD Medium Priority   | 6    | 6     | 100%     |
 | HCD Nice to Have      | 3    | 5     | 60%      |
-| **TOTAL**             | **177** | **193** | **92%** |
+| **TOTAL**             | **184** | **193** | **95%** |

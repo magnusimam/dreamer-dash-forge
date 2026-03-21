@@ -27,6 +27,7 @@ import { hapticNotification } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 import { uploadImage } from "@/lib/storage";
 import { useUser } from "@/contexts/UserContext";
+import { notifyDailyCheckin } from "@/lib/notifications";
 import { SkeletonList } from "@/components/SkeletonCard";
 
 const categoryColors: Record<string, string> = {
@@ -64,6 +65,7 @@ export default function ActivityLog() {
           title: "Daily Check-in! ☀️",
           description: `+${result.reward} DR added. Streak: ${result.streak} days!`,
         });
+        if (dbUser?.telegram_id) notifyDailyCheckin(dbUser.telegram_id, result.reward, result.streak);
       } else {
         toast({
           title: "Check-in failed",

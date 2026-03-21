@@ -9,6 +9,7 @@ import { useUser } from "@/contexts/UserContext";
 import { useTransferDR } from "@/hooks/useSupabase";
 import { hapticNotification } from "@/lib/telegram";
 import { supabase } from "@/lib/supabase";
+import { notifyTransferReceived } from "@/lib/notifications";
 import {
   Send,
   Coins,
@@ -109,6 +110,15 @@ export default function Transfer() {
         setNote("");
         localStorage.removeItem("transfer_draft");
         toast({ title: "Transfer Sent! ✅", description: `${result.amount} DR sent to @${result.recipient_username}` });
+        // Notify recipient
+        const { data: recipient } = await supabase
+          .from("users")
+          .select("telegram_id")
+          .ilike("username", result.recipient_username)
+          .maybeSingle();
+        if (recipient?.telegram_id) {
+          notifyTransferReceived(recipient.telegram_id, result.amount, dbUser?.username || dbUser?.first_name || "Someone", note.trim() || undefined);
+        }
       } else {
         hapticNotification("error");
         toast({ title: "Transfer Failed", description: result?.error || "Please try again.", variant: "destructive" });

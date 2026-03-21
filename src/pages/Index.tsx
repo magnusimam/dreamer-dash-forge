@@ -17,6 +17,8 @@ import { showBackButton, hideBackButton, getStartParam } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import { useProcessReferral } from "@/hooks/useSupabase";
 import { useToast } from "@/hooks/use-toast";
+import { notifyReferralBonus } from "@/lib/notifications";
+import { supabase } from "@/lib/supabase";
 
 const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply"]);
 
@@ -54,12 +56,21 @@ const Index = () => {
           const referralCode = startParam.slice(4); // Remove "ref_" prefix
           processReferral
             .mutateAsync(referralCode)
-            .then(() => {
+            .then(async () => {
               localStorage.setItem(REFERRAL_PROCESSED_KEY, "true");
               toast({
                 title: "Referral Applied!",
                 description: `You were referred with code ${referralCode}. Bonus credited!`,
               });
+              // Notify referrer
+              const { data: referrer } = await supabase
+                .from("users")
+                .select("telegram_id")
+                .eq("referral_code", referralCode)
+                .maybeSingle();
+              if (referrer?.telegram_id) {
+                notifyReferralBonus(referrer.telegram_id, dbUser?.first_name || "A new user");
+              }
             })
             .catch(() => {
               // Referral may be invalid or already used — silently ignore

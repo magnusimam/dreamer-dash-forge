@@ -25,6 +25,7 @@ import {
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
 import { uploadImage } from "@/lib/storage";
+import { notifyRedemptionUpdate, notifyProofApproved, notifyProofRejected } from "@/lib/notifications";
 import {
   Plus,
   Copy,
@@ -66,7 +67,7 @@ export default function Admin() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("activity_logs")
-        .select("*, activities(title, reward), users!activity_logs_user_id_fkey(first_name, last_name, username)")
+        .select("*, activities(title, reward), users!activity_logs_user_id_fkey(first_name, last_name, username, telegram_id)")
         .eq("proof_status", "pending")
         .order("logged_at", { ascending: false });
       if (error) throw error;
@@ -258,6 +259,11 @@ export default function Admin() {
       });
       if (result?.success) {
         toast({ title: `Request ${redeemAction.action} ✅` });
+        // Notify the user about their redemption status
+        const req = redemptions.find((r: any) => r.id === redeemAction.id);
+        if (req?.users?.telegram_id) {
+          notifyRedemptionUpdate(req.users.telegram_id, req.category, redeemAction.action, redeemNotes || undefined);
+        }
       } else {
         toast({ title: "Error", description: result?.error, variant: "destructive" });
       }
@@ -302,6 +308,18 @@ export default function Admin() {
     if (data?.success) {
       toast({ title: `Proof ${action}` });
       queryClient.invalidateQueries({ queryKey: ["pending_proofs"] });
+      // Notify the user about their proof status
+      const proof = pendingProofs.find((p: any) => p.id === logId);
+      if (proof) {
+        const userTgId = proof.users?.telegram_id;
+        if (userTgId) {
+          if (action === "approved") {
+            notifyProofApproved(userTgId, proof.activities?.title || "Activity", proof.activities?.reward || 0);
+          } else {
+            notifyProofRejected(userTgId, proof.activities?.title || "Activity");
+          }
+        }
+      }
     }
   };
 
