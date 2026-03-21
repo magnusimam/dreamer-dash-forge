@@ -8,7 +8,15 @@
       "Bash(cp src/assets/dreamers-coin-logo.png public/icon-192.png)",
       "Bash(cp src/assets/dreamers-coin-logo.png public/icon-512.png)",
       "Bash(cp src/assets/dreamers-coin-logo.png public/favicon.png)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(vercel login:*)",
+      "Bash(vercel --prod --yes)",
+      "Bash(curl:*)",
+      "Bash(vercel env:*)",
+      "Bash(vercel --prod --yes --force)",
+      "Bash(VITE_SUPABASE_URL=\"https://stmgzykdildmlbvubtvs.supabase.co\" VITE_SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0bWd6eWtkaWxkbWxidnVidHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDcxNzEsImV4cCI6MjA4OTYyMzE3MX0.e6pOI5lHZNsfbY211B-hWI9QBj-mXClbZVnEPSN0Wxo\" npx vite build)",
+      "Bash(vercel deploy:*)",
+      "Bash(VITE_SUPABASE_URL=\"https://stmgzykdildmlbvubtvs.supabase.co\" VITE_SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0bWd6eWtkaWxkbWxidnVidHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDcxNzEsImV4cCI6MjA4OTYyMzE3MX0.e6pOI5lHZNsfbY211B-hWI9QBj-mXClbZVnEPSN0Wxo\" vercel build --prod)"
     ]
   }
 }
