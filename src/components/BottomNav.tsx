@@ -6,6 +6,7 @@ import { hapticSelection } from "@/lib/telegram";
 interface BottomNavProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  notifications?: number;
 }
 
 const navItems = [
@@ -16,7 +17,7 @@ const navItems = [
   { id: "profile", icon: User, label: "Profile" },
 ];
 
-export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
+export default function BottomNav({ activeTab, onTabChange, notifications }: BottomNavProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t border-border z-50">
       <div className="flex items-center justify-around py-2 px-4 max-w-md mx-auto">
@@ -46,6 +47,9 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                   initial={false}
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
+              )}
+              {item.id === "home" && notifications && notifications > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" />
               )}
               <Icon className="w-5 h-5 mb-1 relative z-10" />
               <span className="text-xs font-medium relative z-10">

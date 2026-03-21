@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Confetti } from "@/components/Confetti";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,8 @@ import {
   X,
 } from "lucide-react";
 
+const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
+
 export default function Transfer() {
   const { toast } = useToast();
   const { dbUser } = useUser();
@@ -31,6 +34,7 @@ export default function Transfer() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lookupResult, setLookupResult] = useState<{ found: boolean; name?: string } | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Load saved draft from localStorage on mount
   useEffect(() => {
@@ -97,6 +101,7 @@ export default function Transfer() {
 
       if (result?.success) {
         hapticNotification("success");
+        setShowConfetti(true);
         setLastResult(result);
         setShowConfirm(false);
         setUsername("");
@@ -178,7 +183,7 @@ export default function Transfer() {
                   placeholder="username"
                   value={username}
                   onChange={(e) => {
-                    setUsername(e.target.value);
+                    setUsername(sanitize(e.target.value));
                     if (errors.username) setErrors((prev) => { const { username, ...rest } = prev; return rest; });
                   }}
                   className="pl-9 bg-secondary border-border"
@@ -351,6 +356,7 @@ export default function Transfer() {
           </motion.div>
         )}
       </AnimatePresence>
+      <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
     </motion.div>
   );
 }

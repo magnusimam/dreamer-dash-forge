@@ -47,6 +47,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
+
 export default function Admin() {
   const { toast } = useToast();
   const { dbUser } = useUser();
@@ -357,7 +359,7 @@ export default function Admin() {
                 {editingActivity ? "Edit Activity" : "New Activity"}
               </h3>
               <div className="space-y-3">
-                <Input placeholder="Activity title" value={actTitle} onChange={(e) => setActTitle(e.target.value)} className="bg-secondary border-border" />
+                <Input placeholder="Activity title" value={actTitle} onChange={(e) => setActTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
                 <Textarea placeholder="Description (optional)" value={actDesc} onChange={(e) => setActDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
                 <Input type="date" value={actDate} onChange={(e) => setActDate(e.target.value)} className="bg-secondary border-border" />
                 <Input type="number" placeholder="DR reward amount" value={actReward} onChange={(e) => setActReward(e.target.value)} className="bg-secondary border-border" />
@@ -451,7 +453,7 @@ export default function Admin() {
                 {editingHackathon ? "Edit Hackathon" : "Post Hackathon"}
               </h3>
               <div className="space-y-3">
-                <Input placeholder="Hackathon title" value={hackTitle} onChange={(e) => setHackTitle(e.target.value)} className="bg-secondary border-border" />
+                <Input placeholder="Hackathon title" value={hackTitle} onChange={(e) => setHackTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
                 <Textarea placeholder="Description (optional)" value={hackDesc} onChange={(e) => setHackDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="text-xs text-muted-foreground mb-1 block">Start Date</label><Input type="date" value={hackStart} onChange={(e) => setHackStart(e.target.value)} className="bg-secondary border-border" /></div>

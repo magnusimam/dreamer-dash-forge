@@ -25,14 +25,23 @@ const PAGE_SIZE = 20;
 export default function Transactions() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const { data: transactions = [], isLoading } = useTransactions(undefined, activeFilter);
 
-  const filteredTransactions = transactions.filter((transaction: any) =>
+  const searchFiltered = transactions.filter((transaction: any) =>
     searchTerm
       ? transaction.description?.toLowerCase().includes(searchTerm.toLowerCase())
       : true
   );
+
+  const filteredTransactions = searchFiltered.filter((t: any) => {
+    const txDate = new Date(t.created_at).toISOString().split("T")[0];
+    if (dateFrom && txDate < dateFrom) return false;
+    if (dateTo && txDate > dateTo) return false;
+    return true;
+  });
 
   const paginatedTransactions = filteredTransactions.slice(0, visibleCount);
   const hasMore = visibleCount < filteredTransactions.length;
@@ -77,6 +86,15 @@ export default function Transactions() {
           />
         </div>
       </motion.div>
+
+      {/* Date range filter */}
+      <div className="flex gap-2 mb-3">
+        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="bg-secondary border-border text-xs h-8 flex-1" placeholder="From" />
+        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="bg-secondary border-border text-xs h-8 flex-1" placeholder="To" />
+        {(dateFrom || dateTo) && (
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => { setDateFrom(""); setDateTo(""); }}>Clear</Button>
+        )}
+      </div>
 
       {/* Filter chips */}
       <motion.div

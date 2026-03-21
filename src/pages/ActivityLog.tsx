@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Confetti } from "@/components/Confetti";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ export default function ActivityLog() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [codeSubmitted, setCodeSubmitted] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const handleDailyCheckIn = async () => {
     if (alreadyCheckedIn) return;
@@ -57,6 +59,7 @@ export default function ActivityLog() {
       const result = await checkinMutation.mutateAsync();
       if (result?.success) {
         hapticNotification("success");
+        setShowConfetti(true);
         toast({
           title: "Daily Check-in! ☀️",
           description: `+${result.reward} DR added. Streak: ${result.streak} days!`,
@@ -464,6 +467,7 @@ export default function ActivityLog() {
           </motion.div>
         )}
       </AnimatePresence>
+      <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
     </motion.div>
   );
 }

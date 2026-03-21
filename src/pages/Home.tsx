@@ -9,6 +9,8 @@ import { useTransactions } from "@/hooks/useSupabase";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface HomeProps {
   onTabChange: (tab: string) => void;
@@ -22,6 +24,9 @@ export default function Home({ onTabChange }: HomeProps) {
   const { data: recentTransactions = [] } = useTransactions(3);
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const queryClient = useQueryClient();
+
+  usePullToRefresh(async () => { await queryClient.invalidateQueries(); });
 
   const balance = dbUser?.balance ?? 0;
 

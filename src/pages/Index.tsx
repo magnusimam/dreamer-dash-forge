@@ -31,6 +31,12 @@ const Index = () => {
   const processReferral = useProcessReferral();
   const { toast } = useToast();
   const referralProcessedRef = useRef(false);
+  const scrollPositions = useRef<Record<string, number>>({});
+
+  const handleTabChange = (tab: string) => {
+    scrollPositions.current[activeTab] = window.scrollY;
+    setActiveTab(tab);
+  };
 
   // Check if first-time user
   useEffect(() => {
@@ -69,12 +75,21 @@ const Index = () => {
   };
 
   useEffect(() => {
+    const saved = scrollPositions.current[activeTab];
+    if (saved) {
+      requestAnimationFrame(() => window.scrollTo(0, saved));
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (SUB_TABS.has(activeTab)) {
       const backTo = activeTab === "admin" ? "profile"
         : activeTab === "transfer" || activeTab === "leaderboard" ? "profile"
         : activeTab === "redemption-history" ? "redeem"
         : "home";
-      showBackButton(() => setActiveTab(backTo));
+      showBackButton(() => handleTabChange(backTo));
     } else {
       hideBackButton();
     }
@@ -101,15 +116,15 @@ const Index = () => {
   const renderCurrentPage = () => {
     switch (activeTab) {
       case "home":
-        return <Home onTabChange={setActiveTab} />;
+        return <Home onTabChange={handleTabChange} />;
       case "activities":
         return <ActivityLog />;
       case "hackathons":
         return <Hackathons />;
       case "redeem":
-        return <Redeem onTabChange={setActiveTab} />;
+        return <Redeem onTabChange={handleTabChange} />;
       case "profile":
-        return <Profile onTabChange={setActiveTab} />;
+        return <Profile onTabChange={handleTabChange} />;
       case "admin":
         return <Admin />;
       case "transfer":
@@ -123,14 +138,14 @@ const Index = () => {
       case "supply":
         return <SupplyDashboard />;
       default:
-        return <Home onTabChange={setActiveTab} />;
+        return <Home onTabChange={handleTabChange} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <AnimatePresence mode="wait">{renderCurrentPage()}</AnimatePresence>
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} notifications={0} />
     </div>
   );
 };
