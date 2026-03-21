@@ -16,7 +16,9 @@
       "Bash(vercel --prod --yes --force)",
       "Bash(VITE_SUPABASE_URL=\"https://stmgzykdildmlbvubtvs.supabase.co\" VITE_SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0bWd6eWtkaWxkbWxidnVidHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDcxNzEsImV4cCI6MjA4OTYyMzE3MX0.e6pOI5lHZNsfbY211B-hWI9QBj-mXClbZVnEPSN0Wxo\" npx vite build)",
       "Bash(vercel deploy:*)",
-      "Bash(VITE_SUPABASE_URL=\"https://stmgzykdildmlbvubtvs.supabase.co\" VITE_SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0bWd6eWtkaWxkbWxidnVidHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDcxNzEsImV4cCI6MjA4OTYyMzE3MX0.e6pOI5lHZNsfbY211B-hWI9QBj-mXClbZVnEPSN0Wxo\" vercel build --prod)"
+      "Bash(VITE_SUPABASE_URL=\"https://stmgzykdildmlbvubtvs.supabase.co\" VITE_SUPABASE_ANON_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0bWd6eWtkaWxkbWxidnVidHZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNDcxNzEsImV4cCI6MjA4OTYyMzE3MX0.e6pOI5lHZNsfbY211B-hWI9QBj-mXClbZVnEPSN0Wxo\" vercel build --prod)",
+      "Bash(vercel pull:*)",
+      "Bash(cp:*)"
     ]
   }
 }
