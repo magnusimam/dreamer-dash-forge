@@ -82,7 +82,7 @@ export default function Transfer() {
   const handleReview = () => {
     const newErrors: Record<string, string> = {};
     if (!username.trim()) newErrors.username = "Enter a recipient username";
-    if (parsedAmount < 10) newErrors.amount = "Minimum transfer is 10 DR";
+    if (parsedAmount < 5) newErrors.amount = "Minimum transfer is 5 DR";
     if (parsedAmount > balance) newErrors.amount = "Insufficient balance";
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -220,7 +220,7 @@ export default function Transfer() {
                 <Input
                   type="number"
                   placeholder="0"
-                  min={10}
+                  min={5}
                   value={amount}
                   onChange={(e) => {
                     setAmount(e.target.value);
@@ -233,13 +233,13 @@ export default function Transfer() {
               {errors.amount ? (
                 <p className="text-xs text-destructive mt-1">{errors.amount}</p>
               ) : (
-                <p className="text-xs text-muted-foreground mt-1">Minimum: 10 DR</p>
+                <p className="text-xs text-muted-foreground mt-1">Minimum: 5 DR</p>
               )}
             </div>
 
             {/* Quick amounts */}
             <div className="flex gap-2">
-              {[50, 100, 250, 500].map((val) => (
+              {[5, 25, 50, 100, 500].map((val) => (
                 <Button
                   key={val}
                   size="sm"
@@ -286,7 +286,7 @@ export default function Transfer() {
             <Button
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
               onClick={handleReview}
-              disabled={!username.trim() || parsedAmount < 10 || parsedAmount > balance}
+              disabled={!username.trim() || parsedAmount < 5 || parsedAmount > balance}
             >
               <Send className="w-4 h-4 mr-2" />
               Review Transfer
