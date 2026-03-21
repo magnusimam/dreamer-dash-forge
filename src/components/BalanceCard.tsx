@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
-import { Coins, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import logoImg from "@/assets/dreamers-coin-logo.png";
 
 const DR_TO_USD = 0.01; // TODO: fetch from config/API
 
@@ -19,9 +20,7 @@ export default function BalanceCard({ balance, dailyEarnings }: BalanceCardProps
       <Card className="gradient-card shadow-card border-border/50 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 gradient-primary rounded-full flex items-center justify-center shadow-glow">
-              <Coins className="w-6 h-6 text-primary-foreground" />
-            </div>
+            <img src={logoImg} alt="DR" className="w-12 h-12 rounded-full shadow-glow object-cover" />
             <div>
               <p className="text-sm text-muted-foreground">Total Balance</p>
               <h2 className="text-2xl font-bold text-foreground">

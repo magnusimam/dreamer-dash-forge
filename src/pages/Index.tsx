@@ -15,6 +15,7 @@ import Onboarding from "@/pages/Onboarding";
 import SupplyDashboard from "@/pages/SupplyDashboard";
 import { showBackButton, hideBackButton, getStartParam } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
+import logoImg from "@/assets/dreamers-coin-logo.png";
 import { useProcessReferral } from "@/hooks/useSupabase";
 import { useToast } from "@/hooks/use-toast";
 import { notifyReferralBonus } from "@/lib/notifications";
@@ -111,9 +112,7 @@ const Index = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 gradient-primary rounded-full flex items-center justify-center shadow-glow mx-auto mb-4 animate-pulse">
-            <span className="text-primary-foreground font-bold text-lg">DR</span>
-          </div>
+          <img src={logoImg} alt="Dreamer Dash" className="w-16 h-16 rounded-full shadow-glow mx-auto mb-4 animate-pulse object-cover" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>

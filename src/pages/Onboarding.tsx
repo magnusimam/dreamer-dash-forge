@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Coins, ClipboardList, Gift, Trophy, Rocket } from "lucide-react";
+import { ClipboardList, Gift, Trophy, Rocket } from "lucide-react";
+import logoImg from "@/assets/dreamers-coin-logo.png";
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -9,7 +10,8 @@ interface OnboardingProps {
 
 const steps = [
   {
-    icon: Coins,
+    icon: null,
+    image: logoImg,
     title: "Welcome to Dreamer Dash",
     description: "Your community rewards hub. Earn Dreamers Coins (DR) by participating in activities, completing missions, and daily check-ins.",
     color: "from-primary to-yellow-500",
@@ -51,9 +53,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           transition={{ duration: 0.3 }}
           className="flex flex-col items-center text-center max-w-sm"
         >
-          <div className={`w-24 h-24 rounded-full bg-gradient-to-r ${current.color} flex items-center justify-center shadow-lg mb-8`}>
-            <Icon className="w-12 h-12 text-white" />
-          </div>
+          {"image" in current && current.image ? (
+            <img src={current.image} alt="" className="w-28 h-28 rounded-full shadow-glow object-cover mb-8" />
+          ) : (
+            <div className={`w-24 h-24 rounded-full bg-gradient-to-r ${current.color} flex items-center justify-center shadow-lg mb-8`}>
+              {Icon && <Icon className="w-12 h-12 text-white" />}
+            </div>
+          )}
 
           <h2 className="text-2xl font-bold text-foreground mb-4">
             {current.title}
