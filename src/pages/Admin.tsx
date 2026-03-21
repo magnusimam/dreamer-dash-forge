@@ -25,7 +25,7 @@ import {
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
 import { uploadImage } from "@/lib/storage";
-import { notifyRedemptionUpdate, notifyProofApproved, notifyProofRejected } from "@/lib/notifications";
+import { notifyRedemptionUpdate, notifyProofApproved, notifyProofRejected, notifyUser } from "@/lib/notifications";
 import {
   Plus,
   Copy,
@@ -46,6 +46,8 @@ import {
   Gift,
   ImageIcon,
   ShieldCheck,
+  Send,
+  Megaphone,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -115,10 +117,61 @@ export default function Admin() {
   const [redeemAction, setRedeemAction] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
   const [redeemNotes, setRedeemNotes] = useState("");
 
+  // Broadcast message
+  const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastSent, setBroadcastSent] = useState(0);
+
   const generateCode = (title: string) => {
     const slug = title.toUpperCase().replace(/[^A-Z0-9 ]/g, "").split(" ").slice(0, 2).join("-");
     const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `${slug}-${suffix}`;
+  };
+
+  // ---- BROADCAST TO ALL USERS ----
+
+  const handleBroadcast = async () => {
+    if (!broadcastMsg.trim()) {
+      toast({ title: "Enter a message", variant: "destructive" });
+      return;
+    }
+    setBroadcasting(true);
+    setBroadcastSent(0);
+    let sent = 0;
+    for (const u of allUsers) {
+      if (u.telegram_id && u.telegram_id !== 0) {
+        notifyUser(u.telegram_id, broadcastMsg.trim());
+        sent++;
+        setBroadcastSent(sent);
+        // Small delay to avoid rate limiting
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
+    setBroadcasting(false);
+    setBroadcastMsg("");
+    toast({ title: `Broadcast sent to ${sent} users` });
+  };
+
+  const broadcastNewActivity = (title: string, reward: number) => {
+    for (const u of allUsers) {
+      if (u.telegram_id && u.telegram_id !== 0) {
+        notifyUser(
+          u.telegram_id,
+          `📢 <b>New Activity!</b>\n\n<b>${title}</b>\n+${reward} DR reward\n\nOpen the app to log your attendance!`
+        );
+      }
+    }
+  };
+
+  const broadcastNewHackathon = (title: string, fee: number, prize: number) => {
+    for (const u of allUsers) {
+      if (u.telegram_id && u.telegram_id !== 0) {
+        notifyUser(
+          u.telegram_id,
+          `🚀 <b>New Hackathon!</b>\n\n<b>${title}</b>\nEntry: ${fee} DR | Prize: ${prize} DR\n\nOpen the app to register!`
+        );
+      }
+    }
   };
 
   const copyCode = (code: string) => {
@@ -146,6 +199,7 @@ export default function Admin() {
       } else {
         toast({ title: "Activity Created!", description: "Proof-based activity (no attendance code shown)." });
       }
+      broadcastNewActivity(actTitle, parseInt(actReward));
       resetActivityForm();
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed.", variant: "destructive" });
@@ -208,6 +262,7 @@ export default function Admin() {
         cover_image_url: coverUrl,
       });
       toast({ title: "Hackathon Posted!", description: `"${hackTitle}" is now live.` });
+      broadcastNewHackathon(hackTitle, parseInt(hackFee), parseInt(hackPrize));
       resetHackathonForm();
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed.", variant: "destructive" });
@@ -346,7 +401,7 @@ export default function Admin() {
       </motion.div>
 
       <Tabs defaultValue="activities" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
+        <TabsList className="grid w-full grid-cols-6 mb-6">
           <TabsTrigger value="activities">Activities</TabsTrigger>
           <TabsTrigger value="hackathons">Hackathons</TabsTrigger>
           <TabsTrigger value="redemptions" className="relative">
@@ -366,6 +421,9 @@ export default function Admin() {
             )}
           </TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="broadcast">
+            <Megaphone className="w-3 h-3" />
+          </TabsTrigger>
         </TabsList>
 
         {/* ========== ACTIVITIES TAB ========== */}
@@ -692,6 +750,60 @@ export default function Admin() {
                 </Card>
               ))}
             </div>
+          </motion.div>
+        </TabsContent>
+        {/* ========== BROADCAST TAB ========== */}
+        <TabsContent value="broadcast">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Megaphone className="w-4 h-4 text-primary" />
+                Broadcast Message
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Send an in-chat message to all {allUsers.filter((u: any) => u.telegram_id !== 0).length} registered users via the Telegram bot.
+              </p>
+              <Textarea
+                placeholder="Type your message here... (supports HTML: <b>bold</b>, <i>italic</i>)"
+                value={broadcastMsg}
+                onChange={(e) => setBroadcastMsg(e.target.value)}
+                className="bg-secondary border-border min-h-[120px] mb-4"
+              />
+              {broadcasting && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Sending...</span>
+                    <span>{broadcastSent} / {allUsers.filter((u: any) => u.telegram_id !== 0).length}</span>
+                  </div>
+                  <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${(broadcastSent / Math.max(allUsers.filter((u: any) => u.telegram_id !== 0).length, 1)) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+                onClick={handleBroadcast}
+                disabled={broadcasting || !broadcastMsg.trim()}
+              >
+                {broadcasting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                {broadcasting ? `Sending (${broadcastSent})...` : "Send to All Users"}
+              </Button>
+            </Card>
+
+            <Card className="gradient-card border-border/50 p-4">
+              <h4 className="font-medium text-foreground mb-3 text-sm">Auto-notifications</h4>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> New activity created — all users notified</p>
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> New hackathon posted — all users notified</p>
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> Redemption approved/rejected — user notified</p>
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> Proof approved/rejected — user notified</p>
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> Transfer received — recipient notified</p>
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> Referral used — referrer notified</p>
+              </div>
+            </Card>
           </motion.div>
         </TabsContent>
       </Tabs>
