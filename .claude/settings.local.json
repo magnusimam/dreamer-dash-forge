@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx supabase:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(cd:*)",
+      "Bash(cp src/assets/dreamers-coin-logo.png public/icon-192.png)",
+      "Bash(cp src/assets/dreamers-coin-logo.png public/icon-512.png)",
+      "Bash(cp src/assets/dreamers-coin-logo.png public/favicon.png)"
+    ]
+  }
+}

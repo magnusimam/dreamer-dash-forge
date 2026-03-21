@@ -1,32 +1,82 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Settings, User, Award, TrendingUp, Shield } from "lucide-react";
+import {
+  Settings, Send, Award, TrendingUp, Shield, Coins, Trophy, Copy,
+  Star, Rocket, Crown, Gem, Flame, Users, Megaphone, Baby, CheckCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTelegram } from "@/contexts/TelegramContext";
+import { useUser } from "@/contexts/UserContext";
+import { useAchievements, useUserAchievements, useCheckAchievements } from "@/hooks/useSupabase";
 
 interface ProfileProps {
-  balance: number;
   onTabChange?: (tab: string) => void;
 }
 
-export default function Profile({ balance, onTabChange }: ProfileProps) {
+const iconMap: Record<string, LucideIcon> = {
+  star: Star,
+  rocket: Rocket,
+  crown: Crown,
+  gem: Gem,
+  flame: Flame,
+  users: Users,
+  megaphone: Megaphone,
+  baby: Baby,
+};
+
+export default function Profile({ onTabChange }: ProfileProps) {
   const { toast } = useToast();
-  
-  const userStats = {
-    totalEarned: 15420,
-    missionsCompleted: 47,
-    redeemed: 8500,
-    streak: 12,
+  const { user } = useTelegram();
+  const { dbUser } = useUser();
+  const { data: achievements } = useAchievements();
+  const { data: unlockedIds } = useUserAchievements();
+  const checkAchievements = useCheckAchievements();
+
+  useEffect(() => {
+    if (dbUser) {
+      checkAchievements.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbUser?.id]);
+
+  const displayName = user
+    ? [user.firstName, user.lastName].filter(Boolean).join(" ")
+    : "Dreamer";
+  const initials = user
+    ? [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join("")
+    : "DR";
+
+  const balance = dbUser?.balance ?? 0;
+  const totalEarned = dbUser?.total_earned ?? 0;
+  const streak = dbUser?.streak ?? 0;
+  const status = dbUser?.status ?? "Bronze";
+  const isAdmin = dbUser?.is_admin ?? false;
+  const memberSince = dbUser?.created_at
+    ? new Date(dbUser.created_at).toLocaleDateString("en-NG", { month: "short", year: "numeric" })
+    : "Recently";
+
+  const tierColors: Record<string, string> = {
+    Bronze: "bg-amber-700/20 text-amber-500 border-amber-700/30",
+    Silver: "bg-gray-300/20 text-gray-300 border-gray-300/30",
+    Gold: "bg-primary/20 text-primary border-primary/30",
+    Diamond: "bg-cyan-400/20 text-cyan-400 border-cyan-400/30",
   };
 
-  const handleTransfer = () => {
-    toast({
-      title: "Coming Soon! 🚀",
-      description: "Transfer feature will be available in the next update.",
-    });
-  };
+  const tierThresholds = [
+    { tier: "Silver", threshold: 5000 },
+    { tier: "Gold", threshold: 20000 },
+    { tier: "Diamond", threshold: 50000 },
+  ];
+
+  const nextTier = tierThresholds.find((t) => totalEarned < t.threshold);
+  const progress = nextTier
+    ? Math.round((totalEarned / nextTier.threshold) * 100)
+    : 100;
 
   return (
     <motion.div
@@ -57,25 +107,52 @@ export default function Profile({ balance, onTabChange }: ProfileProps) {
         <Card className="gradient-card border-border/50 p-6 mb-6">
           <div className="flex items-center gap-4 mb-4">
             <Avatar className="w-16 h-16">
-              <AvatarImage src="/placeholder-avatar.png" />
+              <AvatarImage src={user?.photoUrl} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                MI
+                {initials}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-xl font-bold text-foreground">Magnus Imam</h2>
-              <p className="text-muted-foreground">Member since Jan 2024</p>
+              <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
+              {user?.username && (
+                <p className="text-sm text-muted-foreground">@{user.username}</p>
+              )}
+              <p className="text-muted-foreground">Member since {memberSince}</p>
               <div className="flex items-center gap-2 mt-2">
-                <Badge className="bg-primary/20 text-primary border-primary/30">
+                <Badge className={tierColors[status] || tierColors.Bronze}>
                   <Award className="w-3 h-3 mr-1" />
-                  Gold Status
+                  {status}
                 </Badge>
-                <Badge variant="outline">
-                  {userStats.streak} day streak 🔥
-                </Badge>
+                {streak > 0 && (
+                  <Badge variant="outline">
+                    {streak} day streak 🔥
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
+
+          {dbUser?.referral_code && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Your Referral Code</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-secondary/50 rounded px-3 py-1.5 text-sm font-mono text-foreground">
+                  {dbUser.referral_code}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(dbUser.referral_code!);
+                    toast({ title: "Copied!", description: "Referral code copied to clipboard." });
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </Card>
       </motion.div>
 
@@ -90,22 +167,82 @@ export default function Profile({ balance, onTabChange }: ProfileProps) {
           <div className="text-center">
             <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">
-              {userStats.totalEarned.toLocaleString()}
+              {totalEarned.toLocaleString()}
             </p>
             <p className="text-sm text-muted-foreground">Total Earned</p>
           </div>
         </Card>
-        
+
         <Card className="gradient-card border-border/50 p-4">
           <div className="text-center">
-            <Award className="w-6 h-6 text-primary mx-auto mb-2" />
+            <Coins className="w-6 h-6 text-primary mx-auto mb-2" />
             <p className="text-2xl font-bold text-foreground">
-              {userStats.missionsCompleted}
+              {balance.toLocaleString()}
             </p>
-            <p className="text-sm text-muted-foreground">Missions Done</p>
+            <p className="text-sm text-muted-foreground">Balance</p>
           </div>
         </Card>
       </motion.div>
+
+      {/* Tier Progress */}
+      {nextTier && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mb-6"
+        >
+          <Card className="gradient-card border-border/50 p-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-muted-foreground">Next tier: {nextTier.tier}</span>
+              <span className="text-foreground font-medium">{totalEarned.toLocaleString()} / {nextTier.threshold.toLocaleString()} DR</span>
+            </div>
+            <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Achievements */}
+      {achievements && achievements.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="mb-6"
+        >
+          <h3 className="text-lg font-semibold text-foreground mb-3">Achievements</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {achievements.map((achievement: any) => {
+              const unlocked = unlockedIds?.includes(achievement.id);
+              const IconComponent = iconMap[achievement.icon] || Star;
+              return (
+                <Card
+                  key={achievement.id}
+                  className={`gradient-card border-border/50 p-3 relative ${
+                    unlocked ? "border-primary/40" : "opacity-60"
+                  }`}
+                >
+                  {unlocked && (
+                    <CheckCircle className="w-4 h-4 text-green-500 absolute top-2 right-2" />
+                  )}
+                  <IconComponent className="w-5 h-5 text-primary mb-1" />
+                  <p className="text-sm font-medium text-foreground leading-tight">
+                    {achievement.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                    {achievement.description}
+                  </p>
+                  <p className="text-xs text-primary mt-1 font-medium">
+                    +{achievement.reward} DR
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* Action Buttons */}
       <motion.div
@@ -115,29 +252,32 @@ export default function Profile({ balance, onTabChange }: ProfileProps) {
         className="space-y-3"
       >
         <Button
-          onClick={handleTransfer}
+          onClick={() => onTabChange?.("transfer")}
           className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
         >
-          <User className="w-5 h-5 mr-2" />
+          <Send className="w-5 h-5 mr-2" />
           Transfer DR
-        </Button>
-        
-        <Button
-          variant="outline"
-          className="w-full h-12 border-border hover:bg-muted"
-        >
-          <Settings className="w-5 h-5 mr-2" />
-          Settings
         </Button>
 
         <Button
           variant="outline"
-          className="w-full h-12 border-primary/30 text-primary hover:bg-primary/10"
-          onClick={() => onTabChange?.("admin")}
+          className="w-full h-12 border-border hover:bg-muted"
+          onClick={() => onTabChange?.("leaderboard")}
         >
-          <Shield className="w-5 h-5 mr-2" />
-          Admin Panel
+          <Trophy className="w-5 h-5 mr-2" />
+          Leaderboard
         </Button>
+
+        {isAdmin && (
+          <Button
+            variant="outline"
+            className="w-full h-12 border-primary/30 text-primary hover:bg-primary/10"
+            onClick={() => onTabChange?.("admin")}
+          >
+            <Shield className="w-5 h-5 mr-2" />
+            Admin Panel
+          </Button>
+        )}
       </motion.div>
 
       {/* App Info */}

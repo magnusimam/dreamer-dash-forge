@@ -1,35 +1,27 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MissionCard from "@/components/MissionCard";
-import { mockMissions } from "@/data/mockData";
+import { useMissions, useUserMissionCompletions, useCompleteMission } from "@/hooks/useSupabase";
+import { Loader2 } from "lucide-react";
 
-interface MissionsProps {
-  onUpdateBalance: (amount: number) => void;
-}
+export default function Missions() {
+  const { data: missions = [], isLoading } = useMissions();
+  const { data: completedIds = [] } = useUserMissionCompletions();
+  const completeMission = useCompleteMission();
 
-export default function Missions({ onUpdateBalance }: MissionsProps) {
-  const [missions, setMissions] = useState(mockMissions);
-
-  const handleCompleteMission = (missionId: string) => {
-    setMissions(prev => 
-      prev.map(mission => 
-        mission.id === missionId 
-          ? { ...mission, completed: true }
-          : mission
-      )
-    );
-    
-    const mission = missions.find(m => m.id === missionId);
-    if (mission && !mission.completed) {
-      onUpdateBalance(mission.reward);
-    }
+  const handleCompleteMission = async (missionId: string) => {
+    await completeMission.mutateAsync(missionId);
   };
 
-  const availableMissions = missions.filter(m => !m.completed);
-  const completedMissions = missions.filter(m => m.completed);
-  const dailyMissions = missions.filter(m => m.category === "Daily");
-  const socialMissions = missions.filter(m => m.category === "Social");
+  const missionsWithStatus = missions.map((m: any) => ({
+    ...m,
+    completed: completedIds.includes(m.id),
+  }));
+
+  const availableMissions = missionsWithStatus.filter((m: any) => !m.completed);
+  const completedMissions = missionsWithStatus.filter((m: any) => m.completed);
+  const dailyMissions = missionsWithStatus.filter((m: any) => m.category === "daily");
+  const socialMissions = missionsWithStatus.filter((m: any) => m.category === "social");
 
   return (
     <motion.div
@@ -51,96 +43,64 @@ export default function Missions({ onUpdateBalance }: MissionsProps) {
         </p>
       </motion.div>
 
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="daily">Daily</TabsTrigger>
-          <TabsTrigger value="social">Social</TabsTrigger>
-          <TabsTrigger value="completed">Done</TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      ) : missions.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          No missions available right now.
+        </p>
+      ) : (
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="daily">Daily</TabsTrigger>
+            <TabsTrigger value="social">Social</TabsTrigger>
+            <TabsTrigger value="completed">Done</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all" className="space-y-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            {availableMissions.map((mission, index) => (
-              <motion.div
-                key={mission.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <MissionCard
-                  mission={mission}
-                  onComplete={handleCompleteMission}
-                />
+          <TabsContent value="all" className="space-y-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+              {availableMissions.map((mission: any, index: number) => (
+                <motion.div key={mission.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                  <MissionCard mission={mission} onComplete={handleCompleteMission} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </TabsContent>
+
+          <TabsContent value="daily">
+            {dailyMissions.map((mission: any, index: number) => (
+              <motion.div key={mission.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                <MissionCard mission={mission} onComplete={handleCompleteMission} />
               </motion.div>
             ))}
-          </motion.div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="daily">
-          {dailyMissions.map((mission, index) => (
-            <motion.div
-              key={mission.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <MissionCard
-                mission={mission}
-                onComplete={handleCompleteMission}
-              />
-            </motion.div>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="social">
-          {socialMissions.map((mission, index) => (
-            <motion.div
-              key={mission.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <MissionCard
-                mission={mission}
-                onComplete={handleCompleteMission}
-              />
-            </motion.div>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="completed">
-          {completedMissions.length > 0 ? (
-            completedMissions.map((mission, index) => (
-              <motion.div
-                key={mission.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <MissionCard
-                  mission={mission}
-                  onComplete={handleCompleteMission}
-                />
+          <TabsContent value="social">
+            {socialMissions.map((mission: any, index: number) => (
+              <motion.div key={mission.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                <MissionCard mission={mission} onComplete={handleCompleteMission} />
               </motion.div>
-            ))
-          ) : (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-12"
-            >
-              <p className="text-muted-foreground">
-                No completed missions yet. Start earning!
-              </p>
-            </motion.div>
-          )}
-        </TabsContent>
-      </Tabs>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="completed">
+            {completedMissions.length > 0 ? (
+              completedMissions.map((mission: any, index: number) => (
+                <motion.div key={mission.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
+                  <MissionCard mission={mission} onComplete={handleCompleteMission} />
+                </motion.div>
+              ))
+            ) : (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+                <p className="text-muted-foreground">No completed missions yet. Start earning!</p>
+              </motion.div>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
     </motion.div>
   );
 }

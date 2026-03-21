@@ -1,14 +1,15 @@
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownLeft, Gift, Target } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Gift, Target, CheckCircle, Rocket, Send, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Transaction {
   id: string;
-  type: "earn" | "redeem" | "mission" | "bonus";
+  type: string;
   amount: number;
   description: string;
-  timestamp: string;
+  created_at?: string;
+  timestamp?: string;
 }
 
 interface TransactionListProps {
@@ -24,18 +25,27 @@ const getTransactionIcon = (type: string) => {
       return Gift;
     case "earn":
       return ArrowUpRight;
+    case "checkin":
+      return CheckCircle;
+    case "hackathon_fee":
+      return Rocket;
+    case "hackathon_prize":
+      return Rocket;
+    case "transfer_out":
+      return Send;
+    case "transfer_in":
+      return ArrowDownRight;
     default:
       return ArrowDownLeft;
   }
 };
 
+const isPositiveType = (type: string) => {
+  return !["redeem", "hackathon_fee"].includes(type);
+};
+
 const getTransactionColor = (type: string) => {
-  switch (type) {
-    case "redeem":
-      return "text-destructive";
-    default:
-      return "text-primary";
-  }
+  return isPositiveType(type) ? "text-primary" : "text-destructive";
 };
 
 export default function TransactionList({ transactions, showAll = false }: TransactionListProps) {
@@ -45,8 +55,9 @@ export default function TransactionList({ transactions, showAll = false }: Trans
     <div className="space-y-3">
       {displayTransactions.map((transaction, index) => {
         const Icon = getTransactionIcon(transaction.type);
-        const isPositive = transaction.type !== "redeem";
-        
+        const positive = transaction.amount > 0;
+        const dateStr = transaction.created_at || transaction.timestamp || "";
+
         return (
           <motion.div
             key={transaction.id}
@@ -59,29 +70,31 @@ export default function TransactionList({ transactions, showAll = false }: Trans
                 <div className="flex items-center gap-3">
                   <div className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center",
-                    isPositive ? "bg-primary/20" : "bg-destructive/20"
+                    positive ? "bg-primary/20" : "bg-destructive/20"
                   )}>
                     <Icon className={cn(
                       "w-5 h-5",
-                      getTransactionColor(transaction.type)
+                      positive ? "text-primary" : "text-destructive"
                     )} />
                   </div>
                   <div>
                     <p className="font-medium text-foreground">
                       {transaction.description}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(transaction.timestamp).toLocaleDateString()}
-                    </p>
+                    {dateStr && (
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(dateStr).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                 </div>
-                
+
                 <div className="text-right">
                   <p className={cn(
                     "font-bold",
-                    getTransactionColor(transaction.type)
+                    positive ? "text-primary" : "text-destructive"
                   )}>
-                    {isPositive ? "+" : "-"}{transaction.amount} DR
+                    {positive ? "+" : ""}{transaction.amount} DR
                   </p>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import { Home, ClipboardList, Rocket, Gift, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/telegram";
 
 interface BottomNavProps {
   activeTab: string;
@@ -26,7 +27,10 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
           return (
             <motion.button
               key={item.id}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => {
+                hapticSelection();
+                onTabChange(item.id);
+              }}
               className={cn(
                 "flex flex-col items-center p-2 rounded-lg transition-smooth relative",
                 isActive

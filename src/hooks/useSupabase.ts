@@ -1,0 +1,681 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@/contexts/UserContext";
+
+// ============================================================
+// ACTIVITIES
+// ============================================================
+
+export function useActivities() {
+  return useQuery({
+    queryKey: ["activities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities")
+        .select("*")
+        .eq("is_active", true)
+        .order("date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUserActivityLogs() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["activity_logs", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("activity_id")
+        .eq("user_id", dbUser.id);
+      if (error) throw error;
+      return data.map((log) => log.activity_id);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useLogActivity() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (code: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("log_activity", {
+        p_user_id: dbUser.id,
+        p_code: code,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["activity_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
+// DAILY CHECK-IN
+// ============================================================
+
+export function useTodayCheckin() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["checkin_today", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return false;
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error } = await supabase
+        .from("daily_checkins")
+        .select("id")
+        .eq("user_id", dbUser.id)
+        .eq("check_in_date", today)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function usePerformCheckin() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("perform_daily_checkin", {
+        p_user_id: dbUser.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["checkin_today"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
+// HACKATHONS
+// ============================================================
+
+export function useHackathons() {
+  return useQuery({
+    queryKey: ["hackathons"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hackathons")
+        .select("*")
+        .eq("is_active", true)
+        .order("start_date", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUserHackathonRegistrations() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["hackathon_registrations", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      const { data, error } = await supabase
+        .from("hackathon_registrations")
+        .select("hackathon_id")
+        .eq("user_id", dbUser.id);
+      if (error) throw error;
+      return data.map((r) => r.hackathon_id);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useRegisterHackathon() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (hackathonId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("register_hackathon", {
+        p_user_id: dbUser.id,
+        p_hackathon_id: hackathonId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["hackathon_registrations"] });
+      queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
+// TRANSACTIONS
+// ============================================================
+
+export function useTransactions(limit?: number, typeFilter?: string) {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["transactions", dbUser?.id, limit, typeFilter],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      let query = supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", dbUser.id)
+        .order("created_at", { ascending: false });
+      if (typeFilter && typeFilter !== "all") {
+        query = query.eq("type", typeFilter);
+      }
+      if (limit) query = query.limit(limit);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!dbUser,
+  });
+}
+
+// ============================================================
+// TRANSFER
+// ============================================================
+
+export function useTransferDR() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ recipientUsername, amount, note }: { recipientUsername: string; amount: number; note?: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("transfer_dr", {
+        p_sender_id: dbUser.id,
+        p_recipient_username: recipientUsername,
+        p_amount: amount,
+        p_note: note || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
+// LEADERBOARD
+// ============================================================
+
+export function useLeaderboard(limit = 20) {
+  return useQuery({
+    queryKey: ["leaderboard", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_leaderboard", { p_limit: limit });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+// ============================================================
+// MISSIONS
+// ============================================================
+
+export function useMissions() {
+  return useQuery({
+    queryKey: ["missions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("missions")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUserMissionCompletions() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["mission_completions", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      const { data, error } = await supabase
+        .from("mission_completions")
+        .select("mission_id")
+        .eq("user_id", dbUser.id);
+      if (error) throw error;
+      return data.map((c) => c.mission_id);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useCompleteMission() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (missionId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("complete_mission", {
+        p_user_id: dbUser.id,
+        p_mission_id: missionId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["mission_completions"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
+// REFERRALS
+// ============================================================
+
+export function useProcessReferral() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (referralCode: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("process_referral", {
+        p_referred_user_id: dbUser.id,
+        p_referral_code: referralCode,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useUserReferralCount() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["referral_count", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return 0;
+      const { count, error } = await supabase
+        .from("referrals")
+        .select("*", { count: "exact", head: true })
+        .eq("referrer_id", dbUser.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!dbUser,
+  });
+}
+
+// ============================================================
+// ACHIEVEMENTS
+// ============================================================
+
+export function useAchievements() {
+  return useQuery({
+    queryKey: ["achievements"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("achievements")
+        .select("*")
+        .order("condition_value", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUserAchievements() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["user_achievements", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      const { data, error } = await supabase
+        .from("user_achievements")
+        .select("achievement_id")
+        .eq("user_id", dbUser.id);
+      if (error) throw error;
+      return data.map((a) => a.achievement_id);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useCheckAchievements() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("check_achievements", {
+        p_user_id: dbUser.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["user_achievements"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
+// REDEMPTIONS
+// ============================================================
+
+export function useSubmitRedemption() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      category,
+      amount,
+      details,
+    }: {
+      category: string;
+      amount: number;
+      details: Record<string, unknown>;
+    }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("submit_redemption", {
+        p_user_id: dbUser.id,
+        p_category: category,
+        p_amount: amount,
+        p_details: details,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
+// USER REDEMPTION HISTORY
+// ============================================================
+
+export function useUserRedemptions() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["user_redemptions", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      const { data, error } = await supabase.rpc("get_user_redemptions", {
+        p_user_id: dbUser.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!dbUser,
+  });
+}
+
+// ============================================================
+// ADMIN: Create Activity
+// ============================================================
+
+export function useCreateActivity() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (activity: {
+      title: string;
+      description?: string;
+      category: string;
+      date: string;
+      reward: number;
+      code: string;
+      max_participants?: number;
+    }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase
+        .from("activities")
+        .insert({
+          ...activity,
+          created_by: dbUser.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+// ============================================================
+// ADMIN: Update Activity
+// ============================================================
+
+export function useUpdateActivity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; title?: string; description?: string; category?: string; date?: string; reward?: number; is_active?: boolean }) => {
+      const { data, error } = await supabase
+        .from("activities")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+// ============================================================
+// ADMIN: Delete Activity
+// ============================================================
+
+export function useDeleteActivity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("activities").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+  });
+}
+
+// ============================================================
+// ADMIN: Create Hackathon
+// ============================================================
+
+export function useCreateHackathon() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (hackathon: {
+      title: string;
+      description?: string;
+      start_date: string;
+      end_date: string;
+      entry_fee: number;
+      prize_pool: number;
+      max_teams?: number;
+    }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase
+        .from("hackathons")
+        .insert({
+          ...hackathon,
+          created_by: dbUser.id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+    },
+  });
+}
+
+// ============================================================
+// ADMIN: Update Hackathon
+// ============================================================
+
+export function useUpdateHackathon() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; title?: string; description?: string; start_date?: string; end_date?: string; entry_fee?: number; prize_pool?: number; max_teams?: number; status?: string; is_active?: boolean }) => {
+      const { data, error } = await supabase
+        .from("hackathons")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+    },
+  });
+}
+
+// ============================================================
+// ADMIN: Delete Hackathon
+// ============================================================
+
+export function useDeleteHackathon() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hackathons").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+    },
+  });
+}
+
+// ============================================================
+// ADMIN: Redemption Requests
+// ============================================================
+
+export function useRedemptionRequests() {
+  return useQuery({
+    queryKey: ["redemption_requests"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("redemption_requests")
+        .select("*, users!redemption_requests_user_id_fkey(first_name, last_name, username, telegram_id)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useProcessRedemption() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ requestId, action, notes }: { requestId: string; action: "approved" | "rejected"; notes?: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("process_redemption", {
+        p_admin_id: dbUser.id,
+        p_request_id: requestId,
+        p_action: action,
+        p_notes: notes || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["redemption_requests"] });
+    },
+  });
+}
+
+// ============================================================
+// ADMIN: User Management
+// ============================================================
+
+export function useAllUsers() {
+  return useQuery({
+    queryKey: ["admin_users"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAdjustBalance() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, amount, reason }: { userId: string; amount: number; reason: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("admin_adjust_balance", {
+        p_admin_id: dbUser.id,
+        p_user_id: userId,
+        p_amount: amount,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+    },
+  });
+}

@@ -1,18 +1,29 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { ArrowRight, Zap, Share2, Copy, Check } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { mockTransactions } from "@/data/mockData";
+import { useTransactions } from "@/hooks/useSupabase";
+import { useTelegram } from "@/contexts/TelegramContext";
+import { useUser } from "@/contexts/UserContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface HomeProps {
-  balance: number;
   onTabChange: (tab: string) => void;
 }
 
-export default function Home({ balance, onTabChange }: HomeProps) {
-  const dailyEarnings = 150;
-  const recentTransactions = mockTransactions.slice(0, 3);
+const BOT_USERNAME = "DreamersDashBot";
+
+export default function Home({ onTabChange }: HomeProps) {
+  const { user } = useTelegram();
+  const { dbUser } = useUser();
+  const { data: recentTransactions = [] } = useTransactions(3);
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const balance = dbUser?.balance ?? 0;
 
   return (
     <motion.div
@@ -28,7 +39,7 @@ export default function Home({ balance, onTabChange }: HomeProps) {
         className="mb-6"
       >
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          Welcome Back! 👋
+          Welcome Back, {user?.firstName ?? "Dreamer"}! 👋
         </h1>
         <p className="text-muted-foreground">
           Keep earning Dreamers Coins and unlock amazing rewards
@@ -36,7 +47,7 @@ export default function Home({ balance, onTabChange }: HomeProps) {
       </motion.div>
 
       {/* Balance Card */}
-      <BalanceCard balance={balance} dailyEarnings={dailyEarnings} />
+      <BalanceCard balance={balance} dailyEarnings={dbUser?.streak ? dbUser.streak * 25 : 0} />
 
       {/* Quick Actions */}
       <motion.div
@@ -46,7 +57,7 @@ export default function Home({ balance, onTabChange }: HomeProps) {
         className="grid grid-cols-2 gap-3 mb-6"
       >
         <Button
-          onClick={() => onTabChange("missions")}
+          onClick={() => onTabChange("activities")}
           className="h-14 gradient-primary text-primary-foreground shadow-glow hover:shadow-none transition-smooth"
         >
           <Zap className="w-5 h-5 mr-2" />
@@ -82,9 +93,64 @@ export default function Home({ balance, onTabChange }: HomeProps) {
             <ArrowRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
-        
-        <TransactionList transactions={recentTransactions} />
+
+        {recentTransactions.length > 0 ? (
+          <TransactionList transactions={recentTransactions} />
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-6">
+            No transactions yet. Start earning!
+          </p>
+        )}
       </motion.div>
+
+      {/* Referral Share Card */}
+      {dbUser?.referral_code && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-6"
+        >
+          <Card className="gradient-card border-border/50 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                <Share2 className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Invite Friends</h3>
+                <p className="text-xs text-muted-foreground">Share your code and earn bonus DR</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-secondary rounded-lg p-3 mb-3">
+              <code className="text-sm font-mono text-foreground flex-1">{dbUser.referral_code}</code>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(dbUser.referral_code);
+                  setCopied(true);
+                  toast({ title: "Copied!", description: "Referral code copied to clipboard." });
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-muted-foreground" />}
+              </Button>
+            </div>
+            <Button
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+              onClick={() => {
+                const deepLink = `https://t.me/${BOT_USERNAME}?startapp=ref_${dbUser.referral_code}`;
+                navigator.clipboard.writeText(deepLink);
+                toast({ title: "Link Copied!", description: "Share this link with your friends." });
+              }}
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Share Invite Link
+            </Button>
+          </Card>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

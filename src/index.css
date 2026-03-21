@@ -57,9 +57,18 @@
     @apply border-border;
   }
 
+  html, body, #root {
+    height: 100%;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground font-inter;
     font-feature-settings: "cv03", "cv04", "cv11";
+    /* Telegram Mini App safe areas */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    -webkit-overflow-scrolling: touch;
   }
   
   /* Custom scrollbar */
