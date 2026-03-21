@@ -302,7 +302,7 @@ export default function Transfer() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center"
             onClick={() => setShowConfirm(false)}
           >
             <motion.div
@@ -310,7 +310,7 @@ export default function Transfer() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-10"
+              className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16"
               onClick={(e) => e.stopPropagation()}
               drag="y"
               dragConstraints={{ top: 0 }}
