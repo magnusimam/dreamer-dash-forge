@@ -26,10 +26,10 @@ export function notifyReferralBonus(telegramId: number, referrerName: string) {
   );
 }
 
-export function notifyReferralWelcome(telegramId: number, reward: number) {
+export function notifyReferralWelcome(telegramId: number) {
   notifyUser(
     telegramId,
-    `👋 <b>Welcome to Dreamer Dash!</b>\n\nYou've been referred and earned <b>+${reward} DR</b> as a welcome bonus.\n\nOpen the app to start earning more!`
+    `👋 <b>Welcome to Dreamer Dash!</b>\n\nYou've been referred and earned <b>+20 DR</b> as a welcome bonus.\n\nOpen the app to start earning more!`
   );
 }
 

@@ -274,7 +274,7 @@ export default function Home({ onTabChange }: HomeProps) {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Invite Friends</h3>
-                <p className="text-xs text-muted-foreground">You both earn 100 DR</p>
+                <p className="text-xs text-muted-foreground">You earn 100 DR, they get 20 DR</p>
               </div>
             </div>
             <div className="flex items-center gap-2 bg-secondary rounded-lg p-3 mb-3">
