@@ -81,9 +81,10 @@ export default function TransactionList({ transactions, showAll = false }: Trans
                     <p className="font-medium text-foreground">
                       {transaction.description}
                     </p>
+                    <span className="text-[10px] text-muted-foreground capitalize">{transaction.type.replace(/_/g, ' ')}</span>
                     {dateStr && (
                       <p className="text-sm text-muted-foreground">
-                        {new Date(dateStr).toLocaleDateString()}
+                        {new Date(dateStr).toLocaleDateString("en-NG", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     )}
                   </div>

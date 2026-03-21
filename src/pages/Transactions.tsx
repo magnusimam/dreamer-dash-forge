@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import TransactionList from "@/components/TransactionList";
 import { useTransactions } from "@/hooks/useSupabase";
 import { Loader2, Search } from "lucide-react";
+import { SkeletonList } from "@/components/SkeletonCard";
 import { cn } from "@/lib/utils";
 
 const FILTERS = [
@@ -113,15 +114,13 @@ export default function Transactions() {
         transition={{ delay: 0.1 }}
       >
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          </div>
+          <SkeletonList count={5} />
         ) : filteredTransactions.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
             {searchTerm
               ? "No transactions matching your search."
               : activeFilter === "all"
-                ? "No transactions yet."
+                ? "No transactions yet. Earn DR through activities and daily check-ins!"
                 : `No ${FILTERS.find(f => f.key === activeFilter)?.label.toLowerCase()} transactions.`}
           </p>
         ) : (

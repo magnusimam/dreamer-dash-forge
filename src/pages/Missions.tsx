@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MissionCard from "@/components/MissionCard";
 import { useMissions, useUserMissionCompletions, useCompleteMission } from "@/hooks/useSupabase";
 import { Loader2 } from "lucide-react";
+import { SkeletonList } from "@/components/SkeletonCard";
 
 export default function Missions() {
   const { data: missions = [], isLoading } = useMissions();
@@ -36,7 +37,7 @@ export default function Missions() {
         className="mb-6"
       >
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          Missions 🎯
+          Missions
         </h1>
         <p className="text-muted-foreground">
           Complete tasks to earn Dreamers Coins
@@ -44,12 +45,10 @@ export default function Missions() {
       </motion.div>
 
       {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        </div>
+        <SkeletonList count={4} />
       ) : missions.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-8">
-          No missions available right now.
+          No missions available. Check back soon for new challenges!
         </p>
       ) : (
         <Tabs defaultValue="all" className="w-full">

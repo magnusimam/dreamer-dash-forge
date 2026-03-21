@@ -39,7 +39,7 @@ export default function Home({ onTabChange }: HomeProps) {
         className="mb-6"
       >
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          Welcome Back, {user?.firstName ?? "Dreamer"}! 👋
+          Welcome Back, {user?.firstName ?? "Dreamer"}!
         </h1>
         <p className="text-muted-foreground">
           Keep earning Dreamers Coins and unlock amazing rewards
@@ -134,6 +134,7 @@ export default function Home({ onTabChange }: HomeProps) {
                 size="sm"
                 variant="ghost"
                 className="h-8 px-2"
+                aria-label="Copy to clipboard"
                 onClick={() => {
                   navigator.clipboard.writeText(dbUser.referral_code);
                   setCopied(true);

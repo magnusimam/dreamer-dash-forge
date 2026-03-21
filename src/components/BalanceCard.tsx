@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { Coins, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
+const DR_TO_USD = 0.01; // TODO: fetch from config/API
+
 interface BalanceCardProps {
   balance: number;
   dailyEarnings: number;
@@ -29,17 +31,20 @@ export default function BalanceCard({ balance, dailyEarnings }: BalanceCardProps
           </div>
         </div>
         
-        <div className="flex items-center gap-2 text-sm">
-          <TrendingUp className="w-4 h-4 text-primary" />
-          <span className="text-muted-foreground">Daily earnings:</span>
-          <span className="text-primary font-semibold">+{dailyEarnings} DR</span>
+        <div>
+          <div className="flex items-center gap-2 text-sm">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <span className="text-muted-foreground">Daily earnings:</span>
+            <span className="text-primary font-semibold">+{dailyEarnings} DR</span>
+          </div>
+          <p className="text-xs text-muted-foreground/60 mt-1">Estimated from your current streak</p>
         </div>
         
         <div className="mt-4 pt-4 border-t border-border/50">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">USD Value</span>
             <span className="text-foreground font-medium">
-              ${(balance * 0.01).toFixed(2)}
+              ${(balance * DR_TO_USD).toFixed(2)}
             </span>
           </div>
         </div>

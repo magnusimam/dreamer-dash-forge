@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Settings, Send, Award, TrendingUp, Shield, Coins, Trophy, Copy,
   Star, Rocket, Crown, Gem, Flame, Users, Megaphone, Baby, CheckCircle,
+  X, Lock,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +37,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const { data: achievements } = useAchievements();
   const { data: unlockedIds } = useUserAchievements();
   const checkAchievements = useCheckAchievements();
+  const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
 
   useEffect(() => {
     if (dbUser) {
@@ -91,7 +93,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
         className="mb-6"
       >
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          Profile 👤
+          Profile
         </h1>
         <p className="text-muted-foreground">
           Manage your account and view statistics
@@ -143,6 +145,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
                   variant="ghost"
                   size="sm"
                   className="h-8 px-2"
+                  aria-label="Copy to clipboard"
                   onClick={() => {
                     navigator.clipboard.writeText(dbUser.referral_code!);
                     toast({ title: "Copied!", description: "Referral code copied to clipboard." });
@@ -220,9 +223,10 @@ export default function Profile({ onTabChange }: ProfileProps) {
               return (
                 <Card
                   key={achievement.id}
-                  className={`gradient-card border-border/50 p-3 relative ${
+                  className={`gradient-card border-border/50 p-3 relative cursor-pointer ${
                     unlocked ? "border-primary/40" : "opacity-60"
                   }`}
+                  onClick={() => setSelectedAchievement(achievement)}
                 >
                   {unlocked && (
                     <CheckCircle className="w-4 h-4 text-green-500 absolute top-2 right-2" />
@@ -294,6 +298,109 @@ export default function Profile({ onTabChange }: ProfileProps) {
           Made with ❤️ for the Dreamers community
         </p>
       </motion.div>
+
+      {/* Achievement Detail Modal */}
+      <AnimatePresence>
+        {selectedAchievement && (() => {
+          const isUnlocked = unlockedIds?.includes(selectedAchievement.id);
+          const AchievementIcon = iconMap[selectedAchievement.icon] || Star;
+
+          const conditionLabel = (() => {
+            const ct = selectedAchievement.condition_type;
+            const cv = selectedAchievement.condition_value;
+            if (!ct || cv == null) return null;
+            switch (ct) {
+              case "total_earned":
+                return `Earn ${Number(cv).toLocaleString()} DR total`;
+              case "streak":
+                return `Reach a ${cv}-day check-in streak`;
+              case "referrals":
+                return `Refer ${cv} friend${cv === 1 ? "" : "s"}`;
+              case "activities":
+                return `Complete ${cv} activit${cv === 1 ? "y" : "ies"}`;
+              default:
+                return `${ct.replace(/_/g, " ")}: ${cv}`;
+            }
+          })();
+
+          return (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center"
+              onClick={() => setSelectedAchievement(null)}
+            >
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6"
+                onClick={(e) => e.stopPropagation()}
+                drag="y"
+                dragConstraints={{ top: 0 }}
+                dragElastic={0.2}
+                onDragEnd={(_, info) => {
+                  if (info.offset.y > 100) {
+                    setSelectedAchievement(null);
+                  }
+                }}
+              >
+                <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-foreground text-lg">
+                    Achievement Details
+                  </h3>
+                  <button
+                    onClick={() => setSelectedAchievement(null)}
+                    className="p-1 rounded-full hover:bg-muted"
+                  >
+                    <X className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                </div>
+
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isUnlocked ? "bg-primary/20" : "bg-muted"}`}>
+                    <AchievementIcon className={`w-8 h-8 ${isUnlocked ? "text-primary" : "text-muted-foreground"}`} />
+                  </div>
+
+                  <h4 className="text-lg font-bold text-foreground">
+                    {selectedAchievement.title}
+                  </h4>
+
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAchievement.description}
+                  </p>
+
+                  <Badge className="bg-primary/20 text-primary border-primary/30 text-sm">
+                    +{selectedAchievement.reward} DR
+                  </Badge>
+
+                  {isUnlocked ? (
+                    <div className="flex items-center gap-2 text-green-500">
+                      <CheckCircle className="w-5 h-5" />
+                      <span className="text-sm font-medium">Unlocked</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Lock className="w-5 h-5" />
+                        <span className="text-sm font-medium">Locked</span>
+                      </div>
+                      {conditionLabel && (
+                        <p className="text-xs text-muted-foreground/80 mt-1">
+                          {conditionLabel}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
     </motion.div>
   );
 }

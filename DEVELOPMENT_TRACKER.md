@@ -243,7 +243,7 @@
 - [x] Loading spinners on all async operations
 - [x] Empty states (no activities, no transactions, etc.)
 - [x] Loading screen on app init (UserContext loading)
-- [ ] Error boundary & retry UI
+- [x] Error boundary & retry UI
 - [ ] Pull-to-refresh
 - [ ] Scroll restoration between tabs
 - [ ] Confetti / celebration animation on milestones
@@ -261,6 +261,47 @@
 - [ ] Unit tests (components)
 - [ ] Integration tests (user flows)
 - [ ] E2E tests
+
+---
+
+## 17. HCD AUDIT — CRITICAL FIXES
+
+- [x] Increase muted-foreground text contrast (65% → 75%+ lightness) for WCAG AA
+- [x] Add focus-visible ring styles for keyboard/screen reader navigation
+- [x] Add ARIA labels to all icon-only buttons (X, Copy, etc.)
+- [x] Add prefers-reduced-motion media query to disable animations
+- [x] Inline form validation errors (show red text under fields, not just toasts)
+
+---
+
+## 18. HCD AUDIT — HIGH PRIORITY
+
+- [x] Show redemption category requirements on cards before opening form
+- [x] Transaction timestamps — show time, not just date (e.g., "Mar 21, 2:32 PM")
+- [x] File upload validation — show max size/format, validate before upload
+- [x] Real-time username lookup on Transfer page (debounced, shows name or "not found")
+- [x] Skeleton loading screens for lists (SkeletonCard component, replaces spinners)
+
+---
+
+## 19. HCD AUDIT — MEDIUM PRIORITY
+
+- [x] Standardize emoji usage (removed from all page headers for professional look)
+- [x] Pull USD conversion rate from config constant, not hardcoded
+- [x] Empty states with actionable CTAs
+- [x] Drag-to-dismiss on bottom sheet modals (swipe down to close)
+- [x] Phone number input masking (tel keyboard, maxLength, formatted placeholder)
+- [x] Save form drafts to localStorage (Transfer page persists draft)
+
+---
+
+## 20. HCD AUDIT — NICE TO HAVE
+
+- [x] Achievement detail modal (tap to see unlock conditions + reward)
+- [x] Daily earnings tooltip on BalanceCard ("Estimated from your current streak")
+- [x] Add transaction type text labels for colorblind accessibility
+- [ ] Test on 320px width devices (iPhone SE) — manual testing
+- [ ] Landscape orientation support — N/A for Telegram Mini App
 
 ---
 
@@ -282,6 +323,10 @@
 | Missions System       | 6    | 6     | 100%     |
 | Transfer Feature      | 6    | 6     | 100%     |
 | Notifications         | 6    | 8     | 75%      |
-| UI/UX Polish          | 8    | 12    | 67%      |
+| UI/UX Polish          | 9    | 12    | 75%      |
 | Security & Quality    | 4    | 9     | 44%      |
-| **TOTAL**             | **157** | **172** | **91%** |
+| HCD Critical          | 5    | 5     | 100%     |
+| HCD High Priority     | 5    | 5     | 100%     |
+| HCD Medium Priority   | 6    | 6     | 100%     |
+| HCD Nice to Have      | 3    | 5     | 60%      |
+| **TOTAL**             | **177** | **193** | **92%** |

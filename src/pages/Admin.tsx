@@ -321,7 +321,7 @@ export default function Admin() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-20 px-4 pt-6">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Admin Panel 🔧</h1>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Admin Panel</h1>
         <p className="text-muted-foreground">Manage activities, hackathons, redemptions, and users</p>
       </motion.div>
 
@@ -413,10 +413,10 @@ export default function Admin() {
                         </div>
                         <div className="flex items-center gap-1">
                           <Badge variant="secondary" className="text-xs">{act.category}</Badge>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditActivity(act)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
                             <Pencil className="w-3 h-3" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteActivity(act.id)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => handleDeleteActivity(act.id)}>
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
@@ -425,7 +425,7 @@ export default function Admin() {
                         <div className="flex items-center gap-2 mt-3 p-2 bg-secondary rounded-lg">
                           <KeyRound className="w-4 h-4 text-primary" />
                           <code className="text-sm text-primary font-mono flex-1">{act.code}</code>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyCode(act.code)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Copy to clipboard" onClick={() => copyCode(act.code)}>
                             <Copy className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -499,10 +499,10 @@ export default function Admin() {
                         </div>
                         <div className="flex items-center gap-1">
                           <Badge variant="outline" className="text-xs">{hack.status}</Badge>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleEditHackathon(hack)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditHackathon(hack)}>
                             <Pencil className="w-3 h-3" />
                           </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteHackathon(hack.id)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => handleDeleteHackathon(hack.id)}>
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
@@ -664,7 +664,7 @@ export default function Admin() {
                         <p className="text-primary font-bold text-sm">{u.balance.toLocaleString()} DR</p>
                         <p className="text-xs text-muted-foreground">Earned: {u.total_earned.toLocaleString()}</p>
                       </div>
-                      <Button size="icon" variant="outline" className="h-8 w-8 border-primary/30" onClick={() => { setAdjustUser(u); setAdjustAmount(""); setAdjustReason(""); }}>
+                      <Button size="icon" variant="outline" className="h-8 w-8 border-primary/30" aria-label="Adjust balance" onClick={() => { setAdjustUser(u); setAdjustAmount(""); setAdjustReason(""); }}>
                         <Coins className="w-3.5 h-3.5 text-primary" />
                       </Button>
                     </div>
@@ -685,7 +685,7 @@ export default function Admin() {
                 <h3 className="font-semibold text-foreground text-lg">
                   {redeemAction.action === "approved" ? "Approve" : "Reject"} Request
                 </h3>
-                <Button size="icon" variant="ghost" onClick={() => setRedeemAction(null)}><X className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setRedeemAction(null)}><X className="w-4 h-4" /></Button>
               </div>
               {redeemAction.action === "rejected" && (
                 <p className="text-sm text-muted-foreground mb-3">The user will be refunded.</p>
@@ -707,7 +707,7 @@ export default function Admin() {
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-foreground text-lg">Adjust Balance</h3>
-                <Button size="icon" variant="ghost" onClick={() => setAdjustUser(null)}><X className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setAdjustUser(null)}><X className="w-4 h-4" /></Button>
               </div>
               <p className="text-sm text-foreground mb-1">{[adjustUser.first_name, adjustUser.last_name].filter(Boolean).join(" ")}</p>
               <p className="text-sm text-muted-foreground mb-4">Current balance: <span className="text-primary font-semibold">{adjustUser.balance.toLocaleString()} DR</span></p>

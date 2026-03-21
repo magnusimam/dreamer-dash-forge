@@ -78,6 +78,16 @@ const otherSchema = z.object({
   description: z.string().min(10, "Please provide more details (minimum 10 characters)"),
 });
 
+const categoryRequirements: Record<string, string> = {
+  airtime: "Phone + Network",
+  data: "Phone + Network + Amount",
+  cash: "Bank + Account details",
+  books: "Delivery option + Category",
+  mentorship: "Category + Date",
+  courses: "Course name + Link",
+  other: "Description",
+};
+
 const redemptionCategories: RedemptionCategory[] = [
   { id: "airtime", title: "Airtime", description: "Recharge your phone with airtime", icon: Smartphone, color: "from-blue-500 to-cyan-500", cost: 500 },
   { id: "data", title: "Data", description: "Purchase mobile data bundles", icon: Wifi, color: "from-green-500 to-emerald-500", cost: 800 },
@@ -161,7 +171,7 @@ export default function Redeem({ onTabChange }: RedeemProps) {
           <Form {...airtimeForm}>
             <form onSubmit={airtimeForm.handleSubmit((data) => handleSubmit(data, "airtime"))} className="space-y-4">
               <FormField control={airtimeForm.control} name="phoneNumber" render={({ field }) => (
-                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="08012345678" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="080 1234 5678" maxLength={11} inputMode="tel" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={airtimeForm.control} name="network" render={({ field }) => (
                 <FormItem><FormLabel>Network</FormLabel>
@@ -185,7 +195,7 @@ export default function Redeem({ onTabChange }: RedeemProps) {
           <Form {...dataForm}>
             <form onSubmit={dataForm.handleSubmit((data) => handleSubmit(data, "data"))} className="space-y-4">
               <FormField control={dataForm.control} name="phoneNumber" render={({ field }) => (
-                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="08012345678" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="080 1234 5678" maxLength={11} inputMode="tel" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={dataForm.control} name="network" render={({ field }) => (
                 <FormItem><FormLabel>Network</FormLabel>
@@ -361,7 +371,7 @@ export default function Redeem({ onTabChange }: RedeemProps) {
       className="pb-20 px-4 pt-6"
     >
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Redeem Dreams 🎁</h1>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Redeem Dreams</h1>
         <p className="text-muted-foreground">Choose what you'd like to redeem your Dreams for</p>
       </motion.div>
 
@@ -404,6 +414,7 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                     <h3 className="font-semibold text-foreground text-sm">{category.title}</h3>
                     <p className="text-xs text-muted-foreground mt-1">{category.description}</p>
                     <p className="text-xs text-primary font-semibold mt-1">{category.cost} DR</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Needs: {categoryRequirements[category.id]}</p>
                   </div>
                 </div>
               </Card>

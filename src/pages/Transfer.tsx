@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
 import { useTransferDR } from "@/hooks/useSupabase";
 import { hapticNotification } from "@/lib/telegram";
+import { supabase } from "@/lib/supabase";
 import {
   Send,
   Coins,
@@ -27,23 +28,62 @@ export default function Transfer() {
   const [note, setNote] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lookupResult, setLookupResult] = useState<{ found: boolean; name?: string } | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+
+  // Load saved draft from localStorage on mount
+  useEffect(() => {
+    const draft = localStorage.getItem("transfer_draft");
+    if (draft) {
+      try {
+        const { username: u, amount: a, note: n } = JSON.parse(draft);
+        if (u) setUsername(u);
+        if (a) setAmount(a);
+        if (n) setNote(n);
+      } catch {}
+    }
+  }, []);
+
+  // Save draft on change (debounced)
+  useEffect(() => {
+    if (username || amount || note) {
+      const timer = setTimeout(() => {
+        localStorage.setItem("transfer_draft", JSON.stringify({ username, amount, note }));
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [username, amount, note]);
+
+  useEffect(() => {
+    const trimmed = username.trim().replace(/^@/, "");
+    if (trimmed.length < 3) { setLookupResult(null); return; }
+    setLookupLoading(true);
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from("users")
+        .select("first_name")
+        .ilike("username", trimmed)
+        .maybeSingle();
+      setLookupResult(data ? { found: true, name: data.first_name } : { found: false });
+      setLookupLoading(false);
+    }, 500);
+    return () => { clearTimeout(timer); setLookupLoading(false); };
+  }, [username]);
 
   const balance = dbUser?.balance ?? 0;
   const parsedAmount = parseInt(amount) || 0;
 
   const handleReview = () => {
-    if (!username.trim()) {
-      toast({ title: "Enter a username", variant: "destructive" });
+    const newErrors: Record<string, string> = {};
+    if (!username.trim()) newErrors.username = "Enter a recipient username";
+    if (parsedAmount < 10) newErrors.amount = "Minimum transfer is 10 DR";
+    if (parsedAmount > balance) newErrors.amount = "Insufficient balance";
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    if (parsedAmount < 10) {
-      toast({ title: "Minimum transfer is 10 DR", variant: "destructive" });
-      return;
-    }
-    if (parsedAmount > balance) {
-      toast({ title: "Insufficient balance", variant: "destructive" });
-      return;
-    }
+    setErrors({});
     setShowConfirm(true);
   };
 
@@ -62,6 +102,7 @@ export default function Transfer() {
         setUsername("");
         setAmount("");
         setNote("");
+        localStorage.removeItem("transfer_draft");
         toast({ title: "Transfer Sent! ✅", description: `${result.amount} DR sent to @${result.recipient_username}` });
       } else {
         hapticNotification("error");
@@ -115,7 +156,7 @@ export default function Transfer() {
                     {lastResult.amount} DR sent to @{lastResult.recipient_username}
                   </p>
                 </div>
-                <Button size="icon" variant="ghost" className="ml-auto h-7 w-7" onClick={() => setLastResult(null)}>
+                <Button size="icon" variant="ghost" className="ml-auto h-7 w-7" aria-label="Dismiss" onClick={() => setLastResult(null)}>
                   <X className="w-3 h-3" />
                 </Button>
               </div>
@@ -136,11 +177,24 @@ export default function Transfer() {
                 <Input
                   placeholder="username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (errors.username) setErrors((prev) => { const { username, ...rest } = prev; return rest; });
+                  }}
                   className="pl-9 bg-secondary border-border"
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Enter the Telegram username of the recipient</p>
+              {errors.username ? (
+                <p className="text-xs text-destructive mt-1">{errors.username}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">Enter the Telegram username of the recipient</p>
+              )}
+              {lookupLoading && <p className="text-xs text-muted-foreground mt-1">Looking up...</p>}
+              {lookupResult && !lookupLoading && !errors.username && (
+                lookupResult.found
+                  ? <p className="text-xs text-emerald-400 mt-1">Found: {lookupResult.name}</p>
+                  : <p className="text-xs text-destructive mt-1">User not found</p>
+              )}
             </div>
 
             {/* Amount */}
@@ -153,12 +207,19 @@ export default function Transfer() {
                   placeholder="0"
                   min={10}
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    if (errors.amount) setErrors((prev) => { const { amount, ...rest } = prev; return rest; });
+                  }}
                   className="pl-9 bg-secondary border-border text-lg font-semibold"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">DR</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Minimum: 10 DR</p>
+              {errors.amount ? (
+                <p className="text-xs text-destructive mt-1">{errors.amount}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">Minimum: 10 DR</p>
+              )}
             </div>
 
             {/* Quick amounts */}
@@ -236,10 +297,19 @@ export default function Transfer() {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6"
               onClick={(e) => e.stopPropagation()}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 100) {
+                  setShowConfirm(false);
+                }
+              }}
             >
+              <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-foreground text-lg">Confirm Transfer</h3>
-                <Button size="icon" variant="ghost" onClick={() => setShowConfirm(false)}>
+                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setShowConfirm(false)}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
