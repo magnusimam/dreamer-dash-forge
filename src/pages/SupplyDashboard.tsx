@@ -67,8 +67,30 @@ export default function SupplyDashboard() {
         })}
       </div>
 
-      {/* Emission info */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-6">
+      {/* DR Value */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }} className="mt-6">
+        <Card className="gradient-card border-primary/20 p-4">
+          <h3 className="font-semibold text-foreground mb-3 text-sm">DR Value</h3>
+          <div className="bg-secondary rounded-lg p-3 space-y-2 text-sm mb-3">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">1 DR</span>
+              <span className="text-primary font-semibold">= 2 NGN</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">500 DR</span>
+              <span className="text-foreground">= 1,000 NGN (airtime)</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">1,000 DR</span>
+              <span className="text-foreground">= 2,000 NGN (cash)</span>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">Value is based on redemption rates. 500 DR redeems for N1,000 airtime, so 1 DR = N2. This rate applies across all redemption categories.</p>
+        </Card>
+      </motion.div>
+
+      {/* How it works */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-4">
         <Card className="gradient-card border-border/50 p-4">
           <h3 className="font-semibold text-foreground mb-3 text-sm">How DR Works</h3>
           <div className="space-y-2 text-xs text-muted-foreground">

@@ -384,6 +384,7 @@ export default function Redeem({ onTabChange }: RedeemProps) {
             </span>
           </div>
         </Card>
+        <p className="text-xs text-center text-muted-foreground mb-2">1 DR = 2 NGN based on redemption value</p>
         {onTabChange && (
           <Button
             variant="outline"
