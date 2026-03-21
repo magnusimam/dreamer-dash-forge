@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dreamer-dash-v1';
+const CACHE_NAME = 'dreamer-dash-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -14,17 +14,25 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Only cache same-origin GET requests for static assets
   if (event.request.method !== 'GET') return;
+  if (!event.request.url.startsWith(self.location.origin)) return;
   if (event.request.url.includes('/functions/')) return;
-  if (event.request.url.includes('supabase.co')) return;
+  if (event.request.mode === 'navigate') return; // Never cache HTML navigations
+
+  const url = new URL(event.request.url);
+  // Only cache assets (js, css, images)
+  if (!url.pathname.startsWith('/assets/')) return;
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        return response;
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(event.request).then((cached) => {
+        const fetched = fetch(event.request).then((response) => {
+          if (response.ok) cache.put(event.request, response.clone());
+          return response;
+        });
+        return cached || fetched;
       })
-      .catch(() => caches.match(event.request))
+    )
   );
 });
