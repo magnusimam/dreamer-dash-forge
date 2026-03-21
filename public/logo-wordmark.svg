@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 200" width="800" height="200">
+  <defs>
+    <linearGradient id="gold3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="100%" style="stop-color:#E6AC00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="200" rx="20" fill="#0E0E0E"/>
+
+  <!-- Logo image -->
+  <image href="/dreamcoin logo.jpg" x="10" y="10" width="180" height="180" clip-path="circle(90px at 100px 100px)"/>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="url(#gold3)" stroke-width="2" opacity="0.3"/>
+
+  <!-- Wordmark -->
+  <text x="220" y="90" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="60" fill="#FAFAFA" letter-spacing="2">DREAMER</text>
+  <text x="220" y="145" font-family="Arial, sans-serif" font-weight="600" font-size="40" fill="url(#gold3)" letter-spacing="8">DASH</text>
+
+  <!-- Tagline -->
+  <text x="220" y="178" font-family="Arial, sans-serif" font-weight="400" font-size="16" fill="#BFBFBF" letter-spacing="3">EARN. REDEEM. DREAM.</text>
+</svg>

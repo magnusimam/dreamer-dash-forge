@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="gold2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700"/>
+      <stop offset="100%" style="stop-color:#E6AC00"/>
+    </linearGradient>
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dark background circle -->
+  <circle cx="256" cy="256" r="256" fill="#0E0E0E"/>
+
+  <!-- Outer glow ring -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#FFD700" stroke-width="2" opacity="0.2"/>
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#FFD700" stroke-width="1" opacity="0.1"/>
+
+  <!-- Gold coin outline -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#gold2)" stroke-width="6" filter="url(#glow2)"/>
+
+  <!-- Inner ring -->
+  <circle cx="256" cy="256" r="155" fill="none" stroke="url(#gold2)" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- DR text in gold -->
+  <text x="256" y="240" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="150" fill="url(#gold2)" letter-spacing="-5" filter="url(#glow2)">DR</text>
+
+  <!-- Subtitle -->
+  <text x="256" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-weight="600" font-size="28" fill="#FFD700" opacity="0.5" letter-spacing="14">DREAMERS</text>
+
+  <!-- Star accents -->
+  <polygon points="256,80 260,92 272,92 262,100 266,112 256,104 246,112 250,100 240,92 252,92" fill="#FFD700" opacity="0.4"/>
+  <polygon points="140,180 143,188 151,188 145,193 147,201 140,196 133,201 135,193 129,188 137,188" fill="#FFD700" opacity="0.2"/>
+  <polygon points="372,180 375,188 383,188 377,193 379,201 372,196 365,201 367,193 361,188 369,188" fill="#FFD700" opacity="0.2"/>
+</svg>
