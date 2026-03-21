@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Zap, Share2, Copy, Check, BarChart3 } from "lucide-react";
+import { ArrowRight, Zap, Share2, Copy, Check, Send } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
 import { useTransactions } from "@/hooks/useSupabase";
@@ -54,26 +54,26 @@ export default function Home({ onTabChange }: HomeProps) {
       {/* Balance Card */}
       <BalanceCard balance={balance} dailyEarnings={dbUser?.streak ? dbUser.streak * 25 : 0} />
 
-      {/* Supply link */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 -mt-4">
-        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground w-full" onClick={() => onTabChange("supply")}>
-          <BarChart3 className="w-3 h-3 mr-1" /> View DR Supply Dashboard
-        </Button>
-      </motion.div>
-
       {/* Quick Actions */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 gap-3 mb-6"
+        className="grid grid-cols-3 gap-3 mb-6"
       >
         <Button
           onClick={() => onTabChange("activities")}
           className="h-14 gradient-primary text-primary-foreground shadow-glow hover:shadow-none transition-smooth"
         >
           <Zap className="w-5 h-5 mr-2" />
-          Earn More
+          Earn
+        </Button>
+        <Button
+          onClick={() => onTabChange("transfer")}
+          className="h-14 gradient-primary text-primary-foreground shadow-glow hover:shadow-none transition-smooth"
+        >
+          <Send className="w-5 h-5 mr-2" />
+          Send
         </Button>
         <Button
           onClick={() => onTabChange("redeem")}

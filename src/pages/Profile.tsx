@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Settings, Send, Award, TrendingUp, Shield, Coins, Trophy, Copy,
+  Settings, BarChart3, Award, TrendingUp, Shield, Coins, Trophy, Copy,
   Star, Rocket, Crown, Gem, Flame, Users, Megaphone, Baby, CheckCircle,
   X, Lock,
   type LucideIcon,
@@ -256,20 +256,20 @@ export default function Profile({ onTabChange }: ProfileProps) {
         className="space-y-3"
       >
         <Button
-          onClick={() => onTabChange?.("transfer")}
+          onClick={() => onTabChange?.("leaderboard")}
           className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
         >
-          <Send className="w-5 h-5 mr-2" />
-          Transfer DR
+          <Trophy className="w-5 h-5 mr-2" />
+          Leaderboard
         </Button>
 
         <Button
           variant="outline"
           className="w-full h-12 border-border hover:bg-muted"
-          onClick={() => onTabChange?.("leaderboard")}
+          onClick={() => onTabChange?.("supply")}
         >
-          <Trophy className="w-5 h-5 mr-2" />
-          Leaderboard
+          <BarChart3 className="w-5 h-5 mr-2" />
+          DR Supply Dashboard
         </Button>
 
         {isAdmin && (
