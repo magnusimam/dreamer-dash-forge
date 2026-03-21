@@ -13,6 +13,6 @@ echo "Copying vercel.json to dist..."
 cp vercel.json dist/vercel.json
 
 echo "Deploying to Vercel..."
-cd dist && vercel --prod --yes
+cd dist && vercel --prod --yes --force
 
 echo "Deploy complete!"
