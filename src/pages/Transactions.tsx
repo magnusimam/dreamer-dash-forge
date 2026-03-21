@@ -51,7 +51,7 @@ export default function Transactions() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pb-20 px-4 pt-6"
+      className="pb-28 px-4 pt-6"
     >
       <motion.div
         initial={{ opacity: 0, y: -20 }}

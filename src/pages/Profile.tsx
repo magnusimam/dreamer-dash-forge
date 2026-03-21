@@ -85,7 +85,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pb-20 px-4 pt-6"
+      className="pb-28 px-4 pt-6"
     >
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -336,7 +336,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6"
+                className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-10"
                 onClick={(e) => e.stopPropagation()}
                 drag="y"
                 dragConstraints={{ top: 0 }}

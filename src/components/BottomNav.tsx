@@ -19,7 +19,7 @@ const navItems = [
 
 export default function BottomNav({ activeTab, onTabChange, notifications }: BottomNavProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t border-border z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-lg border-t border-border z-50" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       <div className="flex items-center justify-around py-2 px-4 max-w-md mx-auto">
         {navItems.map((item) => {
           const Icon = item.icon;

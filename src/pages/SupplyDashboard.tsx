@@ -8,7 +8,7 @@ export default function SupplyDashboard() {
 
   if (isLoading || !supply) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-20 px-4 pt-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-28 px-4 pt-6">
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
       </motion.div>
     );
@@ -29,7 +29,7 @@ export default function SupplyDashboard() {
   ];
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-20 px-4 pt-6">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-28 px-4 pt-6">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold text-foreground mb-2">DR Supply</h1>
         <p className="text-muted-foreground">Live tokenomics dashboard — fully transparent</p>

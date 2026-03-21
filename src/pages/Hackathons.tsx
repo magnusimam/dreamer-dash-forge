@@ -101,7 +101,7 @@ export default function Hackathons() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-20 px-4 pt-6">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-28 px-4 pt-6">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold text-foreground mb-2">Hackathons</h1>
         <p className="text-muted-foreground">Register for hackathons using your earned Dreams</p>
@@ -234,7 +234,7 @@ export default function Hackathons() {
       <AnimatePresence>
         {selectedHackathon && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center" onClick={() => setSelectedHackathon(null)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6" onClick={(e) => e.stopPropagation()} drag="y" dragConstraints={{ top: 0 }} dragElastic={0.2} onDragEnd={(_, info) => { if (info.offset.y > 100) { setSelectedHackathon(null); } }}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-10" onClick={(e) => e.stopPropagation()} drag="y" dragConstraints={{ top: 0 }} dragElastic={0.2} onDragEnd={(_, info) => { if (info.offset.y > 100) { setSelectedHackathon(null); } }}>
               <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-foreground text-lg">Confirm Registration</h3>

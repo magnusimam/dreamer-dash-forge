@@ -134,7 +134,7 @@ export default function Transfer() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pb-20 px-4 pt-6"
+      className="pb-28 px-4 pt-6"
     >
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold text-foreground mb-2">Transfer DR</h1>
@@ -310,7 +310,7 @@ export default function Transfer() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6"
+              className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-10"
               onClick={(e) => e.stopPropagation()}
               drag="y"
               dragConstraints={{ top: 0 }}

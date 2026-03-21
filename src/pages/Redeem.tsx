@@ -368,7 +368,7 @@ export default function Redeem({ onTabChange }: RedeemProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pb-20 px-4 pt-6"
+      className="pb-28 px-4 pt-6"
     >
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold text-foreground mb-2">Redeem Dreams</h1>
