@@ -12,12 +12,13 @@ import Leaderboard from "@/pages/Leaderboard";
 import Transactions from "@/pages/Transactions";
 import RedemptionHistory from "@/pages/RedemptionHistory";
 import Onboarding from "@/pages/Onboarding";
+import SupplyDashboard from "@/pages/SupplyDashboard";
 import { showBackButton, hideBackButton, getStartParam } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import { useProcessReferral } from "@/hooks/useSupabase";
 import { useToast } from "@/hooks/use-toast";
 
-const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history"]);
+const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply"]);
 
 const ONBOARDING_KEY = "dreamer_dash_onboarded";
 
@@ -119,6 +120,8 @@ const Index = () => {
         return <Transactions />;
       case "redemption-history":
         return <RedemptionHistory />;
+      case "supply":
+        return <SupplyDashboard />;
       default:
         return <Home onTabChange={setActiveTab} />;
     }

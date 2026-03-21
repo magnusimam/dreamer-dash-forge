@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRight, Zap, Share2, Copy, Check } from "lucide-react";
+import { ArrowRight, Zap, Share2, Copy, Check, BarChart3 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
 import { useTransactions } from "@/hooks/useSupabase";
@@ -48,6 +48,13 @@ export default function Home({ onTabChange }: HomeProps) {
 
       {/* Balance Card */}
       <BalanceCard balance={balance} dailyEarnings={dbUser?.streak ? dbUser.streak * 25 : 0} />
+
+      {/* Supply link */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} className="mb-4 -mt-4">
+        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground w-full" onClick={() => onTabChange("supply")}>
+          <BarChart3 className="w-3 h-3 mr-1" /> View DR Supply Dashboard
+        </Button>
+      </motion.div>
 
       {/* Quick Actions */}
       <motion.div

@@ -30,11 +30,11 @@ At any point in time, every DR coin exists in one of three states:
 
 - **Treasury (Unissued):** Coins waiting to be distributed. These are not in circulation.
 - **Circulating:** Coins held in user wallets. This is the active supply.
-- **Burned:** Coins permanently destroyed through redemptions. These can never re-enter circulation.
+```
+Total Supply = Treasury + Circulating = 21,000,000 (always)
+```
 
-```
-Total Supply = Treasury + Circulating + Burned = 21,000,000 (always)
-```
+No coins are ever burned or destroyed. Every DR coin lives forever.
 
 ---
 

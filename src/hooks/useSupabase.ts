@@ -3,6 +3,41 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
 
 // ============================================================
+// TOKEN SUPPLY
+// ============================================================
+
+export function useTokenSupply() {
+  return useQuery({
+    queryKey: ["token_supply"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("token_supply")
+        .select("*")
+        .eq("id", 1)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdminAuditLog() {
+  return useQuery({
+    queryKey: ["admin_audit_log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_audit_log")
+        .select("*, users!admin_audit_log_admin_id_fkey(first_name, username)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+// ============================================================
 // ACTIVITIES
 // ============================================================
 
