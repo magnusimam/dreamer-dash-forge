@@ -19,24 +19,41 @@ serve(async (req) => {
       );
     }
 
-    const { telegram_id, message, parse_mode } = await req.json();
+    const { telegram_id, message, photo_url, parse_mode } = await req.json();
 
-    if (!telegram_id || !message) {
+    if (!telegram_id || (!message && !photo_url)) {
       return new Response(
-        JSON.stringify({ ok: false, error: "Missing telegram_id or message" }),
+        JSON.stringify({ ok: false, error: "Missing telegram_id or message/photo" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: telegram_id,
-        text: message,
-        parse_mode: parse_mode || "HTML",
-      }),
-    });
+    let res;
+
+    if (photo_url) {
+      // Send photo with caption
+      res = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: telegram_id,
+          photo: photo_url,
+          caption: message || "",
+          parse_mode: parse_mode || "HTML",
+        }),
+      });
+    } else {
+      // Send text only
+      res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: telegram_id,
+          text: message,
+          parse_mode: parse_mode || "HTML",
+        }),
+      });
+    }
 
     const data = await res.json();
 

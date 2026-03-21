@@ -119,6 +119,8 @@ export default function Admin() {
 
   // Broadcast message
   const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [broadcastImg, setBroadcastImg] = useState<File | null>(null);
+  const [broadcastImgUrl, setBroadcastImgUrl] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastSent, setBroadcastSent] = useState(0);
 
@@ -131,24 +133,38 @@ export default function Admin() {
   // ---- BROADCAST TO ALL USERS ----
 
   const handleBroadcast = async () => {
-    if (!broadcastMsg.trim()) {
-      toast({ title: "Enter a message", variant: "destructive" });
+    if (!broadcastMsg.trim() && !broadcastImg) {
+      toast({ title: "Enter a message or add an image", variant: "destructive" });
       return;
     }
     setBroadcasting(true);
     setBroadcastSent(0);
+
+    // Upload image if selected
+    let photoUrl = broadcastImgUrl;
+    if (broadcastImg && dbUser) {
+      try {
+        photoUrl = await uploadImage("hackathon-covers", broadcastImg, dbUser.id);
+      } catch {
+        toast({ title: "Image upload failed", variant: "destructive" });
+        setBroadcasting(false);
+        return;
+      }
+    }
+
     let sent = 0;
     for (const u of allUsers) {
       if (u.telegram_id && u.telegram_id !== 0) {
-        notifyUser(u.telegram_id, broadcastMsg.trim());
+        notifyUser(u.telegram_id, broadcastMsg.trim(), photoUrl || undefined);
         sent++;
         setBroadcastSent(sent);
-        // Small delay to avoid rate limiting
         await new Promise((r) => setTimeout(r, 50));
       }
     }
     setBroadcasting(false);
     setBroadcastMsg("");
+    setBroadcastImg(null);
+    setBroadcastImgUrl("");
     toast({ title: `Broadcast sent to ${sent} users` });
   };
 
@@ -401,30 +417,30 @@ export default function Admin() {
       </motion.div>
 
       <Tabs defaultValue="activities" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 mb-6">
-          <TabsTrigger value="activities">Activities</TabsTrigger>
-          <TabsTrigger value="hackathons">Hackathons</TabsTrigger>
-          <TabsTrigger value="redemptions" className="relative">
-            Redeem
-            {pendingCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
-                {pendingCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="proofs" className="relative">
-            Proofs
-            {pendingProofCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
-                {pendingProofCount}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="broadcast">
-            <Megaphone className="w-3 h-3" />
-          </TabsTrigger>
-        </TabsList>
+        <div className="mb-6 overflow-x-auto scrollbar-hide -mx-4 px-4">
+          <TabsList className="inline-flex w-auto min-w-full gap-1">
+            <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>
+            <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>
+            <TabsTrigger value="redemptions" className="relative text-xs px-3">
+              Redeem
+              {pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="proofs" className="relative text-xs px-3">
+              Proofs
+              {pendingProofCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
+                  {pendingProofCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
+            <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ========== ACTIVITIES TAB ========== */}
         <TabsContent value="activities">
@@ -763,6 +779,22 @@ export default function Admin() {
               <p className="text-xs text-muted-foreground mb-4">
                 Send an in-chat message to all {allUsers.filter((u: any) => u.telegram_id !== 0).length} registered users via the Telegram bot.
               </p>
+              {/* Cover image upload */}
+              {broadcastImg ? (
+                <div className="relative mb-4">
+                  <img src={URL.createObjectURL(broadcastImg)} alt="Cover" className="w-full h-40 object-cover rounded-lg border border-border" />
+                  <Button size="icon" variant="ghost" className="absolute top-2 right-2 bg-black/50 h-7 w-7" aria-label="Remove image" onClick={() => { setBroadcastImg(null); setBroadcastImgUrl(""); }}>
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 w-full h-20 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 mb-4">
+                  <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Add cover image (optional)</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => setBroadcastImg(e.target.files?.[0] || null)} />
+                </label>
+              )}
+
               <Textarea
                 placeholder="Type your message here... (supports HTML: <b>bold</b>, <i>italic</i>)"
                 value={broadcastMsg}

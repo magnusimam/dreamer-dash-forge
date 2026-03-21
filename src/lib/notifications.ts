@@ -3,11 +3,12 @@ import { supabase } from "./supabase";
 /**
  * Send an in-chat Telegram message to a user via the bot.
  * Fires and forgets — does not block the UI.
+ * Optionally include a photo URL to send as image with caption.
  */
-export function notifyUser(telegramId: number, message: string) {
+export function notifyUser(telegramId: number, message: string, photoUrl?: string) {
   supabase.functions
     .invoke("send-notification", {
-      body: { telegram_id: telegramId, message },
+      body: { telegram_id: telegramId, message, photo_url: photoUrl || undefined },
     })
     .catch(() => {
       // Silent fail — notifications are best-effort
