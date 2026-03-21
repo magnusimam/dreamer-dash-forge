@@ -134,6 +134,13 @@ export default function Hackathons() {
             return (
               <motion.div key={hackathon.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 + index * 0.08 }}>
                 <Card className="gradient-card border-border/50 p-5">
+                  {hackathon.cover_image_url && (
+                    <img
+                      src={hackathon.cover_image_url}
+                      alt={hackathon.title}
+                      className="w-full h-36 object-cover rounded-lg mb-3 -mt-1"
+                    />
+                  )}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className={statusStyles[hackathon.status] || ""}>{hackathon.status}</Badge>

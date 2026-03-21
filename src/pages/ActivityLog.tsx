@@ -20,9 +20,12 @@ import {
   Sparkles,
   X,
   Loader2,
+  Camera,
 } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
+import { uploadImage } from "@/lib/storage";
+import { useUser } from "@/contexts/UserContext";
 
 const categoryColors: Record<string, string> = {
   meeting: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -33,6 +36,7 @@ const categoryColors: Record<string, string> = {
 
 export default function ActivityLog() {
   const { toast } = useToast();
+  const { dbUser } = useUser();
   const { data: activities = [], isLoading: activitiesLoading } = useActivities();
   const { data: loggedActivityIds = [] } = useUserActivityLogs();
   const { data: alreadyCheckedIn = false } = useTodayCheckin();
@@ -42,6 +46,8 @@ export default function ActivityLog() {
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleDailyCheckIn = async () => {
     if (alreadyCheckedIn) return;
@@ -66,20 +72,45 @@ export default function ActivityLog() {
     }
   };
 
-  const handleCodeSubmit = async () => {
+  const handleSubmit = async () => {
     if (!selectedActivity) return;
     const trimmed = codeInput.trim().toUpperCase();
 
+    if (selectedActivity.proof_required && !proofFile) {
+      toast({ title: "Proof required", description: "Please upload a screenshot or photo.", variant: "destructive" });
+      return;
+    }
+
+    let proofUrl: string | undefined;
+    if (proofFile && dbUser) {
+      setUploading(true);
+      try {
+        proofUrl = await uploadImage("activity-proofs", proofFile, dbUser.id);
+      } catch {
+        toast({ title: "Upload failed", variant: "destructive" });
+        setUploading(false);
+        return;
+      }
+    }
+
     try {
-      const result = await logActivityMutation.mutateAsync(trimmed);
+      const result = await logActivityMutation.mutateAsync({ code: trimmed, proofUrl });
       if (result?.success) {
         hapticNotification("success");
-        toast({
-          title: "Activity Logged! 🎉",
-          description: `+${result.reward} DR for "${result.activity}"`,
-        });
+        if (result?.pending_approval) {
+          toast({
+            title: "Proof submitted!",
+            description: "Reward after admin approval.",
+          });
+        } else {
+          toast({
+            title: "Activity Logged! 🎉",
+            description: `+${result.reward} DR for "${result.activity}"`,
+          });
+        }
         setSelectedActivity(null);
         setCodeInput("");
+        setProofFile(null);
       } else {
         hapticNotification("error");
         toast({
@@ -91,6 +122,8 @@ export default function ActivityLog() {
     } catch {
       hapticNotification("error");
       toast({ title: "Error", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -261,10 +294,25 @@ export default function ActivityLog() {
                         onClick={() => {
                           setSelectedActivity(activity);
                           setCodeInput("");
+                          setProofFile(null);
                         }}
                       >
-                        <KeyRound className="w-3 h-3 mr-1" />
-                        Enter Code
+                        {activity.proof_required && !activity.code_required ? (
+                          <>
+                            <Camera className="w-3 h-3 mr-1" />
+                            Upload Proof
+                          </>
+                        ) : activity.code_required && activity.proof_required ? (
+                          <>
+                            <KeyRound className="w-3 h-3 mr-1" />
+                            Code + Proof
+                          </>
+                        ) : (
+                          <>
+                            <KeyRound className="w-3 h-3 mr-1" />
+                            Enter Code
+                          </>
+                        )}
                       </Button>
                     )}
                   </div>
@@ -313,28 +361,69 @@ export default function ActivityLog() {
                 +{selectedActivity.reward} DR reward
               </p>
 
-              <label className="text-sm font-medium text-foreground block mb-2">
-                Enter your unique attendance code
-              </label>
-              <Input
-                placeholder="e.g. DREAM-Q1-2024"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                className="mb-4 bg-secondary border-border"
-                onKeyDown={(e) => e.key === "Enter" && handleCodeSubmit()}
-              />
+              {selectedActivity.code_required !== false && (
+                <>
+                  <label className="text-sm font-medium text-foreground block mb-2">
+                    Enter your unique attendance code
+                  </label>
+                  <Input
+                    placeholder="e.g. DREAM-Q1-2024"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    className="mb-4 bg-secondary border-border"
+                    onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                  />
+                </>
+              )}
+
+              {selectedActivity.proof_required && (
+                <div>
+                  <label className="text-sm font-medium text-foreground block mb-2">
+                    Upload proof (screenshot/photo)
+                  </label>
+                  {proofFile ? (
+                    <div className="relative mb-4">
+                      <img src={URL.createObjectURL(proofFile)} alt="Proof" className="w-full h-40 object-cover rounded-lg border border-border" />
+                      <Button size="icon" variant="ghost" className="absolute top-2 right-2 bg-black/50 h-7 w-7" onClick={() => setProofFile(null)}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 mb-4">
+                      <Camera className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">Tap to upload</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => setProofFile(e.target.files?.[0] || null)} />
+                    </label>
+                  )}
+                </div>
+              )}
 
               <Button
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
-                onClick={handleCodeSubmit}
-                disabled={!codeInput.trim() || logActivityMutation.isPending}
+                onClick={handleSubmit}
+                disabled={
+                  (selectedActivity.code_required !== false && !codeInput.trim()) ||
+                  (selectedActivity.proof_required && !proofFile) ||
+                  logActivityMutation.isPending ||
+                  uploading
+                }
               >
-                {logActivityMutation.isPending ? (
+                {uploading || logActivityMutation.isPending ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : selectedActivity.proof_required && selectedActivity.code_required !== false ? (
+                  <KeyRound className="w-4 h-4 mr-2" />
+                ) : selectedActivity.proof_required ? (
+                  <Camera className="w-4 h-4 mr-2" />
                 ) : (
                   <KeyRound className="w-4 h-4 mr-2" />
                 )}
-                Submit Code
+                {uploading
+                  ? "Uploading..."
+                  : selectedActivity.proof_required && selectedActivity.code_required !== false
+                  ? "Submit"
+                  : selectedActivity.proof_required
+                  ? "Submit Proof"
+                  : "Submit Code"}
               </Button>
             </motion.div>
           </motion.div>

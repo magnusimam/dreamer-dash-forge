@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useActivities,
   useCreateActivity,
@@ -21,6 +22,9 @@ import {
   useAllUsers,
   useAdjustBalance,
 } from "@/hooks/useSupabase";
+import { useUser } from "@/contexts/UserContext";
+import { supabase } from "@/lib/supabase";
+import { uploadImage } from "@/lib/storage";
 import {
   Plus,
   Copy,
@@ -39,16 +43,34 @@ import {
   X,
   UserCog,
   Gift,
+  ImageIcon,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function Admin() {
   const { toast } = useToast();
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
 
   // Data hooks
   const { data: activities = [] } = useActivities();
   const { data: hackathons = [] } = useHackathons();
   const { data: redemptions = [] } = useRedemptionRequests();
   const { data: allUsers = [] } = useAllUsers();
+
+  // Pending proofs query
+  const { data: pendingProofs = [] } = useQuery({
+    queryKey: ["pending_proofs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("*, activities(title, reward), users!activity_logs_user_id_fkey(first_name, last_name, username)")
+        .eq("proof_status", "pending")
+        .order("logged_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Mutation hooks
   const createActivityMutation = useCreateActivity();
@@ -67,6 +89,8 @@ export default function Admin() {
   const [actReward, setActReward] = useState("");
   const [actCategory, setActCategory] = useState("meeting");
   const [editingActivity, setEditingActivity] = useState<any | null>(null);
+  const [actCodeRequired, setActCodeRequired] = useState(true);
+  const [actProofRequired, setActProofRequired] = useState(false);
 
   // Hackathon form
   const [hackTitle, setHackTitle] = useState("");
@@ -77,6 +101,7 @@ export default function Admin() {
   const [hackPrize, setHackPrize] = useState("");
   const [hackTeams, setHackTeams] = useState("");
   const [editingHackathon, setEditingHackathon] = useState<any | null>(null);
+  const [hackCoverFile, setHackCoverFile] = useState<File | null>(null);
 
   // User balance adjustment modal
   const [adjustUser, setAdjustUser] = useState<any | null>(null);
@@ -102,7 +127,7 @@ export default function Admin() {
 
   const resetActivityForm = () => {
     setActTitle(""); setActDesc(""); setActDate(""); setActReward(""); setActCategory("meeting");
-    setEditingActivity(null);
+    setEditingActivity(null); setActCodeRequired(true); setActProofRequired(false);
   };
 
   const handleCreateActivity = async () => {
@@ -112,8 +137,12 @@ export default function Admin() {
     }
     const code = generateCode(actTitle);
     try {
-      await createActivityMutation.mutateAsync({ title: actTitle, description: actDesc || undefined, category: actCategory, date: actDate, reward: parseInt(actReward), code });
-      toast({ title: "Activity Created! ✅", description: `Code: ${code}` });
+      await createActivityMutation.mutateAsync({ title: actTitle, description: actDesc || undefined, category: actCategory, date: actDate, reward: parseInt(actReward), code, code_required: actCodeRequired, proof_required: actProofRequired });
+      if (actCodeRequired) {
+        toast({ title: "Activity Created!", description: `Code: ${code}` });
+      } else {
+        toast({ title: "Activity Created!", description: "Proof-based activity (no attendance code shown)." });
+      }
       resetActivityForm();
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed.", variant: "destructive" });
@@ -156,7 +185,7 @@ export default function Admin() {
 
   const resetHackathonForm = () => {
     setHackTitle(""); setHackDesc(""); setHackStart(""); setHackEnd(""); setHackFee(""); setHackPrize(""); setHackTeams("");
-    setEditingHackathon(null);
+    setEditingHackathon(null); setHackCoverFile(null);
   };
 
   const handleCreateHackathon = async () => {
@@ -165,12 +194,17 @@ export default function Admin() {
       return;
     }
     try {
+      let coverUrl: string | undefined;
+      if (hackCoverFile && dbUser) {
+        coverUrl = await uploadImage("hackathon-covers", hackCoverFile, dbUser.id);
+      }
       await createHackathonMutation.mutateAsync({
         title: hackTitle, description: hackDesc || undefined,
         start_date: hackStart, end_date: hackEnd, entry_fee: parseInt(hackFee),
         prize_pool: parseInt(hackPrize), max_teams: parseInt(hackTeams),
+        cover_image_url: coverUrl,
       });
-      toast({ title: "Hackathon Posted! 🚀", description: `"${hackTitle}" is now live.` });
+      toast({ title: "Hackathon Posted!", description: `"${hackTitle}" is now live.` });
       resetHackathonForm();
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed.", variant: "destructive" });
@@ -253,6 +287,22 @@ export default function Admin() {
     }
   };
 
+  // ---- PROOF PROCESSING ----
+
+  const handleProcessProof = async (logId: string, action: "approved" | "rejected") => {
+    if (!dbUser) return;
+    const { data, error } = await supabase.rpc("process_activity_proof", {
+      p_admin_id: dbUser.id,
+      p_log_id: logId,
+      p_action: action,
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (data?.success) {
+      toast({ title: `Proof ${action}` });
+      queryClient.invalidateQueries({ queryKey: ["pending_proofs"] });
+    }
+  };
+
   // ---- STATUS HELPERS ----
 
   const statusColor = (status: string) => {
@@ -266,6 +316,7 @@ export default function Admin() {
   };
 
   const pendingCount = redemptions.filter((r: any) => r.status === "pending").length;
+  const pendingProofCount = pendingProofs.length;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-20 px-4 pt-6">
@@ -275,7 +326,7 @@ export default function Admin() {
       </motion.div>
 
       <Tabs defaultValue="activities" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
           <TabsTrigger value="activities">Activities</TabsTrigger>
           <TabsTrigger value="hackathons">Hackathons</TabsTrigger>
           <TabsTrigger value="redemptions" className="relative">
@@ -283,6 +334,14 @@ export default function Admin() {
             {pendingCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
                 {pendingCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="proofs" className="relative">
+            Proofs
+            {pendingProofCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
+                {pendingProofCount}
               </span>
             )}
           </TabsTrigger>
@@ -308,6 +367,16 @@ export default function Admin() {
                   <option value="event">Event</option>
                   <option value="outreach">Outreach</option>
                 </select>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input type="checkbox" checked={actCodeRequired} onChange={(e) => setActCodeRequired(e.target.checked)} />
+                    Requires attendance code
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input type="checkbox" checked={actProofRequired} onChange={(e) => setActProofRequired(e.target.checked)} />
+                    Requires proof upload
+                  </label>
+                </div>
                 <div className="flex gap-2">
                   {editingActivity ? (
                     <>
@@ -352,13 +421,19 @@ export default function Admin() {
                           </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-3 p-2 bg-secondary rounded-lg">
-                        <KeyRound className="w-4 h-4 text-primary" />
-                        <code className="text-sm text-primary font-mono flex-1">{act.code}</code>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyCode(act.code)}>
-                          <Copy className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
+                      {act.code_required !== false ? (
+                        <div className="flex items-center gap-2 mt-3 p-2 bg-secondary rounded-lg">
+                          <KeyRound className="w-4 h-4 text-primary" />
+                          <code className="text-sm text-primary font-mono flex-1">{act.code}</code>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyCode(act.code)}>
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 mt-3">
+                          <Badge variant="secondary" className="text-xs"><ImageIcon className="w-3 h-3 mr-1" />Proof-based</Badge>
+                        </div>
+                      )}
                     </Card>
                   ))}
                 </div>
@@ -385,6 +460,10 @@ export default function Admin() {
                 <Input type="number" placeholder="Entry fee in DR" value={hackFee} onChange={(e) => setHackFee(e.target.value)} className="bg-secondary border-border" />
                 <Input type="number" placeholder="Prize pool in DR" value={hackPrize} onChange={(e) => setHackPrize(e.target.value)} className="bg-secondary border-border" />
                 <Input type="number" placeholder="Max teams" value={hackTeams} onChange={(e) => setHackTeams(e.target.value)} className="bg-secondary border-border" />
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Cover Image (optional)</label>
+                  <Input type="file" accept="image/*" onChange={(e) => setHackCoverFile(e.target.files?.[0] || null)} className="bg-secondary border-border" />
+                </div>
                 <div className="flex gap-2">
                   {editingHackathon ? (
                     <>
@@ -410,6 +489,9 @@ export default function Admin() {
                 <div className="space-y-3">
                   {hackathons.map((hack: any) => (
                     <Card key={hack.id} className="gradient-card border-border/50 p-4">
+                      {hack.cover_image_url && (
+                        <img src={hack.cover_image_url} alt="" className="w-full h-32 object-cover rounded-lg mb-3" />
+                      )}
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <h4 className="font-medium text-foreground">{hack.title}</h4>
@@ -492,6 +574,59 @@ export default function Admin() {
                           </Button>
                         </div>
                       )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== PROOFS TAB ========== */}
+        <TabsContent value="proofs">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {pendingProofs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No pending proofs to review.</p>
+            ) : (
+              <div className="space-y-3">
+                {pendingProofs.map((proof: any) => {
+                  const user = proof.users;
+                  const userName = user ? [user.first_name, user.last_name].filter(Boolean).join(" ") : "Unknown";
+                  const activity = proof.activities;
+                  return (
+                    <Card key={proof.id} className="gradient-card border-border/50 p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-foreground text-sm">{userName}</p>
+                          {user?.username && <p className="text-xs text-muted-foreground">@{user.username}</p>}
+                        </div>
+                        <div className="text-right">
+                          {activity && (
+                            <>
+                              <p className="text-sm text-foreground font-medium">{activity.title}</p>
+                              <p className="text-xs text-primary font-semibold">{activity.reward} DR</p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {proof.proof_image_url && (
+                        <img
+                          src={proof.proof_image_url}
+                          alt="Proof"
+                          className="w-full h-40 object-cover rounded-lg mb-3 cursor-pointer"
+                          onClick={() => window.open(proof.proof_image_url, "_blank")}
+                        />
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleProcessProof(proof.id, "approved")}>
+                          <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10" onClick={() => handleProcessProof(proof.id, "rejected")}>
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      </div>
                     </Card>
                   );
                 })}

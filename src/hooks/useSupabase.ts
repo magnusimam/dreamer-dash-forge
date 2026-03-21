@@ -78,11 +78,12 @@ export function useLogActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async ({ code, proofUrl }: { code: string; proofUrl?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("log_activity", {
         p_user_id: dbUser.id,
         p_code: code,
+        p_proof_url: proofUrl || null,
       });
       if (error) throw error;
       return data;
@@ -496,6 +497,8 @@ export function useCreateActivity() {
       reward: number;
       code: string;
       max_participants?: number;
+      code_required?: boolean;
+      proof_required?: boolean;
     }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase
@@ -574,6 +577,7 @@ export function useCreateHackathon() {
       entry_fee: number;
       prize_pool: number;
       max_teams?: number;
+      cover_image_url?: string;
     }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase
