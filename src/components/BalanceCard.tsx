@@ -3,7 +3,9 @@ import { TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 
-const DR_TO_USD = 0.01; // TODO: fetch from config/API
+// Based on redemption rates: 500 DR = ~N1,000 airtime → 1 DR = N2
+const DR_TO_NGN = 2;
+const NGN_TO_USD = 1 / 1600; // approximate exchange rate
 
 interface BalanceCardProps {
   balance: number;
@@ -11,6 +13,9 @@ interface BalanceCardProps {
 }
 
 export default function BalanceCard({ balance, dailyEarnings }: BalanceCardProps) {
+  const ngnValue = balance * DR_TO_NGN;
+  const usdValue = ngnValue * NGN_TO_USD;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -29,7 +34,7 @@ export default function BalanceCard({ balance, dailyEarnings }: BalanceCardProps
             </div>
           </div>
         </div>
-        
+
         <div>
           <div className="flex items-center gap-2 text-sm">
             <TrendingUp className="w-4 h-4 text-primary" />
@@ -38,12 +43,18 @@ export default function BalanceCard({ balance, dailyEarnings }: BalanceCardProps
           </div>
           <p className="text-xs text-muted-foreground/60 mt-1">Estimated from your current streak</p>
         </div>
-        
+
         <div className="mt-4 pt-4 border-t border-border/50">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">USD Value</span>
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-muted-foreground">Redemption Value</span>
             <span className="text-foreground font-medium">
-              ${(balance * DR_TO_USD).toFixed(2)}
+              {ngnValue.toLocaleString()} NGN
+            </span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground/60">Approx. USD</span>
+            <span className="text-muted-foreground">
+              ~${usdValue.toFixed(2)}
             </span>
           </div>
         </div>
