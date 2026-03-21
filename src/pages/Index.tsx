@@ -13,27 +13,20 @@ import Transactions from "@/pages/Transactions";
 import RedemptionHistory from "@/pages/RedemptionHistory";
 import Onboarding from "@/pages/Onboarding";
 import SupplyDashboard from "@/pages/SupplyDashboard";
-import { showBackButton, hideBackButton, getStartParam } from "@/lib/telegram";
+import { showBackButton, hideBackButton } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import logoImg from "@/assets/dreamers-coin-logo.png";
-import { useProcessReferral } from "@/hooks/useSupabase";
-import { useToast } from "@/hooks/use-toast";
-import { notifyReferralBonus } from "@/lib/notifications";
 import { supabase } from "@/lib/supabase";
 
 const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply"]);
 
 const ONBOARDING_KEY = "dreamer_dash_onboarded";
 
-const REFERRAL_PROCESSED_KEY = "dreamer_dash_referral_processed";
-
 const Index = () => {
   const [activeTab, setActiveTab] = useState("home");
   const { dbUser, loading } = useUser();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const processReferral = useProcessReferral();
-  const { toast } = useToast();
-  const referralProcessedRef = useRef(false);
+  const [checkingReferral, setCheckingReferral] = useState(true);
   const scrollPositions = useRef<Record<string, number>>({});
 
   const handleTabChange = (tab: string) => {
@@ -41,43 +34,38 @@ const Index = () => {
     setActiveTab(tab);
   };
 
-  // Check if first-time user
+  // Check if user has been referred (mandatory gate)
   useEffect(() => {
     if (!loading && dbUser) {
-      const onboarded = localStorage.getItem(ONBOARDING_KEY);
-      if (!onboarded) {
-        setShowOnboarding(true);
-      }
-
-      // Process referral deep link
-      if (!referralProcessedRef.current && !localStorage.getItem(REFERRAL_PROCESSED_KEY)) {
-        const startParam = getStartParam();
-        if (startParam && startParam.startsWith("ref_")) {
-          referralProcessedRef.current = true;
-          const referralCode = startParam.slice(4); // Remove "ref_" prefix
-          processReferral
-            .mutateAsync(referralCode)
-            .then(async () => {
-              localStorage.setItem(REFERRAL_PROCESSED_KEY, "true");
-              toast({
-                title: "Referral Applied!",
-                description: `You were referred with code ${referralCode}. Bonus credited!`,
-              });
-              // Notify referrer
-              const { data: referrer } = await supabase
-                .from("users")
-                .select("telegram_id")
-                .eq("referral_code", referralCode)
-                .maybeSingle();
-              if (referrer?.telegram_id) {
-                notifyReferralBonus(referrer.telegram_id, dbUser?.first_name || "A new user");
-              }
-            })
-            .catch(() => {
-              // Referral may be invalid or already used — silently ignore
-            });
+      const checkAccess = async () => {
+        // Admins always have access
+        if (dbUser.is_admin) {
+          setCheckingReferral(false);
+          const onboarded = localStorage.getItem(ONBOARDING_KEY);
+          if (!onboarded) setShowOnboarding(true);
+          return;
         }
-      }
+
+        // Check if user exists in referrals table as referred_id
+        const { data } = await supabase
+          .from("referrals")
+          .select("id")
+          .eq("referred_id", dbUser.id)
+          .maybeSingle();
+
+        if (data) {
+          // User has been referred — grant access
+          setCheckingReferral(false);
+          const onboarded = localStorage.getItem(ONBOARDING_KEY);
+          if (!onboarded) setShowOnboarding(true);
+        } else {
+          // Not referred — must complete onboarding with referral code
+          setCheckingReferral(false);
+          setShowOnboarding(true);
+        }
+      };
+
+      checkAccess();
     }
   }, [loading, dbUser]);
 
@@ -86,6 +74,7 @@ const Index = () => {
     setShowOnboarding(false);
   };
 
+  // Scroll restoration
   useEffect(() => {
     const saved = scrollPositions.current[activeTab];
     if (saved) {
@@ -95,6 +84,7 @@ const Index = () => {
     }
   }, [activeTab]);
 
+  // Back button handling
   useEffect(() => {
     if (SUB_TABS.has(activeTab)) {
       const backTo = activeTab === "admin" ? "profile"
@@ -108,7 +98,8 @@ const Index = () => {
     return () => hideBackButton();
   }, [activeTab]);
 
-  if (loading) {
+  // Loading state
+  if (loading || checkingReferral) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -119,6 +110,7 @@ const Index = () => {
     );
   }
 
+  // Onboarding gate — mandatory referral
   if (showOnboarding) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
   }

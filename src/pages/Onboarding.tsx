@@ -2,10 +2,11 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ClipboardList, Gift, Trophy, Rocket, Users } from "lucide-react";
+import { ClipboardList, Gift, Trophy, Rocket, ShieldCheck, Loader2 } from "lucide-react";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 import { useProcessReferral } from "@/hooks/useSupabase";
 import { useToast } from "@/hooks/use-toast";
+import { getStartParam } from "@/lib/telegram";
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -16,7 +17,7 @@ const steps = [
     icon: null,
     image: logoImg,
     title: "Welcome to Dreamer Dash",
-    description: "Your community rewards hub. Earn Dreamers Coins (DR) by participating in activities, completing missions, and daily check-ins.",
+    description: "The exclusive rewards platform for the Dreamers community. You need a referral code from an existing member to join.",
     color: "from-primary to-yellow-500",
   },
   {
@@ -41,8 +42,14 @@ const steps = [
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
-  const [referralCode, setReferralCode] = useState("");
+  const [referralCode, setReferralCode] = useState(() => {
+    // Pre-fill from deep link if available
+    const param = getStartParam();
+    if (param && param.startsWith("ref_")) return param.slice(4);
+    return "";
+  });
   const [referralApplied, setReferralApplied] = useState(false);
+  const [error, setError] = useState("");
   const processReferral = useProcessReferral();
   const { toast } = useToast();
 
@@ -52,17 +59,21 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const handleApplyReferral = async () => {
     const code = referralCode.trim().toUpperCase();
-    if (!code) return;
+    if (!code) {
+      setError("Enter a referral code to continue");
+      return;
+    }
+    setError("");
     try {
       const result = await processReferral.mutateAsync(code);
       if (result?.success) {
         setReferralApplied(true);
-        toast({ title: "Referral Applied!", description: `+20 DR welcome bonus credited!` });
+        toast({ title: "Welcome to Dreamer Dash!", description: "+20 DR welcome bonus credited!" });
       } else {
-        toast({ title: "Invalid code", description: result?.error || "Check the code and try again.", variant: "destructive" });
+        setError(result?.error || "Invalid referral code. Ask a community member for theirs.");
       }
     } catch {
-      toast({ title: "Invalid code", description: "Check the code and try again.", variant: "destructive" });
+      setError("Invalid referral code. Ask a community member for theirs.");
     }
   };
 
@@ -95,24 +106,31 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         </motion.div>
       </AnimatePresence>
 
-      {/* Referral code input on last step */}
+      {/* Referral code — MANDATORY on last step */}
       {isLast && !referralApplied && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm mb-6"
         >
-          <div className="bg-secondary/50 rounded-xl p-4 border border-border/50">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">Have a referral code?</span>
+          <div className="bg-secondary/50 rounded-xl p-4 border border-primary/20">
+            <div className="flex items-center gap-2 mb-1">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Enter Referral Code</span>
             </div>
-            <div className="flex gap-2">
+            <p className="text-xs text-muted-foreground mb-3">
+              You need a referral code from an existing Dreamers member to join.
+            </p>
+            <div className="flex gap-2 mb-2">
               <Input
                 placeholder="e.g. DR-7609C77C"
                 value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setReferralCode(e.target.value.toUpperCase());
+                  if (error) setError("");
+                }}
                 className="bg-background border-border text-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleApplyReferral()}
               />
               <Button
                 size="sm"
@@ -120,9 +138,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 onClick={handleApplyReferral}
                 disabled={!referralCode.trim() || processReferral.isPending}
               >
-                {processReferral.isPending ? "..." : "Apply"}
+                {processReferral.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Verify"}
               </Button>
             </div>
+            {error && (
+              <p className="text-xs text-destructive">{error}</p>
+            )}
           </div>
         </motion.div>
       )}
@@ -133,8 +154,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           animate={{ opacity: 1, scale: 1 }}
           className="w-full max-w-sm mb-6"
         >
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-center">
-            <p className="text-sm text-emerald-400 font-medium">Referral applied! +20 DR credited</p>
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-center">
+            <ShieldCheck className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+            <p className="text-sm text-emerald-400 font-medium">Verified! Welcome to Dreamers</p>
+            <p className="text-xs text-muted-foreground mt-1">+20 DR welcome bonus credited</p>
           </div>
         </motion.div>
       )}
@@ -153,35 +176,26 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       {/* Buttons */}
       <div className="w-full max-w-sm space-y-3">
-        <Button
-          className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
-          onClick={() => {
-            if (isLast) {
-              onComplete();
-            } else {
-              setStep(step + 1);
-            }
-          }}
-        >
-          {isLast ? (
-            <>
-              <Rocket className="w-5 h-5 mr-2" />
-              Get Started
-            </>
-          ) : (
-            "Next"
-          )}
-        </Button>
-
-        {!isLast && (
+        {isLast ? (
+          /* Last step — can only proceed if referral is applied */
           <Button
-            variant="ghost"
-            className="w-full text-muted-foreground"
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
             onClick={onComplete}
+            disabled={!referralApplied}
           >
-            Skip
+            <Rocket className="w-5 h-5 mr-2" />
+            Get Started
+          </Button>
+        ) : (
+          <Button
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+            onClick={() => setStep(step + 1)}
+          >
+            Next
           </Button>
         )}
+
+        {/* No skip button — referral is mandatory */}
       </div>
     </div>
   );
