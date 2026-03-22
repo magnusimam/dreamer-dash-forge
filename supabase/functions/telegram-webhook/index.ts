@@ -101,7 +101,7 @@ serve(async (req) => {
       if (!user) {
         await sendMessage("You haven't joined yet. Tap /start to get started!");
       } else {
-        const ngnValue = user.balance * 2;
+        const ngnValue = Math.round(user.balance * 0.33);
         await sendMessage(
           `💰 <b>Your Balance</b>\n\n🪙 <b>${user.balance.toLocaleString()} DR</b>\n💵 Redemption value: ₦${ngnValue.toLocaleString()}\n\n📊 Total earned: ${user.total_earned.toLocaleString()} DR\n🔥 Streak: ${user.streak} days\n🏅 Tier: ${user.status}`,
           { inline_keyboard: [[ { text: "📱 Open App", web_app: { url: WEBAPP_URL } } ]] }

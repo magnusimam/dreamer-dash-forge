@@ -21,11 +21,17 @@ import {
   useProcessRedemption,
   useAllUsers,
   useAdjustBalance,
+  useRedemptionCategories,
+  useUpdateRedemptionCategory,
+  useAllMentors,
+  useCreateMentor,
+  useUpdateMentor,
+  useDeleteMentor,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
 import { uploadImage } from "@/lib/storage";
-import { notifyRedemptionUpdate, notifyProofApproved, notifyProofRejected, notifyUser } from "@/lib/notifications";
+import { notifyRedemptionUpdate, notifyMentorshipApproved, notifyProofApproved, notifyProofRejected, notifyUser } from "@/lib/notifications";
 import {
   Plus,
   Copy,
@@ -48,6 +54,7 @@ import {
   ShieldCheck,
   Send,
   Megaphone,
+  Settings,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -62,6 +69,9 @@ export default function Admin() {
   const { data: hackathons = [] } = useHackathons();
   const { data: redemptions = [] } = useRedemptionRequests();
   const { data: allUsers = [] } = useAllUsers();
+
+  const { data: redeemCategories = [] } = useRedemptionCategories();
+  const { data: allMentors = [] } = useAllMentors();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -86,6 +96,10 @@ export default function Admin() {
   const deleteHackathonMutation = useDeleteHackathon();
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
+  const updateCategoryMutation = useUpdateRedemptionCategory();
+  const createMentorMutation = useCreateMentor();
+  const updateMentorMutation = useUpdateMentor();
+  const deleteMentorMutation = useDeleteMentor();
 
   // Activity form
   const [actTitle, setActTitle] = useState("");
@@ -123,6 +137,18 @@ export default function Admin() {
   const [broadcastImgUrl, setBroadcastImgUrl] = useState("");
   const [broadcasting, setBroadcasting] = useState(false);
   const [broadcastSent, setBroadcastSent] = useState(0);
+
+  // DR calculator
+  const [calcDR, setCalcDR] = useState("");
+
+  // Redemption settings (editable costs)
+  const [editingCosts, setEditingCosts] = useState<Record<string, string>>({});
+
+  // Mentor form
+  const [mentorName, setMentorName] = useState("");
+  const [mentorSpecialty, setMentorSpecialty] = useState("");
+  const [mentorContact, setMentorContact] = useState("");
+  const [editingMentor, setEditingMentor] = useState<any | null>(null);
 
   const generateCode = (title: string) => {
     const slug = title.toUpperCase().replace(/[^A-Z0-9 ]/g, "").split(" ").slice(0, 2).join("-");
@@ -333,7 +359,17 @@ export default function Admin() {
         // Notify the user about their redemption status
         const req = redemptions.find((r: any) => r.id === redeemAction.id);
         if (req?.users?.telegram_id) {
-          notifyRedemptionUpdate(req.users.telegram_id, req.category, redeemAction.action, redeemNotes || undefined);
+          // For approved mentorship requests, send mentor contact info
+          if (redeemAction.action === "approved" && req.category === "mentorship" && req.details?.mentorId) {
+            const mentor = allMentors.find((m: any) => m.id === req.details.mentorId);
+            if (mentor) {
+              notifyMentorshipApproved(req.users.telegram_id, mentor.name, mentor.contact_info);
+            } else {
+              notifyRedemptionUpdate(req.users.telegram_id, req.category, redeemAction.action, redeemNotes || undefined);
+            }
+          } else {
+            notifyRedemptionUpdate(req.users.telegram_id, req.category, redeemAction.action, redeemNotes || undefined);
+          }
         }
       } else {
         toast({ title: "Error", description: result?.error, variant: "destructive" });
@@ -438,6 +474,7 @@ export default function Admin() {
               )}
             </TabsTrigger>
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
+            <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
             <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
           </TabsList>
         </div>
@@ -768,6 +805,232 @@ export default function Admin() {
             </div>
           </motion.div>
         </TabsContent>
+        {/* ========== SETTINGS TAB ========== */}
+        <TabsContent value="settings">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* DR / Naira Calculator */}
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Coins className="w-4 h-4 text-primary" />
+                DR / Naira Calculator
+              </h3>
+              <p className="text-xs text-muted-foreground mb-3">1 DR = &#8358;0.33</p>
+              <Input
+                type="number"
+                placeholder="Enter DR amount"
+                value={calcDR}
+                onChange={(e) => setCalcDR(e.target.value)}
+                className="bg-secondary border-border mb-3"
+              />
+              {calcDR && Number(calcDR) > 0 && (
+                <div className="bg-secondary rounded-lg p-3 text-center">
+                  <p className="text-sm text-muted-foreground">{Number(calcDR).toLocaleString()} DR =</p>
+                  <p className="text-2xl font-bold text-primary">&#8358;{(Number(calcDR) * 0.33).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </div>
+              )}
+            </Card>
+
+            {/* Redemption Costs */}
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Coins className="w-4 h-4 text-primary" />
+                Redemption Costs
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Edit the minimum DR needed for each redemption category. Changes apply immediately.
+              </p>
+              <div className="space-y-3">
+                {redeemCategories.map((cat: any) => (
+                  <div key={cat.id} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">{cat.title}</p>
+                      <p className="text-xs text-muted-foreground">{cat.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        className="w-24 bg-secondary border-border text-right text-sm"
+                        value={editingCosts[cat.id] ?? String(cat.cost)}
+                        onChange={(e) => setEditingCosts({ ...editingCosts, [cat.id]: e.target.value })}
+                      />
+                      <span className="text-xs text-muted-foreground">DR</span>
+                      {editingCosts[cat.id] !== undefined && editingCosts[cat.id] !== String(cat.cost) && (
+                        <Button
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 px-2"
+                          disabled={updateCategoryMutation.isPending}
+                          onClick={async () => {
+                            const newCost = parseInt(editingCosts[cat.id]);
+                            if (isNaN(newCost) || newCost < 0) return;
+                            try {
+                              await updateCategoryMutation.mutateAsync({ id: cat.id, cost: newCost });
+                              toast({ title: `${cat.title} updated to ${newCost} DR` });
+                              setEditingCosts((prev) => { const next = { ...prev }; delete next[cat.id]; return next; });
+                            } catch (err: any) {
+                              toast({ title: "Error", description: err?.message, variant: "destructive" });
+                            }
+                          }}
+                        >
+                          {updateCategoryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Mentors Management */}
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                {editingMentor ? "Edit Mentor" : "Add Mentor"}
+              </h3>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Mentor name"
+                  value={mentorName}
+                  onChange={(e) => setMentorName(sanitize(e.target.value))}
+                  className="bg-secondary border-border"
+                />
+                <Input
+                  placeholder="Specialty (e.g. Business, Tech, Career)"
+                  value={mentorSpecialty}
+                  onChange={(e) => setMentorSpecialty(sanitize(e.target.value))}
+                  className="bg-secondary border-border"
+                />
+                <Textarea
+                  placeholder="Contact info (sent to user on approval, e.g. email, phone, Telegram handle)"
+                  value={mentorContact}
+                  onChange={(e) => setMentorContact(e.target.value)}
+                  className="bg-secondary border-border min-h-[60px]"
+                />
+                <div className="flex gap-2">
+                  {editingMentor ? (
+                    <>
+                      <Button
+                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                        disabled={updateMentorMutation.isPending || !mentorName || !mentorContact}
+                        onClick={async () => {
+                          try {
+                            await updateMentorMutation.mutateAsync({
+                              id: editingMentor.id,
+                              name: mentorName,
+                              specialty: mentorSpecialty,
+                              contact_info: mentorContact,
+                            });
+                            toast({ title: "Mentor Updated" });
+                            setEditingMentor(null); setMentorName(""); setMentorSpecialty(""); setMentorContact("");
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err?.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        {updateMentorMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={() => { setEditingMentor(null); setMentorName(""); setMentorSpecialty(""); setMentorContact(""); }}>
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+                      disabled={createMentorMutation.isPending || !mentorName || !mentorContact}
+                      onClick={async () => {
+                        try {
+                          await createMentorMutation.mutateAsync({
+                            name: mentorName,
+                            specialty: mentorSpecialty,
+                            contact_info: mentorContact,
+                          });
+                          toast({ title: "Mentor Added" });
+                          setMentorName(""); setMentorSpecialty(""); setMentorContact("");
+                        } catch (err: any) {
+                          toast({ title: "Error", description: err?.message, variant: "destructive" });
+                        }
+                      }}
+                    >
+                      {createMentorMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                      Add Mentor
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {allMentors.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Mentors ({allMentors.length})</h3>
+                <div className="space-y-3">
+                  {allMentors.map((mentor: any) => (
+                    <Card key={mentor.id} className="gradient-card border-border/50 p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-foreground">{mentor.name}</h4>
+                            {!mentor.is_active && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
+                          </div>
+                          {mentor.specialty && <p className="text-xs text-muted-foreground">Specialty: {mentor.specialty}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">Contact: {mentor.contact_info}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            aria-label="Edit"
+                            onClick={() => {
+                              setEditingMentor(mentor);
+                              setMentorName(mentor.name);
+                              setMentorSpecialty(mentor.specialty || "");
+                              setMentorContact(mentor.contact_info || "");
+                            }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className={`h-7 w-7 ${mentor.is_active ? "text-muted-foreground" : "text-emerald-400"}`}
+                            aria-label={mentor.is_active ? "Deactivate" : "Activate"}
+                            onClick={async () => {
+                              try {
+                                await updateMentorMutation.mutateAsync({ id: mentor.id, is_active: !mentor.is_active });
+                                toast({ title: mentor.is_active ? "Mentor deactivated" : "Mentor activated" });
+                              } catch (err: any) {
+                                toast({ title: "Error", description: err?.message, variant: "destructive" });
+                              }
+                            }}
+                          >
+                            {mentor.is_active ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            aria-label="Delete"
+                            onClick={async () => {
+                              try {
+                                await deleteMentorMutation.mutateAsync(mentor.id);
+                                toast({ title: "Mentor Deleted" });
+                              } catch (err: any) {
+                                toast({ title: "Error", description: err?.message, variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
         {/* ========== BROADCAST TAB ========== */}
         <TabsContent value="broadcast">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

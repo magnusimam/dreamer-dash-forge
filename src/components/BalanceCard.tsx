@@ -3,8 +3,8 @@ import { TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 
-// Based on redemption rates: 500 DR = ~N1,000 airtime → 1 DR = N2
-const DR_TO_NGN = 2;
+// Based on redemption rates: 599 DR = ₦200 → 1 DR ≈ ₦0.33
+const DR_TO_NGN = 0.33;
 const NGN_TO_USD = 1 / 1600; // approximate exchange rate
 
 interface BalanceCardProps {

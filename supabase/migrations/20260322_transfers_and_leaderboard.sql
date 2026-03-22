@@ -113,9 +113,9 @@ BEGIN
     u.balance,
     u.streak,
     u.status,
-    ROW_NUMBER() OVER (ORDER BY u.total_earned DESC) AS rank
+    ROW_NUMBER() OVER (ORDER BY u.balance DESC) AS rank
   FROM public.users u
-  ORDER BY u.total_earned DESC
+  ORDER BY u.balance DESC
   LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

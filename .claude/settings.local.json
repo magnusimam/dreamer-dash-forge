@@ -23,7 +23,13 @@
       "Bash(cp \"public/dreamcoin logo.jpg\" public/favicon.png)",
       "Bash(cp \"public/dreamcoin logo.jpg\" public/icon-192.png)",
       "Bash(cp \"public/dreamcoin logo.jpg\" public/icon-512.png)",
-      "Bash(cp \"public/dreamcoin logo.jpg\" src/assets/dreamers-coin-logo.png)"
+      "Bash(cp \"public/dreamcoin logo.jpg\" src/assets/dreamers-coin-logo.png)",
+      "Bash(bash deploy.sh)",
+      "Bash(vercel --prod --yes --force --public)",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(node -e \":*)",
+      "Bash(echo \":*)"
     ]
   }
 }

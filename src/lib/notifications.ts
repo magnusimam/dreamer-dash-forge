@@ -78,6 +78,13 @@ export function notifyHackathonRegistered(telegramId: number, hackathonTitle: st
   );
 }
 
+export function notifyMentorshipApproved(telegramId: number, mentorName: string, contactInfo: string) {
+  notifyUser(
+    telegramId,
+    `✅ <b>Mentorship Session Approved!</b>\n\nYour session with <b>${mentorName}</b> has been approved.\n\n📞 <b>How to reach out:</b>\n${contactInfo}\n\nEnjoy your session!`
+  );
+}
+
 export function notifyProofApproved(telegramId: number, activityTitle: string, reward: number) {
   notifyUser(
     telegramId,

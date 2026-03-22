@@ -25,11 +25,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/contexts/UserContext";
-import { useSubmitRedemption } from "@/hooks/useSupabase";
+import { useSubmitRedemption, useRedemptionCategories, useMentors } from "@/hooks/useSupabase";
 import { hapticNotification } from "@/lib/telegram";
 
 interface RedemptionCategory {
@@ -65,7 +65,8 @@ const booksSchema = z.object({
 });
 
 const mentorshipSchema = z.object({
-  mentorCategory: z.string().min(1, "Please select a mentor category"),
+  mentorId: z.string().min(1, "Please select a mentor"),
+  mentorName: z.string().optional(),
   preferredDate: z.date().optional(),
 });
 
@@ -83,12 +84,13 @@ const categoryRequirements: Record<string, string> = {
   data: "Phone + Network + Amount",
   cash: "Bank + Account details",
   books: "Delivery option + Category",
-  mentorship: "Category + Date",
+  mentorship: "Mentor + Date",
   courses: "Course name + Link",
   other: "Description",
 };
 
-const redemptionCategories: RedemptionCategory[] = [
+// Default fallback categories (used while DB loads)
+const defaultCategories: RedemptionCategory[] = [
   { id: "airtime", title: "Airtime", description: "Recharge your phone with airtime", icon: Smartphone, color: "from-blue-500 to-cyan-500", cost: 500 },
   { id: "data", title: "Data", description: "Purchase mobile data bundles", icon: Wifi, color: "from-green-500 to-emerald-500", cost: 800 },
   { id: "cash", title: "Cash", description: "Transfer cash to your bank account", icon: Banknote, color: "from-primary to-yellow-500", cost: 1000 },
@@ -98,6 +100,18 @@ const redemptionCategories: RedemptionCategory[] = [
   { id: "other", title: "Other", description: "Custom redemption request", icon: MoreHorizontal, color: "from-gray-500 to-slate-500", cost: 100 },
 ];
 
+const iconMap: Record<string, React.ComponentType<any>> = {
+  airtime: Smartphone, data: Wifi, cash: Banknote, books: Book,
+  mentorship: Users, courses: GraduationCap, other: MoreHorizontal,
+};
+
+const colorMap: Record<string, string> = {
+  airtime: "from-blue-500 to-cyan-500", data: "from-green-500 to-emerald-500",
+  cash: "from-primary to-yellow-500", books: "from-purple-500 to-pink-500",
+  mentorship: "from-orange-500 to-red-500", courses: "from-indigo-500 to-purple-500",
+  other: "from-gray-500 to-slate-500",
+};
+
 interface RedeemProps {
   onTabChange?: (tab: string) => void;
 }
@@ -106,10 +120,32 @@ export default function Redeem({ onTabChange }: RedeemProps) {
   const { toast } = useToast();
   const { dbUser } = useUser();
   const submitRedemption = useSubmitRedemption();
+  const { data: dbCategories } = useRedemptionCategories();
+  const { data: mentors = [] } = useMentors();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const balance = dbUser?.balance ?? 0;
+
+  // Merge DB costs into static category definitions
+  const redemptionCategories = useMemo(() => {
+    if (!dbCategories) return defaultCategories;
+    return defaultCategories
+      .map((cat) => {
+        const dbCat = dbCategories.find((d: any) => d.id === cat.id);
+        if (!dbCat) return cat;
+        if (!dbCat.is_active) return null;
+        return {
+          ...cat,
+          cost: dbCat.cost,
+          title: dbCat.title || cat.title,
+          description: dbCat.description || cat.description,
+          icon: iconMap[cat.id] || cat.icon,
+          color: colorMap[cat.id] || cat.color,
+        };
+      })
+      .filter(Boolean) as RedemptionCategory[];
+  }, [dbCategories]);
 
   const airtimeForm = useForm({ resolver: zodResolver(airtimeSchema), defaultValues: { phoneNumber: "", network: "" } });
   const dataForm = useForm({ resolver: zodResolver(dataSchema), defaultValues: { phoneNumber: "", network: "", dataAmount: "" } });
@@ -166,7 +202,8 @@ export default function Redeem({ onTabChange }: RedeemProps) {
     if (!selectedCategory) return null;
 
     switch (selectedCategory) {
-      case "airtime":
+      case "airtime": {
+        const airtimeCost = redemptionCategories.find(c => c.id === "airtime")?.cost ?? 500;
         return (
           <Form {...airtimeForm}>
             <form onSubmit={airtimeForm.handleSubmit((data) => handleSubmit(data, "airtime"))} className="space-y-4">
@@ -185,12 +222,14 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                 </FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={submitRedemption.isPending}>
-                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request (500 DR)
+                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request ({airtimeCost.toLocaleString()} DR)
               </Button>
             </form>
           </Form>
         );
-      case "data":
+      }
+      case "data": {
+        const dataCost = redemptionCategories.find(c => c.id === "data")?.cost ?? 800;
         return (
           <Form {...dataForm}>
             <form onSubmit={dataForm.handleSubmit((data) => handleSubmit(data, "data"))} className="space-y-4">
@@ -221,12 +260,14 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                 </FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={submitRedemption.isPending}>
-                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request (800 DR)
+                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request ({dataCost.toLocaleString()} DR)
               </Button>
             </form>
           </Form>
         );
-      case "cash":
+      }
+      case "cash": {
+        const cashCost = redemptionCategories.find(c => c.id === "cash")?.cost ?? 1000;
         return (
           <Form {...cashForm}>
             <form onSubmit={cashForm.handleSubmit((data) => handleSubmit(data, "cash"))} className="space-y-4">
@@ -249,12 +290,14 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                 <FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="John Doe" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={submitRedemption.isPending}>
-                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request (1,000 DR)
+                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request ({cashCost.toLocaleString()} DR)
               </Button>
             </form>
           </Form>
         );
-      case "books":
+      }
+      case "books": {
+        const booksCost = redemptionCategories.find(c => c.id === "books")?.cost ?? 600;
         return (
           <Form {...booksForm}>
             <form onSubmit={booksForm.handleSubmit((data) => handleSubmit(data, "books"))} className="space-y-4">
@@ -284,22 +327,34 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                 </FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={submitRedemption.isPending}>
-                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request (600 DR)
+                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request ({booksCost.toLocaleString()} DR)
               </Button>
             </form>
           </Form>
         );
-      case "mentorship":
+      }
+      case "mentorship": {
+        const mentorCost = redemptionCategories.find(c => c.id === "mentorship")?.cost ?? 1500;
         return (
           <Form {...mentorshipForm}>
-            <form onSubmit={mentorshipForm.handleSubmit((data) => handleSubmit(data, "mentorship"))} className="space-y-4">
-              <FormField control={mentorshipForm.control} name="mentorCategory" render={({ field }) => (
-                <FormItem><FormLabel>Mentor Category</FormLabel>
+            <form onSubmit={mentorshipForm.handleSubmit((data) => {
+              const mentor = mentors.find((m: any) => m.id === data.mentorId);
+              handleSubmit({ ...data, mentorName: mentor?.name || "Unknown", mentorSpecialty: mentor?.specialty || "" }, "mentorship");
+            })} className="space-y-4">
+              <FormField control={mentorshipForm.control} name="mentorId" render={({ field }) => (
+                <FormItem><FormLabel>Select Mentor</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select mentor category" /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Choose a mentor" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="business">Business</SelectItem><SelectItem value="career">Career</SelectItem>
-                      <SelectItem value="tech">Technology</SelectItem><SelectItem value="personal">Personal Growth</SelectItem>
+                      {mentors.length === 0 ? (
+                        <SelectItem value="_none" disabled>No mentors available</SelectItem>
+                      ) : (
+                        mentors.map((m: any) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {m.name} {m.specialty ? `(${m.specialty})` : ""}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select><FormMessage />
                 </FormItem>
@@ -321,13 +376,15 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                   </Popover><FormMessage />
                 </FormItem>
               )} />
-              <Button type="submit" className="w-full" disabled={submitRedemption.isPending}>
-                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request (1,500 DR)
+              <Button type="submit" className="w-full" disabled={submitRedemption.isPending || mentors.length === 0}>
+                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request ({mentorCost.toLocaleString()} DR)
               </Button>
             </form>
           </Form>
         );
-      case "courses":
+      }
+      case "courses": {
+        const coursesCost = redemptionCategories.find(c => c.id === "courses")?.cost ?? 2000;
         return (
           <Form {...courseForm}>
             <form onSubmit={courseForm.handleSubmit((data) => handleSubmit(data, "courses"))} className="space-y-4">
@@ -338,12 +395,14 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                 <FormItem><FormLabel>Course Link</FormLabel><FormControl><Input placeholder="https://example.com/course" {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={submitRedemption.isPending}>
-                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request (2,000 DR)
+                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request ({coursesCost.toLocaleString()} DR)
               </Button>
             </form>
           </Form>
         );
-      case "other":
+      }
+      case "other": {
+        const otherCost = redemptionCategories.find(c => c.id === "other")?.cost ?? 100;
         return (
           <Form {...otherForm}>
             <form onSubmit={otherForm.handleSubmit((data) => handleSubmit(data, "other"))} className="space-y-4">
@@ -353,11 +412,12 @@ export default function Redeem({ onTabChange }: RedeemProps) {
                 </FormControl><FormMessage /></FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={submitRedemption.isPending}>
-                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request (100 DR)
+                {submitRedemption.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}Submit Request ({otherCost.toLocaleString()} DR)
               </Button>
             </form>
           </Form>
         );
+      }
       default:
         return null;
     }
@@ -384,7 +444,7 @@ export default function Redeem({ onTabChange }: RedeemProps) {
             </span>
           </div>
         </Card>
-        <p className="text-xs text-center text-muted-foreground mb-2">1 DR = 2 NGN based on redemption value</p>
+        <p className="text-xs text-center text-muted-foreground mb-2">1 DR = ₦0.33 based on redemption value</p>
         {onTabChange && (
           <Button
             variant="outline"

@@ -92,6 +92,7 @@ export function useLogActivity() {
       refreshUser();
       queryClient.invalidateQueries({ queryKey: ["activity_logs"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
@@ -137,6 +138,7 @@ export function usePerformCheckin() {
       refreshUser();
       queryClient.invalidateQueries({ queryKey: ["checkin_today"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
@@ -196,6 +198,7 @@ export function useRegisterHackathon() {
       queryClient.invalidateQueries({ queryKey: ["hackathon_registrations"] });
       queryClient.invalidateQueries({ queryKey: ["hackathons"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
@@ -250,6 +253,7 @@ export function useTransferDR() {
     onSuccess: () => {
       refreshUser();
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
@@ -266,6 +270,7 @@ export function useLeaderboard(limit = 20) {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 15000,
   });
 }
 
@@ -323,6 +328,7 @@ export function useCompleteMission() {
       refreshUser();
       queryClient.invalidateQueries({ queryKey: ["mission_completions"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
@@ -426,6 +432,137 @@ export function useCheckAchievements() {
 }
 
 // ============================================================
+// REDEMPTION CATEGORIES (admin-editable costs)
+// ============================================================
+
+export function useRedemptionCategories() {
+  return useQuery({
+    queryKey: ["redemption_categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("redemption_categories")
+        .select("*")
+        .order("id");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useUpdateRedemptionCategory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, cost, description, is_active }: { id: string; cost?: number; description?: string; is_active?: boolean }) => {
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (cost !== undefined) updates.cost = cost;
+      if (description !== undefined) updates.description = description;
+      if (is_active !== undefined) updates.is_active = is_active;
+      const { data, error } = await supabase
+        .from("redemption_categories")
+        .update(updates)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["redemption_categories"] });
+    },
+  });
+}
+
+// ============================================================
+// MENTORS
+// ============================================================
+
+export function useMentors() {
+  return useQuery({
+    queryKey: ["mentors"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mentors")
+        .select("*")
+        .eq("is_active", true)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAllMentors() {
+  return useQuery({
+    queryKey: ["all_mentors"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mentors")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useCreateMentor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (mentor: { name: string; specialty: string; contact_info: string }) => {
+      const { data, error } = await supabase
+        .from("mentors")
+        .insert(mentor)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mentors"] });
+      queryClient.invalidateQueries({ queryKey: ["all_mentors"] });
+    },
+  });
+}
+
+export function useUpdateMentor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; specialty?: string; contact_info?: string; is_active?: boolean }) => {
+      const { data, error } = await supabase
+        .from("mentors")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mentors"] });
+      queryClient.invalidateQueries({ queryKey: ["all_mentors"] });
+    },
+  });
+}
+
+export function useDeleteMentor() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("mentors").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mentors"] });
+      queryClient.invalidateQueries({ queryKey: ["all_mentors"] });
+    },
+  });
+}
+
+// ============================================================
 // REDEMPTIONS
 // ============================================================
 
@@ -456,6 +593,7 @@ export function useSubmitRedemption() {
     onSuccess: () => {
       refreshUser();
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
@@ -715,6 +853,7 @@ export function useAdjustBalance() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }

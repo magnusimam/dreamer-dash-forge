@@ -39,7 +39,7 @@ export default function Leaderboard() {
                 </div>
                 <div>
                   <p className="font-medium text-foreground">Your Rank</p>
-                  <p className="text-xs text-muted-foreground">{myRank.total_earned.toLocaleString()} DR earned</p>
+                  <p className="text-xs text-muted-foreground">{myRank.balance.toLocaleString()} DR</p>
                 </div>
               </div>
               <Badge className="bg-primary/20 text-primary border-primary/30">
@@ -69,7 +69,7 @@ export default function Leaderboard() {
                 <p className="text-xs font-medium text-foreground text-center truncate max-w-[80px]">
                   {user.first_name}
                 </p>
-                <p className="text-xs text-primary font-semibold">{user.total_earned.toLocaleString()}</p>
+                <p className="text-xs text-primary font-semibold">{user.balance.toLocaleString()}</p>
                 <div className={cn("w-full rounded-t-lg mt-1", rankBgs[idx], isFirst ? "h-16" : idx === 1 ? "h-12" : "h-10", "min-w-[70px] flex items-center justify-center")}>
                   <span className={cn("font-bold text-lg", rankColors[idx])}>#{idx + 1}</span>
                 </div>
@@ -125,8 +125,8 @@ export default function Leaderboard() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-primary font-bold text-sm">{user.total_earned.toLocaleString()}</p>
-                      <p className="text-xs text-muted-foreground">DR earned</p>
+                      <p className="text-primary font-bold text-sm">{user.balance.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">DR balance</p>
                     </div>
                   </div>
                 </Card>

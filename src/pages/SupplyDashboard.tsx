@@ -74,18 +74,18 @@ export default function SupplyDashboard() {
           <div className="bg-secondary rounded-lg p-3 space-y-2 text-sm mb-3">
             <div className="flex justify-between">
               <span className="text-muted-foreground">1 DR</span>
-              <span className="text-primary font-semibold">= 2 NGN</span>
+              <span className="text-primary font-semibold">= 0.33 NGN</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">500 DR</span>
-              <span className="text-foreground">= 1,000 NGN (airtime)</span>
+              <span className="text-muted-foreground">599 DR</span>
+              <span className="text-foreground">= 200 NGN</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">1,000 DR</span>
-              <span className="text-foreground">= 2,000 NGN (cash)</span>
+              <span className="text-foreground">= 330 NGN</span>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Value is based on redemption rates. 500 DR redeems for N1,000 airtime, so 1 DR = N2. This rate applies across all redemption categories.</p>
+          <p className="text-xs text-muted-foreground">Value is based on redemption rates. 599 DR redeems for ₦200, so 1 DR ≈ ₦0.33. This rate applies across all redemption categories.</p>
         </Card>
       </motion.div>
 
