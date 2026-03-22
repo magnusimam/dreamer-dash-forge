@@ -29,7 +29,8 @@
       "Bash(grep -E \"\\\\.tsx$\")",
       "Bash(grep -E \"\\\\.ts$\")",
       "Bash(node -e \":*)",
-      "Bash(echo \":*)"
+      "Bash(echo \":*)",
+      "Bash(grep -c \"stmgzykdildmlbvubtvs\" dist/assets/index-*.js)"
     ]
   }
 }
