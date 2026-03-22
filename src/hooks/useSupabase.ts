@@ -458,14 +458,11 @@ export function useUpdateRedemptionCategory() {
       if (cost !== undefined) updates.cost = cost;
       if (description !== undefined) updates.description = description;
       if (is_active !== undefined) updates.is_active = is_active;
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("redemption_categories")
         .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+        .eq("id", id);
       if (error) throw error;
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["redemption_categories"] });
