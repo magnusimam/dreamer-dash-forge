@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowRight, Zap, Share2, Copy, Check, Send,
+  ArrowRight, Share2, Copy, Check,
   Flame, Sparkles, TrendingUp, Loader2,
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
@@ -207,16 +207,14 @@ export default function Home({ onTabChange }: HomeProps) {
       >
         <Button
           onClick={() => onTabChange("activities")}
-          className="h-14 gradient-primary text-primary-foreground shadow-glow hover:shadow-none transition-smooth"
+          className="h-14 gradient-primary text-primary-foreground shadow-glow hover:shadow-none transition-smooth justify-center"
         >
-          <Zap className="w-5 h-5 mr-2" />
           Earn
         </Button>
         <Button
           onClick={() => onTabChange("transfer")}
-          className="h-14 gradient-primary text-primary-foreground shadow-glow hover:shadow-none transition-smooth"
+          className="h-14 gradient-primary text-primary-foreground shadow-glow hover:shadow-none transition-smooth justify-center"
         >
-          <Send className="w-5 h-5 mr-2" />
           Send
         </Button>
         <Button
