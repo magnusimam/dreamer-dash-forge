@@ -899,6 +899,23 @@ export function useStates() {
   });
 }
 
+export function useStateMembers(stateId: string | null) {
+  return useQuery({
+    queryKey: ["state_members", stateId],
+    queryFn: async () => {
+      if (!stateId) return [];
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, photo_url, balance, total_earned, status")
+        .eq("state_id", stateId)
+        .order("balance", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!stateId,
+  });
+}
+
 export function useStateRankings() {
   return useQuery({
     queryKey: ["state_rankings"],

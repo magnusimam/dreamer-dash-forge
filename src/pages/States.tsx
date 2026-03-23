@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,10 +14,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useStateRankings, useStates, useJoinState } from "@/hooks/useSupabase";
+import { useStateRankings, useStates, useJoinState, useStateMembers } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Users, Trophy, Loader2 } from "lucide-react";
+import { MapPin, Users, Trophy, Loader2, X, Award, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const rankColors = ["text-yellow-400", "text-gray-300", "text-amber-600"];
@@ -28,6 +30,8 @@ export default function States() {
   const { dbUser } = useUser();
   const { toast } = useToast();
   const [confirmState, setConfirmState] = useState<{ id: string; name: string } | null>(null);
+  const [selectedState, setSelectedState] = useState<{ id: string; name: string; member_count: number; total_balance: number; rank: number } | null>(null);
+  const { data: stateMembers = [], isLoading: membersLoading } = useStateMembers(selectedState?.id ?? null);
 
   const myState = rankings.find((s: any) => s.state_id === dbUser?.state_id);
   const hasJoined = !!dbUser?.state_id;
@@ -134,7 +138,16 @@ export default function States() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 + index * 0.05 }}
               >
-                <Card className={cn("gradient-card border-border/50 p-3", isMyState && "border-primary/30 bg-primary/5")}>
+                <Card
+                  className={cn("gradient-card border-border/50 p-3 cursor-pointer active:scale-[0.98] transition-transform", isMyState && "border-primary/30 bg-primary/5")}
+                  onClick={() => setSelectedState({
+                    id: state.state_id,
+                    name: state.state_name,
+                    member_count: Number(state.member_count),
+                    total_balance: Number(state.total_balance),
+                    rank: state.rank,
+                  })}
+                >
                   <div className="flex items-center gap-3">
                     <span className={cn(
                       "w-8 text-center font-bold text-sm",
@@ -194,6 +207,129 @@ export default function States() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* State Members Bottom Sheet */}
+      <AnimatePresence>
+        {selectedState && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center"
+            onClick={() => setSelectedState(null)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-5 pb-10 max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 100) setSelectedState(null);
+              }}
+            >
+              {/* Handle */}
+              <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
+
+              {/* Header */}
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold text-foreground text-lg">{selectedState.name}</h3>
+                </div>
+                <button
+                  onClick={() => setSelectedState(null)}
+                  className="p-1 rounded-full hover:bg-muted"
+                >
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* State stats */}
+              <div className="flex items-center gap-4 mb-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Trophy className="w-3 h-3" /> Rank #{selectedState.rank}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users className="w-3 h-3" /> {selectedState.member_count} members
+                </span>
+                <span className="flex items-center gap-1">
+                  <Coins className="w-3 h-3" /> {selectedState.total_balance.toLocaleString()} DR
+                </span>
+              </div>
+
+              {/* Members list */}
+              <div className="overflow-y-auto flex-1 -mx-1 px-1">
+                {membersLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  </div>
+                ) : stateMembers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No members yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {stateMembers.map((member: any, i: number) => {
+                      const name = [member.first_name, member.last_name].filter(Boolean).join(" ");
+                      const initials = [member.first_name?.[0], member.last_name?.[0]].filter(Boolean).join("");
+                      const isMe = member.id === dbUser?.id;
+                      const tierColors: Record<string, string> = {
+                        Bronze: "bg-amber-700/20 text-amber-500 border-amber-700/30",
+                        Silver: "bg-gray-300/20 text-gray-300 border-gray-300/30",
+                        Gold: "bg-primary/20 text-primary border-primary/30",
+                        Diamond: "bg-cyan-400/20 text-cyan-400 border-cyan-400/30",
+                      };
+                      return (
+                        <div
+                          key={member.id}
+                          className={cn(
+                            "flex items-center gap-3 p-2.5 rounded-lg",
+                            isMe ? "bg-primary/10 border border-primary/20" : "bg-secondary/30"
+                          )}
+                        >
+                          <span className={cn(
+                            "w-6 text-center font-bold text-xs",
+                            i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-amber-600" : "text-muted-foreground"
+                          )}>
+                            {i + 1}
+                          </span>
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage src={member.photo_url} />
+                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                              {initials || "?"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {name}
+                              {isMe && <span className="text-primary ml-1">(You)</span>}
+                            </p>
+                            {member.username && (
+                              <p className="text-xs text-muted-foreground truncate">@{member.username}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge className={cn("text-[10px] px-1.5 py-0", tierColors[member.status] || tierColors.Bronze)}>
+                              {member.status}
+                            </Badge>
+                            <div className="text-right">
+                              <p className="text-xs font-bold text-primary">{Number(member.balance).toLocaleString()}</p>
+                              <p className="text-[10px] text-muted-foreground">DR</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
