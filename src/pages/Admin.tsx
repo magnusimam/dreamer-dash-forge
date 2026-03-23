@@ -27,6 +27,10 @@ import {
   useCreateMentor,
   useUpdateMentor,
   useDeleteMentor,
+  useStates,
+  useStateRankings,
+  useCreateState,
+  useDeleteState,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
@@ -55,6 +59,7 @@ import {
   Send,
   Megaphone,
   Settings,
+  MapPin,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -72,6 +77,8 @@ export default function Admin() {
 
   const { data: redeemCategories = [] } = useRedemptionCategories();
   const { data: allMentors = [] } = useAllMentors();
+  const { data: allStates = [] } = useStates();
+  const { data: stateRankings = [] } = useStateRankings();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -100,6 +107,8 @@ export default function Admin() {
   const createMentorMutation = useCreateMentor();
   const updateMentorMutation = useUpdateMentor();
   const deleteMentorMutation = useDeleteMentor();
+  const createStateMutation = useCreateState();
+  const deleteStateMutation = useDeleteState();
 
   // Activity form
   const [actTitle, setActTitle] = useState("");
@@ -150,10 +159,42 @@ export default function Admin() {
   const [mentorContact, setMentorContact] = useState("");
   const [editingMentor, setEditingMentor] = useState<any | null>(null);
 
+  // State form
+  const [stateName, setStateName] = useState("");
+
   const generateCode = (title: string) => {
     const slug = title.toUpperCase().replace(/[^A-Z0-9 ]/g, "").split(" ").slice(0, 2).join("-");
     const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
     return `${slug}-${suffix}`;
+  };
+
+  // ---- STATE MANAGEMENT ----
+
+  const handleCreateState = async () => {
+    if (!stateName.trim()) {
+      toast({ title: "Enter a state name", variant: "destructive" });
+      return;
+    }
+    try {
+      await createStateMutation.mutateAsync(sanitize(stateName));
+      toast({ title: "State Created!" });
+      setStateName("");
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to create state.", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteState = async (stateId: string) => {
+    try {
+      const result = await deleteStateMutation.mutateAsync(stateId);
+      if (result?.success) {
+        toast({ title: "State Deleted" });
+      } else {
+        toast({ title: "Cannot Delete", description: result?.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to delete state.", variant: "destructive" });
+    }
   };
 
   // ---- BROADCAST TO ALL USERS ----
@@ -475,6 +516,7 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
+            <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>
             <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
           </TabsList>
         </div>
@@ -1032,6 +1074,73 @@ export default function Admin() {
         </TabsContent>
 
         {/* ========== BROADCAST TAB ========== */}
+        {/* ========== STATES TAB ========== */}
+        <TabsContent value="states">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* Add State Form */}
+            <Card className="gradient-card border-border/50 p-4 mb-4">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" /> Add New State
+              </h3>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="State name (e.g. Edo)"
+                  value={stateName}
+                  onChange={(e) => setStateName(e.target.value)}
+                  className="bg-secondary border-border"
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateState()}
+                />
+                <Button
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
+                  onClick={handleCreateState}
+                  disabled={!stateName.trim() || createStateMutation.isPending}
+                >
+                  {createStateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                </Button>
+              </div>
+            </Card>
+
+            {/* States List */}
+            <div className="space-y-2">
+              {allStates.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">No states created yet.</p>
+              ) : (
+                allStates.map((state: any) => {
+                  const ranking = stateRankings.find((r: any) => r.state_id === state.id);
+                  const memberCount = ranking ? Number(ranking.member_count) : 0;
+                  const totalBalance = ranking ? Number(ranking.total_balance) : 0;
+                  return (
+                    <Card key={state.id} className="gradient-card border-border/50 p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center">
+                            <MapPin className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{state.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {memberCount} members · {totalBalance.toLocaleString()} DR
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 px-2"
+                          onClick={() => handleDeleteState(state.id)}
+                          disabled={deleteStateMutation.isPending}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </motion.div>
+        </TabsContent>
+
         <TabsContent value="broadcast">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="gradient-card border-border/50 p-5 mb-6">

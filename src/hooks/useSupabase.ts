@@ -854,3 +854,95 @@ export function useAdjustBalance() {
     },
   });
 }
+
+// ============================================================
+// STATES
+// ============================================================
+
+export function useStates() {
+  return useQuery({
+    queryKey: ["states"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("states")
+        .select("*")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useStateRankings() {
+  return useQuery({
+    queryKey: ["state_rankings"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_state_rankings");
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useJoinState() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (stateId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("join_state", {
+        p_user_id: dbUser.id,
+        p_state_id: stateId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["state_rankings"] });
+    },
+  });
+}
+
+export function useCreateState() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase
+        .from("states")
+        .insert({ name })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["states"] });
+      queryClient.invalidateQueries({ queryKey: ["state_rankings"] });
+    },
+  });
+}
+
+export function useDeleteState() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (stateId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("delete_state", {
+        p_admin_id: dbUser.id,
+        p_state_id: stateId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["states"] });
+      queryClient.invalidateQueries({ queryKey: ["state_rankings"] });
+    },
+  });
+}

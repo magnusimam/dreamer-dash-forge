@@ -17,6 +17,7 @@ interface DbUser {
   status: string;
   created_at: string;
   referral_code: string | null;
+  state_id: string | null;
 }
 
 interface UserContextValue {

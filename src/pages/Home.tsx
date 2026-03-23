@@ -6,11 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowRight, Share2, Copy, Check,
-  Flame, Sparkles, TrendingUp, Loader2,
+  Flame, Sparkles, TrendingUp, Loader2, MapPin,
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings } from "@/hooks/useSupabase";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +50,8 @@ export default function Home({ onTabChange }: HomeProps) {
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const queryClient = useQueryClient();
+  const { data: stateRankings = [] } = useStateRankings();
+  const topState = stateRankings[0] || null;
 
   usePullToRefresh(async () => { await queryClient.invalidateQueries(); });
 
@@ -225,6 +227,34 @@ export default function Home({ onTabChange }: HomeProps) {
           <ArrowRight className="w-5 h-5 mr-2" />
           Redeem
         </Button>
+      </motion.div>
+
+      {/* State Rankings Teaser */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="mb-6"
+      >
+        <Card
+          className="gradient-card border-border/50 p-4 cursor-pointer hover:border-primary/30 transition-smooth"
+          onClick={() => onTabChange("states")}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">State Rankings</h3>
+                <p className="text-xs text-muted-foreground">
+                  {topState ? `${topState.state_name} leads with ${Number(topState.total_balance).toLocaleString()} DR` : "See which state leads"}
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        </Card>
       </motion.div>
 
       {/* Recent Transactions */}

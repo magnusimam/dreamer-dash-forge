@@ -13,12 +13,13 @@ import Transactions from "@/pages/Transactions";
 import RedemptionHistory from "@/pages/RedemptionHistory";
 import Onboarding from "@/pages/Onboarding";
 import SupplyDashboard from "@/pages/SupplyDashboard";
+import States from "@/pages/States";
 import { showBackButton, hideBackButton } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 import { supabase } from "@/lib/supabase";
 
-const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply"]);
+const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply", "states"]);
 
 const ONBOARDING_KEY = "dreamer_dash_onboarded";
 
@@ -90,6 +91,7 @@ const Index = () => {
       const backTo = activeTab === "admin" ? "profile"
         : activeTab === "transfer" || activeTab === "leaderboard" ? "profile"
         : activeTab === "redemption-history" ? "redeem"
+        : activeTab === "states" ? "home"
         : "home";
       showBackButton(() => handleTabChange(backTo));
     } else {
@@ -139,6 +141,8 @@ const Index = () => {
         return <RedemptionHistory />;
       case "supply":
         return <SupplyDashboard />;
+      case "states":
+        return <States />;
       default:
         return <Home onTabChange={handleTabChange} />;
     }

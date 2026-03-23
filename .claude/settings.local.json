@@ -30,7 +30,9 @@
       "Bash(grep -E \"\\\\.ts$\")",
       "Bash(node -e \":*)",
       "Bash(echo \":*)",
-      "Bash(grep -c \"stmgzykdildmlbvubtvs\" dist/assets/index-*.js)"
+      "Bash(grep -c \"stmgzykdildmlbvubtvs\" dist/assets/index-*.js)",
+      "Bash(find 'C:\\\\Users\\\\HP\\\\Dreamers Telegram Mini App\\\\dreamer-dash-forge' -name *.env* -o -name .env.example)",
+      "Bash(npx vercel:*)"
     ]
   }
 }
