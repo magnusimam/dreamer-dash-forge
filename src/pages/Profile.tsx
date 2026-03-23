@@ -13,7 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { useAchievements, useUserAchievements, useCheckAchievements } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -37,6 +37,8 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const { data: achievements } = useAchievements();
   const { data: unlockedIds } = useUserAchievements();
   const checkAchievements = useCheckAchievements();
+  const { data: referralCount } = useUserReferralCount();
+  const { data: referredBy } = useReferredBy();
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
 
   useEffect(() => {
@@ -156,6 +158,18 @@ export default function Profile({ onTabChange }: ProfileProps) {
               </div>
             </div>
           )}
+
+          {referredBy && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Referred By</p>
+              <p className="text-sm text-foreground font-medium">
+                {[referredBy.first_name, referredBy.last_name].filter(Boolean).join(" ")}
+                {referredBy.username && (
+                  <span className="text-muted-foreground font-normal"> @{referredBy.username}</span>
+                )}
+              </p>
+            </div>
+          )}
         </Card>
       </motion.div>
 
@@ -164,7 +178,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 gap-3 mb-6"
+        className="grid grid-cols-3 gap-3 mb-6"
       >
         <Card className="gradient-card border-border/50 p-4">
           <div className="text-center">
@@ -172,7 +186,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
             <p className="text-2xl font-bold text-foreground">
               {totalEarned.toLocaleString()}
             </p>
-            <p className="text-sm text-muted-foreground">Total Earned</p>
+            <p className="text-xs text-muted-foreground">Total Earned</p>
           </div>
         </Card>
 
@@ -182,7 +196,17 @@ export default function Profile({ onTabChange }: ProfileProps) {
             <p className="text-2xl font-bold text-foreground">
               {balance.toLocaleString()}
             </p>
-            <p className="text-sm text-muted-foreground">Balance</p>
+            <p className="text-xs text-muted-foreground">Balance</p>
+          </div>
+        </Card>
+
+        <Card className="gradient-card border-border/50 p-4">
+          <div className="text-center">
+            <Users className="w-6 h-6 text-primary mx-auto mb-2" />
+            <p className="text-2xl font-bold text-foreground">
+              {referralCount ?? 0}
+            </p>
+            <p className="text-xs text-muted-foreground">Referrals</p>
           </div>
         </Card>
       </motion.div>

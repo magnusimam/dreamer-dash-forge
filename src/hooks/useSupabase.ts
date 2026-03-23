@@ -375,6 +375,32 @@ export function useUserReferralCount() {
   });
 }
 
+export function useReferredBy() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["referred_by", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return null;
+      const { data, error } = await supabase
+        .from("referrals")
+        .select("referrer_id")
+        .eq("referred_id", dbUser.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      // Fetch referrer's name
+      const { data: referrer, error: userError } = await supabase
+        .from("users")
+        .select("first_name, last_name, username")
+        .eq("id", data.referrer_id)
+        .single();
+      if (userError) throw userError;
+      return referrer;
+    },
+    enabled: !!dbUser,
+  });
+}
+
 // ============================================================
 // ACHIEVEMENTS
 // ============================================================
