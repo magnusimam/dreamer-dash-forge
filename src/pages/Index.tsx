@@ -126,7 +126,7 @@ const Index = () => {
       case "activities":
         return <ActivityLog />;
       case "raffles":
-        return <Raffles />;
+        return <Raffles onTabChange={handleTabChange} />;
       case "hackathons":
         return <Hackathons />;
       case "redeem":

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useRaffles, useUserRaffleEntries, useEnterRaffle } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
-import { Coins, Ticket, Trophy, Clock, Users, Loader2, X, CheckCircle, Timer } from "lucide-react";
+import { Coins, Ticket, Trophy, Clock, Users, Loader2, X, CheckCircle, Timer, Rocket } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
 import { SkeletonList } from "@/components/SkeletonCard";
 import { Confetti } from "@/components/Confetti";
@@ -85,7 +85,11 @@ function RaffleCard({ raffle, isEntered, onEnter }: { raffle: any; isEntered: bo
   );
 }
 
-export default function Raffles() {
+interface RafflesProps {
+  onTabChange?: (tab: string) => void;
+}
+
+export default function Raffles({ onTabChange }: RafflesProps) {
   const { toast } = useToast();
   const { dbUser } = useUser();
   const { data: raffles, isLoading } = useRaffles();
@@ -129,8 +133,17 @@ export default function Raffles() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-28 px-4 pt-6">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Raffles</h1>
-        <p className="text-muted-foreground">Spend DR for a chance to win big</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground mb-1">Raffles</h1>
+            <p className="text-muted-foreground text-sm">Spend DR for a chance to win big</p>
+          </div>
+          {onTabChange && (
+            <Button variant="outline" size="sm" className="border-primary/30 text-primary" onClick={() => onTabChange("hackathons")}>
+              <Rocket className="w-3.5 h-3.5 mr-1.5" /> Hackathons
+            </Button>
+          )}
+        </div>
       </motion.div>
 
       {/* Balance */}
