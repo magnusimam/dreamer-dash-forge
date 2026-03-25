@@ -213,11 +213,25 @@ export function useRaffles() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("raffles")
-        .select("*, winner:winner_id(first_name, username)")
+        .select("*")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      // Fetch winner names for ended raffles
+      const withWinners = await Promise.all(
+        (data || []).map(async (r: any) => {
+          if (r.winner_id) {
+            const { data: winner } = await supabase
+              .from("users")
+              .select("first_name, username")
+              .eq("id", r.winner_id)
+              .maybeSingle();
+            return { ...r, winner };
+          }
+          return { ...r, winner: null };
+        })
+      );
+      return withWinners;
     },
   });
 }
@@ -229,11 +243,22 @@ export function useRaffleEntries(raffleId: string | null) {
       if (!raffleId) return [];
       const { data, error } = await supabase
         .from("raffle_entries")
-        .select("*, user:user_id(first_name, last_name, username)")
+        .select("*")
         .eq("raffle_id", raffleId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      // Fetch user info for each entry
+      const withUsers = await Promise.all(
+        (data || []).map(async (e: any) => {
+          const { data: user } = await supabase
+            .from("users")
+            .select("first_name, last_name, username")
+            .eq("id", e.user_id)
+            .maybeSingle();
+          return { ...e, user };
+        })
+      );
+      return withUsers;
     },
     enabled: !!raffleId,
   });
