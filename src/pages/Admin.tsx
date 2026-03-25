@@ -13,6 +13,7 @@ import {
   useCreateActivity,
   useUpdateActivity,
   useDeleteActivity,
+  useActivityParticipants,
   useHackathons,
   useCreateHackathon,
   useUpdateHackathon,
@@ -97,6 +98,30 @@ function RaffleEntriesList({ raffleId }: { raffleId: string }) {
         </div>
       ))}
       <p className="text-[10px] text-muted-foreground">{entries.length} total entries</p>
+    </div>
+  );
+}
+
+function ActivityParticipantsList({ activityId }: { activityId: string }) {
+  const { data: participants = [], isLoading } = useActivityParticipants(activityId);
+  if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
+  if (participants.length === 0) return <p className="text-xs text-muted-foreground mt-2">No one has claimed this activity yet</p>;
+  return (
+    <div className="mt-3 space-y-1 pl-3 border-l-2 border-emerald-500/20">
+      {participants.map((p: any) => (
+        <div key={p.id} className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-foreground">
+              {[p.user?.first_name, p.user?.last_name].filter(Boolean).join(" ")}
+            </p>
+            {p.user?.username && <p className="text-[10px] text-muted-foreground">@{p.user.username}</p>}
+          </div>
+          <p className="text-[10px] text-muted-foreground/60">
+            {new Date(p.logged_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+          </p>
+        </div>
+      ))}
+      <p className="text-[10px] text-emerald-400">{participants.length} claimed</p>
     </div>
   );
 }
@@ -189,6 +214,7 @@ export default function Admin() {
   const [raffleEnd, setRaffleEnd] = useState("");
   const [raffleMaxEntries, setRaffleMaxEntries] = useState("");
   const [viewingRaffleEntries, setViewingRaffleEntries] = useState<string | null>(null);
+  const [viewingActivityParticipants, setViewingActivityParticipants] = useState<string | null>(null);
 
   // Promo code form
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -690,6 +716,12 @@ export default function Admin() {
                         <div className="flex items-center gap-2 mt-3">
                           <Badge variant="secondary" className="text-xs"><ImageIcon className="w-3 h-3 mr-1" />Proof-based</Badge>
                         </div>
+                      )}
+                      <Button size="sm" variant="outline" className="mt-2 w-full border-border text-xs" onClick={() => setViewingActivityParticipants(viewingActivityParticipants === act.id ? null : act.id)}>
+                        <Users className="w-3 h-3 mr-1" /> {viewingActivityParticipants === act.id ? "Hide" : "View"} Participants
+                      </Button>
+                      {viewingActivityParticipants === act.id && (
+                        <ActivityParticipantsList activityId={act.id} />
                       )}
                     </Card>
                   ))}
