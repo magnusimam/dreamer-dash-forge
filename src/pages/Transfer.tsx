@@ -62,15 +62,32 @@ export default function Transfer() {
 
   useEffect(() => {
     const trimmed = username.trim().replace(/^@/, "");
-    if (trimmed.length < 3) { setLookupResult(null); return; }
+    if (trimmed.length < 2) { setLookupResult(null); return; }
     setLookupLoading(true);
     const timer = setTimeout(async () => {
-      const { data } = await supabase
+      // Try username match first
+      const { data: byUsername } = await supabase
         .from("users")
         .select("first_name")
         .ilike("username", trimmed)
         .maybeSingle();
-      setLookupResult(data ? { found: true, name: data.first_name } : { found: false });
+      if (byUsername) {
+        setLookupResult({ found: true, name: byUsername.first_name });
+        setLookupLoading(false);
+        return;
+      }
+      // Fall back to first_name match
+      const { data: byName } = await supabase
+        .from("users")
+        .select("first_name")
+        .ilike("first_name", trimmed);
+      if (byName && byName.length === 1) {
+        setLookupResult({ found: true, name: byName[0].first_name });
+      } else if (byName && byName.length > 1) {
+        setLookupResult({ found: false });
+      } else {
+        setLookupResult({ found: false });
+      }
       setLookupLoading(false);
     }, 500);
     return () => { clearTimeout(timer); setLookupLoading(false); };
@@ -81,7 +98,7 @@ export default function Transfer() {
 
   const handleReview = () => {
     const newErrors: Record<string, string> = {};
-    if (!username.trim()) newErrors.username = "Enter a recipient username";
+    if (!username.trim()) newErrors.username = "Enter a recipient username or name";
     if (parsedAmount < 5) newErrors.amount = "Minimum transfer is 5 DR";
     if (parsedAmount > balance) newErrors.amount = "Insufficient balance";
     if (Object.keys(newErrors).length > 0) {
@@ -110,12 +127,23 @@ export default function Transfer() {
         setNote("");
         localStorage.removeItem("transfer_draft");
         toast({ title: "Transfer Sent! ✅", description: `${result.amount} DR sent to @${result.recipient_username}` });
-        // Notify recipient
-        const { data: recipient } = await supabase
+        // Notify recipient — try username first, then first_name
+        let recipient: { telegram_id: number } | null = null;
+        const { data: byUn } = await supabase
           .from("users")
           .select("telegram_id")
           .ilike("username", result.recipient_username)
           .maybeSingle();
+        if (byUn) {
+          recipient = byUn;
+        } else {
+          const { data: byNm } = await supabase
+            .from("users")
+            .select("telegram_id")
+            .ilike("first_name", result.recipient_username)
+            .maybeSingle();
+          recipient = byNm;
+        }
         if (recipient?.telegram_id) {
           notifyTransferReceived(recipient.telegram_id, result.amount, dbUser?.username || dbUser?.first_name || "Someone", note.trim() || undefined);
         }
@@ -190,7 +218,7 @@ export default function Transfer() {
               <div className="relative">
                 <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="username"
+                  placeholder="username or name"
                   value={username}
                   onChange={(e) => {
                     setUsername(sanitize(e.target.value));
@@ -202,7 +230,7 @@ export default function Transfer() {
               {errors.username ? (
                 <p className="text-xs text-destructive mt-1">{errors.username}</p>
               ) : (
-                <p className="text-xs text-muted-foreground mt-1">Enter the Telegram username of the recipient</p>
+                <p className="text-xs text-muted-foreground mt-1">Enter recipient's Telegram username or first name</p>
               )}
               {lookupLoading && <p className="text-xs text-muted-foreground mt-1">Looking up...</p>}
               {lookupResult && !lookupLoading && !errors.username && (
