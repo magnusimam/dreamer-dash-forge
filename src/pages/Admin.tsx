@@ -32,6 +32,7 @@ import {
   useStateRankings,
   useCreateState,
   useDeleteState,
+  useAllReferrals,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
@@ -81,6 +82,7 @@ export default function Admin() {
   const { data: allMentors = [] } = useAllMentors();
   const { data: allStates = [] } = useStates();
   const { data: stateRankings = [] } = useStateRankings();
+  const { data: allReferrals = [] } = useAllReferrals();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -538,6 +540,7 @@ export default function Admin() {
               )}
             </TabsTrigger>
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
+            <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
             <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>
             <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
@@ -854,6 +857,9 @@ export default function Admin() {
                         <span>Streak: {u.streak}</span>
                         <span>Status: {u.status}</span>
                       </div>
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        Joined: {new Date(u.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} at {new Date(u.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
                     </div>
                     <div className="text-right flex items-center gap-2">
                       <div>
@@ -875,6 +881,71 @@ export default function Admin() {
             </div>
           </motion.div>
         </TabsContent>
+        {/* ========== REFERRALS TAB ========== */}
+        <TabsContent value="referrals">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">{allReferrals.length} total referrals</p>
+            </div>
+            {(() => {
+              // Group referrals by referrer
+              const grouped: Record<string, { referrer: any; referred: { user: any; date: string }[] }> = {};
+              allReferrals.forEach((r: any) => {
+                const referrerId = r.referrer?.id;
+                if (!referrerId) return;
+                if (!grouped[referrerId]) {
+                  grouped[referrerId] = { referrer: r.referrer, referred: [] };
+                }
+                grouped[referrerId].referred.push({ user: r.referred, date: r.created_at });
+              });
+              const sorted = Object.values(grouped).sort((a, b) => b.referred.length - a.referred.length);
+
+              if (sorted.length === 0) {
+                return <p className="text-sm text-muted-foreground text-center py-8">No referrals yet</p>;
+              }
+
+              return (
+                <div className="space-y-3">
+                  {sorted.map((group) => (
+                    <Card key={group.referrer.id} className="gradient-card border-border/50 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="font-medium text-foreground text-sm">
+                            {[group.referrer.first_name, group.referrer.last_name].filter(Boolean).join(" ")}
+                          </p>
+                          {group.referrer.username && (
+                            <p className="text-xs text-muted-foreground">@{group.referrer.username}</p>
+                          )}
+                        </div>
+                        <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
+                          {group.referred.length} referral{group.referred.length !== 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1.5 pl-3 border-l-2 border-primary/20">
+                        {group.referred.map((ref) => (
+                          <div key={ref.user?.id} className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-foreground">
+                                {[ref.user?.first_name, ref.user?.last_name].filter(Boolean).join(" ")}
+                              </p>
+                              {ref.user?.username && (
+                                <p className="text-[10px] text-muted-foreground">@{ref.user.username}</p>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground/60">
+                              {new Date(ref.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              );
+            })()}
+          </motion.div>
+        </TabsContent>
+
         {/* ========== SETTINGS TAB ========== */}
         <TabsContent value="settings">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
