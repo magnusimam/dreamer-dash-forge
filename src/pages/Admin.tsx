@@ -33,6 +33,11 @@ import {
   useCreateState,
   useDeleteState,
   useAllReferrals,
+  useRaffles,
+  useCreateRaffle,
+  useDeleteRaffle,
+  useDrawRaffleWinner,
+  useRaffleEntries,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
@@ -63,9 +68,35 @@ import {
   Settings,
   MapPin,
   UserX,
+  Ticket,
+  Sparkles,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
+
+function RaffleEntriesList({ raffleId }: { raffleId: string }) {
+  const { data: entries = [], isLoading } = useRaffleEntries(raffleId);
+  if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
+  if (entries.length === 0) return <p className="text-xs text-muted-foreground mt-2">No entries yet</p>;
+  return (
+    <div className="mt-3 space-y-1 pl-3 border-l-2 border-primary/20">
+      {entries.map((e: any) => (
+        <div key={e.id} className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-foreground">
+              {[e.user?.first_name, e.user?.last_name].filter(Boolean).join(" ")}
+            </p>
+            {e.user?.username && <p className="text-[10px] text-muted-foreground">@{e.user.username}</p>}
+          </div>
+          <p className="text-[10px] text-muted-foreground/60">
+            {new Date(e.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+          </p>
+        </div>
+      ))}
+      <p className="text-[10px] text-muted-foreground">{entries.length} total entries</p>
+    </div>
+  );
+}
 
 export default function Admin() {
   const { toast } = useToast();
@@ -83,6 +114,7 @@ export default function Admin() {
   const { data: allStates = [] } = useStates();
   const { data: stateRankings = [] } = useStateRankings();
   const { data: allReferrals = [] } = useAllReferrals();
+  const { data: raffles = [] } = useRaffles();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -114,6 +146,9 @@ export default function Admin() {
   const deleteMentorMutation = useDeleteMentor();
   const createStateMutation = useCreateState();
   const deleteStateMutation = useDeleteState();
+  const createRaffleMutation = useCreateRaffle();
+  const deleteRaffleMutation = useDeleteRaffle();
+  const drawWinnerMutation = useDrawRaffleWinner();
 
   // Activity form
   const [actTitle, setActTitle] = useState("");
@@ -140,6 +175,14 @@ export default function Admin() {
   const [adjustUser, setAdjustUser] = useState<any | null>(null);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
+
+  // Raffle form
+  const [raffleTitle, setRaffleTitle] = useState("");
+  const [raffleDesc, setRaffleDesc] = useState("");
+  const [raffleFee, setRaffleFee] = useState("");
+  const [raffleEnd, setRaffleEnd] = useState("");
+  const [raffleMaxEntries, setRaffleMaxEntries] = useState("");
+  const [viewingRaffleEntries, setViewingRaffleEntries] = useState<string | null>(null);
 
   // Delete user confirmation
   const [deleteUserTarget, setDeleteUserTarget] = useState<any | null>(null);
@@ -540,6 +583,7 @@ export default function Admin() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="raffles" className="text-xs px-3">Raffles</TabsTrigger>
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
             <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
@@ -830,6 +874,115 @@ export default function Admin() {
                     </Card>
                   );
                 })}
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== RAFFLES TAB ========== */}
+        <TabsContent value="raffles">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Ticket className="w-4 h-4 text-primary" />
+                Create Raffle
+              </h3>
+              <div className="space-y-3">
+                <Input placeholder="Raffle title" value={raffleTitle} onChange={(e) => setRaffleTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
+                <Textarea placeholder="Description (optional)" value={raffleDesc} onChange={(e) => setRaffleDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
+                <Input type="number" placeholder="Entry fee in DR (e.g. 50)" value={raffleFee} onChange={(e) => setRaffleFee(e.target.value)} className="bg-secondary border-border" />
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">End Date & Time</label>
+                  <Input type="datetime-local" value={raffleEnd} onChange={(e) => setRaffleEnd(e.target.value)} className="bg-secondary border-border" />
+                </div>
+                <Input type="number" placeholder="Max entries (optional)" value={raffleMaxEntries} onChange={(e) => setRaffleMaxEntries(e.target.value)} className="bg-secondary border-border" />
+                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!raffleTitle || !raffleFee || !raffleEnd || createRaffleMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      await createRaffleMutation.mutateAsync({
+                        title: raffleTitle,
+                        description: raffleDesc || undefined,
+                        entry_fee: parseInt(raffleFee),
+                        end_date: new Date(raffleEnd).toISOString(),
+                        max_entries: raffleMaxEntries ? parseInt(raffleMaxEntries) : undefined,
+                      });
+                      toast({ title: "Raffle Created", description: raffleTitle });
+                      setRaffleTitle(""); setRaffleDesc(""); setRaffleFee(""); setRaffleEnd(""); setRaffleMaxEntries("");
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                    }
+                  }}>
+                  {createRaffleMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Ticket className="w-4 h-4 mr-2" />}
+                  Create Raffle
+                </Button>
+              </div>
+            </Card>
+
+            {raffles.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Raffles ({raffles.length})</h3>
+                <div className="space-y-3">
+                  {raffles.map((r: any) => {
+                    const isEnded = r.status === "ended";
+                    const winner = r.winner as any;
+                    return (
+                      <Card key={r.id} className="gradient-card border-border/50 p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground">{r.title}</h4>
+                            {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline" className={isEnded ? "text-xs bg-muted" : "text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}>{isEnded ? "Ended" : "Active"}</Badge>
+                            {!isEnded && (
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={async () => {
+                                await deleteRaffleMutation.mutateAsync(r.id);
+                                toast({ title: "Raffle deleted" });
+                              }}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                          <span className="flex items-center gap-1"><Coins className="w-3 h-3 text-primary" />{r.entry_fee} DR</span>
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(r.end_date).toLocaleDateString()}</span>
+                          {r.max_entries && <span className="flex items-center gap-1"><Users className="w-3 h-3" />Max {r.max_entries}</span>}
+                        </div>
+
+                        {winner && (
+                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 mb-3">
+                            <p className="text-xs text-foreground"><Trophy className="w-3 h-3 text-primary inline mr-1" />Winner: {winner.first_name}{winner.username ? ` (@${winner.username})` : ""}</p>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1 border-border" onClick={() => setViewingRaffleEntries(viewingRaffleEntries === r.id ? null : r.id)}>
+                            <Users className="w-3 h-3 mr-1" /> Entries
+                          </Button>
+                          {!isEnded && (
+                            <Button size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={drawWinnerMutation.isPending}
+                              onClick={async () => {
+                                const result = await drawWinnerMutation.mutateAsync(r.id);
+                                if (result?.success) {
+                                  toast({ title: "Winner Drawn!", description: `${result.winner}${result.winner_username ? ` (@${result.winner_username})` : ""} won ${result.prize} DR!` });
+                                } else {
+                                  toast({ title: "Error", description: result?.error, variant: "destructive" });
+                                }
+                              }}>
+                              {drawWinnerMutation.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                              Draw Winner
+                            </Button>
+                          )}
+                        </div>
+
+                        {viewingRaffleEntries === r.id && (
+                          <RaffleEntriesList raffleId={r.id} />
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </motion.div>

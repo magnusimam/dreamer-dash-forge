@@ -1,4 +1,4 @@
-import { Home, ClipboardList, Rocket, Gift, User } from "lucide-react";
+import { Home, ClipboardList, Ticket, Gift, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { hapticSelection } from "@/lib/telegram";
@@ -12,7 +12,7 @@ interface BottomNavProps {
 const navItems = [
   { id: "home", icon: Home, label: "Home" },
   { id: "activities", icon: ClipboardList, label: "Log" },
-  { id: "hackathons", icon: Rocket, label: "Hacks" },
+  { id: "raffles", icon: Ticket, label: "Raffles" },
   { id: "redeem", icon: Gift, label: "Redeem" },
   { id: "profile", icon: User, label: "Profile" },
 ];

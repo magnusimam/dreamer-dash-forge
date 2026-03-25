@@ -4,6 +4,7 @@ import BottomNav from "@/components/BottomNav";
 import Home from "@/pages/Home";
 import ActivityLog from "@/pages/ActivityLog";
 import Hackathons from "@/pages/Hackathons";
+import Raffles from "@/pages/Raffles";
 import Redeem from "@/pages/Redeem";
 import Profile from "@/pages/Profile";
 import Admin from "@/pages/Admin";
@@ -19,7 +20,7 @@ import { useUser } from "@/contexts/UserContext";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 import { supabase } from "@/lib/supabase";
 
-const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply", "states"]);
+const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply", "states", "hackathons"]);
 
 const ONBOARDING_KEY = "dreamer_dash_onboarded";
 
@@ -91,6 +92,7 @@ const Index = () => {
       const backTo = activeTab === "admin" ? "profile"
         : activeTab === "transfer" || activeTab === "leaderboard" ? "profile"
         : activeTab === "redemption-history" ? "redeem"
+        : activeTab === "hackathons" ? "raffles"
         : activeTab === "states" ? "home"
         : "home";
       showBackButton(() => handleTabChange(backTo));
@@ -123,6 +125,8 @@ const Index = () => {
         return <Home onTabChange={handleTabChange} />;
       case "activities":
         return <ActivityLog />;
+      case "raffles":
+        return <Raffles />;
       case "hackathons":
         return <Hackathons />;
       case "redeem":

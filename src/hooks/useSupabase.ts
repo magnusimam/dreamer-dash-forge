@@ -204,6 +204,165 @@ export function useRegisterHackathon() {
 }
 
 // ============================================================
+// RAFFLES
+// ============================================================
+
+export function useRaffles() {
+  return useQuery({
+    queryKey: ["raffles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("raffles")
+        .select("*, winner:winner_id(first_name, username)")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useRaffleEntries(raffleId: string | null) {
+  return useQuery({
+    queryKey: ["raffle_entries", raffleId],
+    queryFn: async () => {
+      if (!raffleId) return [];
+      const { data, error } = await supabase
+        .from("raffle_entries")
+        .select("*, user:user_id(first_name, last_name, username)")
+        .eq("raffle_id", raffleId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!raffleId,
+  });
+}
+
+export function useUserRaffleEntries() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["user_raffle_entries", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      const { data, error } = await supabase
+        .from("raffle_entries")
+        .select("raffle_id")
+        .eq("user_id", dbUser.id);
+      if (error) throw error;
+      return data.map((r) => r.raffle_id);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useEnterRaffle() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (raffleId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("enter_raffle", {
+        p_user_id: dbUser.id,
+        p_raffle_id: raffleId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["user_raffle_entries"] });
+      queryClient.invalidateQueries({ queryKey: ["raffles"] });
+      queryClient.invalidateQueries({ queryKey: ["raffle_entries"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useCreateRaffle() {
+  const queryClient = useQueryClient();
+  const { dbUser } = useUser();
+
+  return useMutation({
+    mutationFn: async (raffle: { title: string; description?: string; entry_fee: number; end_date: string; max_entries?: number }) => {
+      const { data, error } = await supabase
+        .from("raffles")
+        .insert({ ...raffle, created_by: dbUser?.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["raffles"] });
+    },
+  });
+}
+
+export function useDeleteRaffle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (raffleId: string) => {
+      const { error } = await supabase
+        .from("raffles")
+        .update({ is_active: false })
+        .eq("id", raffleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["raffles"] });
+    },
+  });
+}
+
+export function useDrawRaffleWinner() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (raffleId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("draw_raffle_winner", {
+        p_admin_id: dbUser.id,
+        p_raffle_id: raffleId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["raffles"] });
+      queryClient.invalidateQueries({ queryKey: ["raffle_entries"] });
+    },
+  });
+}
+
+// ============================================================
+// STREAK INSURANCE
+// ============================================================
+
+export function useBuyStreakInsurance() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("buy_streak_insurance", {
+        p_user_id: dbUser.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
 // TRANSACTIONS
 // ============================================================
 
