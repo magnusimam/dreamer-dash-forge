@@ -26,7 +26,7 @@ No additional DR can ever be created beyond this limit. The supply is enforced a
 
 ### Supply States
 
-At any point in time, every DR coin exists in one of three states:
+At any point in time, every DR coin exists in one of two states:
 
 - **Treasury (Unissued):** Coins waiting to be distributed. These are not in circulation.
 - **Circulating:** Coins held in user wallets. This is the active supply.
@@ -40,7 +40,7 @@ No coins are ever burned or destroyed. Every DR coin lives forever.
 
 ## 3. Coin Flow — The Circular Economy
 
-DR operates as a circular economy. Coins flow from the treasury to users, between users, and back to the treasury (or are burned permanently).
+DR operates as a circular economy. Coins flow from the treasury to users, between users, and back to the treasury. No coins are ever destroyed.
 
 ```
      ┌─────────────────────────────────────────────┐
@@ -49,23 +49,14 @@ DR operates as a circular economy. Coins flow from the treasury to users, betwee
      └──────┬──────────────────────────▲────────────┘
             │                          │
             │ EARN                     │ RECYCLE
-            │ (activities, missions,   │ (hackathon fees,
-            │  check-ins, referrals)   │  transfer fees,
-            │                          │  70% of redemptions)
+            │ (activities, missions,   │ (100% of redemptions,
+            │  check-ins, referrals)   │  hackathon fees,
+            │                          │  transfer fees)
             ▼                          │
      ┌──────────────────────────────────────────────┐
      │           USER WALLETS (Circulating)          │
      │                                               │
      │   User A ◄──── Transfer (2% fee) ────► User B │
-     └──────┬───────────────────────────────────────┘
-            │
-            │ SPEND
-            │ (redemptions)
-            ▼
-     ┌──────────────────────────────────────────────┐
-     │              BURNED (Destroyed)               │
-     │           30% of every redemption             │
-     │           Permanently removed                 │
      └──────────────────────────────────────────────┘
 ```
 
@@ -81,7 +72,7 @@ DR operates as a circular economy. Coins flow from the treasury to users, betwee
 | User transfer | User A | User B | 2% fee goes to Treasury |
 | Hackathon entry | User | Treasury | Entry fee recycled |
 | Hackathon prize | Treasury | Winner | From Hackathon Prize Pool |
-| Redemption | User | 70% Treasury + 30% Burned | Partial recycling + deflation |
+| Redemption | User | Treasury (100%) | Full recycling back to treasury |
 | Admin adjustment | Treasury | User | Rate-limited, audited |
 
 ---
@@ -103,7 +94,7 @@ To create scarcity and reward early participation, the maximum daily emission ra
 This ensures:
 - Early participants earn the most (incentive to join now)
 - Supply inflation decreases over time
-- Combined with the 30% burn on redemptions, DR becomes increasingly scarce
+- Combined with wallet caps and earning reductions, DR becomes increasingly scarce
 
 ---
 
@@ -144,28 +135,14 @@ To ensure fair distribution and prevent any single user from accumulating a disp
 
 ---
 
-## 6. Burn Mechanics (Deflation)
+## 6. Full Recycling (No Burn)
 
-DR is deflationary by design. Coins are permanently destroyed through the burn mechanism:
+DR is **not** deflationary. No coins are ever burned or destroyed. Every redeemed coin returns to the treasury in full:
 
-- **30% of every redemption is burned**
+- **100% of every redemption is recycled to treasury**
   - User redeems 1,000 DR for airtime
-  - 700 DR returns to Treasury (recyclable)
-  - 300 DR is burned forever
-- Burned coins are tracked in the `total_burned` counter
-- Burned coins can never be re-minted or recovered
-
-### Projected Burn Rate
-
-Assuming 1,000 active users, each redeeming an average of 500 DR/month:
-
-| Period | Monthly Redemptions | Monthly Burn | Cumulative Burn |
-|---|---|---|---|
-| Month 6 | 500,000 DR | 150,000 DR | 900,000 DR |
-| Month 12 | 500,000 DR | 150,000 DR | 1,800,000 DR |
-| Month 24 | 500,000 DR | 150,000 DR | 3,600,000 DR |
-
-After 2 years, approximately **3.6M DR (17% of total supply)** would be permanently burned, making the remaining 17.4M DR more valuable.
+  - 1,000 DR returns to Treasury
+- This keeps the full 21M supply intact and endlessly recyclable
 
 ---
 
@@ -174,29 +151,24 @@ After 2 years, approximately **3.6M DR (17% of total supply)** would be permanen
 ### The Recycling Loop
 
 1. User earns 200 DR for attending an activity (Treasury → User)
-2. User redeems 200 DR for data bundle:
-   - 140 DR returns to Treasury (70%)
-   - 60 DR is burned (30%)
-3. The 140 DR can be earned by someone else tomorrow
+2. User redeems 200 DR for data bundle → 200 DR returns to Treasury
+3. The 200 DR can be earned by someone else tomorrow
 
-**Net cost per cycle: only 60 DR burned.** The remaining 140 DR is endlessly recyclable.
+**Net cost per cycle: 0 DR lost.** All coins are endlessly recyclable.
 
 ### Back-of-Envelope Math
 
 - Community Treasury: 15,000,000 DR
 - Year 1 max emission: 1,825,000 DR
-- Recycling returns ~70% of spent DR
-- Effective net depletion Year 1: ~548,000 DR (after recycling)
-- Treasury after Year 1: ~14,450,000 DR
-- With halving emission, the treasury lasts **decades**
+- Recycling returns 100% of spent DR
+- With full recycling + halving emission, the treasury is self-sustaining
 
 ### Emergency Mechanisms
 
 If the treasury runs critically low (< 5% of total supply):
 1. Emission rate automatically reduces to 100 DR/day
-2. Redemption burn rate increases to 50%
-3. Transfer fee increases to 5%
-4. Community governance vote on next steps
+2. Transfer fee increases to 5%
+3. Community governance vote on next steps
 
 ---
 
@@ -209,7 +181,7 @@ All supply metrics are publicly visible to every user:
 | Total Supply | Always 21,000,000 DR |
 | Treasury Balance | Unissued coins remaining |
 | Circulating Supply | Total DR in all user wallets |
-| Total Burned | Permanently destroyed DR |
+| Total Recycled | DR returned to treasury from redemptions |
 | Today's Emission | DR distributed today vs. daily cap |
 | Daily Cap | Current max daily emission |
 | Total Users | Registered user count |
@@ -233,7 +205,7 @@ This dashboard is read-only and cannot be manipulated. It queries real-time data
 - Adjust their own balance
 - Bypass wallet caps or earning reductions
 - Delete or modify the audit log
-- Burn coins manually (only the redemption system can burn)
+- Destroy or burn coins (no burn mechanism exists)
 
 ### Audit Trail
 Every admin action is permanently logged:
@@ -257,7 +229,7 @@ When ready, DR can migrate to the **TON blockchain** as a Jetton (TON's token st
 | Phase 2 (Future) | Hybrid (Supabase + TON anchoring) | Periodic supply snapshots on-chain for auditability |
 | Phase 3 (Future) | Full TON Jetton | Fully decentralized, tradeable, trustless |
 
-The 21M supply cap, burn mechanics, and all balances can be mapped 1:1 to the blockchain token, ensuring continuity.
+The 21M supply cap, recycling mechanics, and all balances can be mapped 1:1 to the blockchain token, ensuring continuity.
 
 ---
 
@@ -268,7 +240,7 @@ The 21M supply cap, burn mechanics, and all balances can be mapped 1:1 to the bl
 | Token Name | Dreamers Coin |
 | Symbol | DR |
 | Total Supply | 21,000,000 (fixed) |
-| Burn Rate | 30% on redemptions |
+| Redemption Recycling | 100% to treasury |
 | Transfer Fee | 2% to Treasury |
 | Wallet Cap | 50,000 DR per user |
 | Daily Emission Cap | 5,000 DR (halves annually) |
@@ -278,12 +250,12 @@ The 21M supply cap, burn mechanics, and all balances can be mapped 1:1 to the bl
 
 **Core Principles:**
 1. **Fixed supply** — 21M DR, never more
-2. **Deflationary** — 30% burn on every redemption
-3. **Circular** — Coins recycle through the treasury
+2. **Fully circular** — 100% of redemptions recycle back to treasury
+3. **No burn** — Every coin lives forever
 4. **Fair** — Wallet caps, earning reduction, anti-hoarding
 5. **Transparent** — Public supply dashboard, admin audit trail
-6. **Sustainable** — Emission halving ensures decades of runway
+6. **Sustainable** — Full recycling + emission halving ensures the treasury is self-sustaining
 
 ---
 
-*This document defines the economic model for Dreamers Coin (DR). All parameters (supply cap, burn rate, fees, caps) are enforced programmatically and cannot be overridden without a community governance decision.*
+*This document defines the economic model for Dreamers Coin (DR). All parameters (supply cap, fees, caps) are enforced programmatically and cannot be overridden without a community governance decision.*
