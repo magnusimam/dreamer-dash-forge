@@ -73,6 +73,33 @@ export function useUserActivityLogs() {
   });
 }
 
+export function useActivityParticipants(activityId: string | null) {
+  return useQuery({
+    queryKey: ["activity_participants", activityId],
+    queryFn: async () => {
+      if (!activityId) return [];
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .eq("activity_id", activityId)
+        .order("logged_at", { ascending: false });
+      if (error) throw error;
+      const withUsers = await Promise.all(
+        (data || []).map(async (log: any) => {
+          const { data: user } = await supabase
+            .from("users")
+            .select("first_name, last_name, username")
+            .eq("id", log.user_id)
+            .maybeSingle();
+          return { ...log, user };
+        })
+      );
+      return withUsers;
+    },
+    enabled: !!activityId,
+  });
+}
+
 export function useLogActivity() {
   const { dbUser, refreshUser } = useUser();
   const queryClient = useQueryClient();
