@@ -367,6 +367,107 @@ export function useDrawRaffleWinner() {
 // STREAK INSURANCE
 // ============================================================
 
+// ============================================================
+// PROMO CODES
+// ============================================================
+
+export function useClaimPromoCode() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (code: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_promo_code", {
+        p_user_id: dbUser.id,
+        p_code: code,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useAllPromoCodes() {
+  return useQuery({
+    queryKey: ["admin_promo_codes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("promo_codes")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      // Fetch claimed_by user info
+      const withUsers = await Promise.all(
+        (data || []).map(async (p: any) => {
+          if (p.claimed_by) {
+            const { data: user } = await supabase
+              .from("users")
+              .select("first_name, username")
+              .eq("id", p.claimed_by)
+              .maybeSingle();
+            return { ...p, claimed_user: user };
+          }
+          return { ...p, claimed_user: null };
+        })
+      );
+      return withUsers;
+    },
+  });
+}
+
+export function useCreatePromoCode() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ code, reward, description }: { code: string; reward: number; description?: string }) => {
+      const { data, error } = await supabase
+        .from("promo_codes")
+        .insert({ code: code.toUpperCase().trim(), reward, description, created_by: dbUser?.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_promo_codes"] });
+    },
+  });
+}
+
+export function useGeneratePromoCodes() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ count, reward, description }: { count: number; reward: number; description?: string }) => {
+      const codes = [];
+      for (let i = 0; i < count; i++) {
+        const code = "BREATH-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+        codes.push({ code, reward, description, created_by: dbUser?.id });
+      }
+      const { data, error } = await supabase
+        .from("promo_codes")
+        .insert(codes)
+        .select();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_promo_codes"] });
+    },
+  });
+}
+
+// ============================================================
+// STREAK INSURANCE
+// ============================================================
+
 export function useBuyStreakInsurance() {
   const { dbUser, refreshUser } = useUser();
   const queryClient = useQueryClient();
