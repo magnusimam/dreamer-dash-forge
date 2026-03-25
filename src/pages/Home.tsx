@@ -16,10 +16,11 @@ import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { hapticNotification } from "@/lib/telegram";
 import { notifyDailyCheckin } from "@/lib/notifications";
 import { Confetti } from "@/components/Confetti";
+import { supabase } from "@/lib/supabase";
 
 interface HomeProps {
   onTabChange: (tab: string) => void;
@@ -49,6 +50,17 @@ export default function Home({ onTabChange }: HomeProps) {
   const checkinMutation = usePerformCheckin();
   const streakInsuranceMutation = useBuyStreakInsurance();
   const claimPromoMutation = useClaimPromoCode();
+  const { data: promoClaimCount = 0 } = useQuery({
+    queryKey: ["promo_claim_count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("promo_codes")
+        .select("*", { count: "exact", head: true })
+        .eq("is_used", true);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -229,7 +241,9 @@ export default function Home({ onTabChange }: HomeProps) {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-foreground">The Stolen Breath</p>
-              <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span></p>
+              <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span>
+                {promoClaimCount > 0 && <span className="text-purple-400"> · {promoClaimCount} claimed</span>}
+              </p>
               <div className="flex gap-2">
                 <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.com/thestolenbreath", "_blank")}>
                   <BookOpen className="w-3 h-3 mr-1" /> Get Book
