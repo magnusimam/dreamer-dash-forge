@@ -881,6 +881,28 @@ export function useAdjustBalance() {
   });
 }
 
+export function useDeleteUser() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("admin_delete_user", {
+        p_admin_id: dbUser.id,
+        p_user_id: userId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["state_rankings"] });
+    },
+  });
+}
+
 // ============================================================
 // STATES
 // ============================================================

@@ -21,6 +21,7 @@ import {
   useProcessRedemption,
   useAllUsers,
   useAdjustBalance,
+  useDeleteUser,
   useRedemptionCategories,
   useUpdateRedemptionCategory,
   useAllMentors,
@@ -60,6 +61,7 @@ import {
   Megaphone,
   Settings,
   MapPin,
+  UserX,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -103,6 +105,7 @@ export default function Admin() {
   const deleteHackathonMutation = useDeleteHackathon();
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
+  const deleteUserMutation = useDeleteUser();
   const updateCategoryMutation = useUpdateRedemptionCategory();
   const createMentorMutation = useCreateMentor();
   const updateMentorMutation = useUpdateMentor();
@@ -135,6 +138,9 @@ export default function Admin() {
   const [adjustUser, setAdjustUser] = useState<any | null>(null);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
+
+  // Delete user confirmation
+  const [deleteUserTarget, setDeleteUserTarget] = useState<any | null>(null);
 
   // Redemption notes modal
   const [redeemAction, setRedeemAction] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
@@ -440,6 +446,23 @@ export default function Admin() {
       setAdjustReason("");
     } catch (err: any) {
       toast({ title: "Error", description: err?.message || "Failed.", variant: "destructive" });
+    }
+  };
+
+  // ---- DELETE USER ----
+
+  const handleDeleteUser = async () => {
+    if (!deleteUserTarget) return;
+    try {
+      const result = await deleteUserMutation.mutateAsync({ userId: deleteUserTarget.id });
+      if (result?.success) {
+        toast({ title: "User Deleted", description: `${result.deleted_user} has been removed from the platform.` });
+      } else {
+        toast({ title: "Error", description: result?.error, variant: "destructive" });
+      }
+      setDeleteUserTarget(null);
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to delete user.", variant: "destructive" });
     }
   };
 
@@ -840,6 +863,11 @@ export default function Admin() {
                       <Button size="icon" variant="outline" className="h-8 w-8 border-primary/30" aria-label="Adjust balance" onClick={() => { setAdjustUser(u); setAdjustAmount(""); setAdjustReason(""); }}>
                         <Coins className="w-3.5 h-3.5 text-primary" />
                       </Button>
+                      {!u.is_admin && (
+                        <Button size="icon" variant="outline" className="h-8 w-8 border-destructive/30" aria-label="Delete user" onClick={() => setDeleteUserTarget(u)}>
+                          <UserX className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -1231,6 +1259,37 @@ export default function Admin() {
                 {processRedemptionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : redeemAction.action === "approved" ? <CheckCircle className="w-4 h-4 mr-2" /> : <XCircle className="w-4 h-4 mr-2" />}
                 Confirm {redeemAction.action === "approved" ? "Approval" : "Rejection"}
               </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========== DELETE USER CONFIRMATION MODAL ========== */}
+      <AnimatePresence>
+        {deleteUserTarget && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setDeleteUserTarget(null)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-destructive text-lg">Delete User</h3>
+                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setDeleteUserTarget(null)}><X className="w-4 h-4" /></Button>
+              </div>
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
+                <p className="text-sm text-foreground font-medium mb-1">
+                  {[deleteUserTarget.first_name, deleteUserTarget.last_name].filter(Boolean).join(" ")}
+                </p>
+                {deleteUserTarget.username && <p className="text-xs text-muted-foreground mb-1">@{deleteUserTarget.username}</p>}
+                <p className="text-xs text-muted-foreground">Balance: {deleteUserTarget.balance.toLocaleString()} DR</p>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                This will permanently delete this user and all their data (transactions, check-ins, activity logs, achievements). Their balance will be returned to the treasury. This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setDeleteUserTarget(null)}>Cancel</Button>
+                <Button className="flex-1 bg-destructive hover:bg-destructive/90 text-white" onClick={handleDeleteUser} disabled={deleteUserMutation.isPending}>
+                  {deleteUserMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserX className="w-4 h-4 mr-2" />}
+                  Delete User
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
