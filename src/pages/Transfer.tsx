@@ -65,26 +65,23 @@ export default function Transfer() {
     if (trimmed.length < 2) { setLookupResult(null); return; }
     setLookupLoading(true);
     const timer = setTimeout(async () => {
-      // Try username match first
-      const { data: byUsername } = await supabase
+      // Escape LIKE wildcards (% and _) for safe exact matching
+      const escaped = trimmed.replace(/%/g, "\\%").replace(/_/g, "\\_");
+      // Search by username OR first_name in one query
+      const { data } = await supabase
         .from("users")
-        .select("first_name")
-        .ilike("username", trimmed)
-        .maybeSingle();
-      if (byUsername) {
-        setLookupResult({ found: true, name: byUsername.first_name });
-        setLookupLoading(false);
-        return;
-      }
-      // Fall back to first_name match
-      const { data: byName } = await supabase
-        .from("users")
-        .select("first_name")
-        .ilike("first_name", trimmed);
-      if (byName && byName.length === 1) {
-        setLookupResult({ found: true, name: byName[0].first_name });
-      } else if (byName && byName.length > 1) {
-        setLookupResult({ found: false });
+        .select("first_name, username")
+        .or(`username.ilike.${escaped},first_name.ilike.${escaped}`);
+      if (data && data.length === 1) {
+        setLookupResult({ found: true, name: data[0].first_name });
+      } else if (data && data.length > 1) {
+        // Multiple matches — check if any is an exact username match
+        const exactMatch = data.find(u => u.username && u.username.toLowerCase() === trimmed.toLowerCase());
+        if (exactMatch) {
+          setLookupResult({ found: true, name: exactMatch.first_name });
+        } else {
+          setLookupResult({ found: false });
+        }
       } else {
         setLookupResult({ found: false });
       }
@@ -127,23 +124,14 @@ export default function Transfer() {
         setNote("");
         localStorage.removeItem("transfer_draft");
         toast({ title: "Transfer Sent! ✅", description: `${result.amount} DR sent to @${result.recipient_username}` });
-        // Notify recipient — try username first, then first_name
-        let recipient: { telegram_id: number } | null = null;
-        const { data: byUn } = await supabase
+        // Notify recipient — search by username or first_name
+        const escapedRecipient = (result.recipient_username || "").replace(/%/g, "\\%").replace(/_/g, "\\_");
+        const { data: recipientRows } = await supabase
           .from("users")
           .select("telegram_id")
-          .ilike("username", result.recipient_username)
-          .maybeSingle();
-        if (byUn) {
-          recipient = byUn;
-        } else {
-          const { data: byNm } = await supabase
-            .from("users")
-            .select("telegram_id")
-            .ilike("first_name", result.recipient_username)
-            .maybeSingle();
-          recipient = byNm;
-        }
+          .or(`username.ilike.${escapedRecipient},first_name.ilike.${escapedRecipient}`)
+          .limit(1);
+        const recipient = recipientRows?.[0] || null;
         if (recipient?.telegram_id) {
           notifyTransferReceived(recipient.telegram_id, result.amount, dbUser?.username || dbUser?.first_name || "Someone", note.trim() || undefined);
         }
