@@ -139,8 +139,8 @@ export default function Raffles({ onTabChange }: RafflesProps) {
             <p className="text-muted-foreground text-sm">Spend DR for a chance to win big</p>
           </div>
           {onTabChange && (
-            <Button variant="outline" size="sm" className="border-primary/30 text-primary" onClick={() => onTabChange("hackathons")}>
-              <Rocket className="w-3.5 h-3.5 mr-1.5" /> Hackathons
+            <Button size="sm" className="bg-primary/15 text-primary border border-primary/30 hover:bg-primary/25" onClick={() => onTabChange("hackathons")}>
+              <Rocket className="w-4 h-4 mr-1.5" /> Hackathons
             </Button>
           )}
         </div>
