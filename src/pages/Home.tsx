@@ -270,16 +270,21 @@ export default function Home({ onTabChange }: HomeProps) {
               <Input placeholder="Enter code (e.g. BREATH-A7X2)" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} className="mb-4 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
               <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!promoCode.trim() || claimPromoMutation.isPending}
                 onClick={async () => {
-                  const result = await claimPromoMutation.mutateAsync(promoCode.trim());
-                  if (result?.success) {
-                    hapticNotification("success");
-                    setShowConfetti(true);
-                    toast({ title: "Code Claimed!", description: `+${result.reward} DR — ${result.description || "Promo reward"}` });
-                    setPromoCode("");
-                    setShowPromoModal(false);
-                  } else {
+                  try {
+                    const result = await claimPromoMutation.mutateAsync(promoCode.trim());
+                    if (result?.success) {
+                      hapticNotification("success");
+                      setShowConfetti(true);
+                      toast({ title: "Code Claimed!", description: `+${result.reward} DR — ${result.description || "Promo reward"}` });
+                      setPromoCode("");
+                      setShowPromoModal(false);
+                    } else {
+                      hapticNotification("error");
+                      toast({ title: "Invalid Code", description: result?.error || "Code not recognized", variant: "destructive" });
+                    }
+                  } catch (err: any) {
                     hapticNotification("error");
-                    toast({ title: "Invalid Code", description: result?.error, variant: "destructive" });
+                    toast({ title: "Error", description: err?.message || "Failed to claim code. Make sure the code is valid.", variant: "destructive" });
                   }
                 }}>
                 {claimPromoMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Gift className="w-4 h-4 mr-2" />}
