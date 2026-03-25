@@ -144,8 +144,6 @@ export default function Admin() {
   // Delete user confirmation
   const [deleteUserTarget, setDeleteUserTarget] = useState<any | null>(null);
 
-  // Users tab view toggle
-  const [usersView, setUsersView] = useState<"list" | "referrals">("list");
 
   // Redemption notes modal
   const [redeemAction, setRedeemAction] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
@@ -543,6 +541,7 @@ export default function Admin() {
               )}
             </TabsTrigger>
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
+            <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
             <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>
             <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
@@ -839,17 +838,9 @@ export default function Admin() {
         {/* ========== USERS TAB ========== */}
         <TabsContent value="users">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            {/* Sub-toggle: Users vs Referrals */}
-            <div className="flex gap-2 mb-4">
-              <Button size="sm" variant={usersView === "list" ? "default" : "outline"} className={usersView === "list" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setUsersView("list")}>
-                <Users className="w-3.5 h-3.5 mr-1.5" /> Users ({allUsers.length})
-              </Button>
-              <Button size="sm" variant={usersView === "referrals" ? "default" : "outline"} className={usersView === "referrals" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setUsersView("referrals")}>
-                <Gift className="w-3.5 h-3.5 mr-1.5" /> Referrals ({allReferrals.length})
-              </Button>
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">{allUsers.length} registered users</p>
             </div>
-
-            {usersView === "list" && (
             <div className="space-y-3">
               {allUsers.map((u: any) => (
                 <Card key={u.id} className="gradient-card border-border/50 p-4">
@@ -889,67 +880,57 @@ export default function Admin() {
                 </Card>
               ))}
             </div>
-            )}
+          </motion.div>
+        </TabsContent>
 
-            {usersView === "referrals" && (
-            <>
-            {(() => {
-              const grouped: Record<string, { referrer: any; referred: { user: any; date: string }[] }> = {};
-              allReferrals.forEach((r: any) => {
-                const referrerId = r.referrer?.id;
-                if (!referrerId) return;
-                if (!grouped[referrerId]) {
-                  grouped[referrerId] = { referrer: r.referrer, referred: [] };
-                }
-                grouped[referrerId].referred.push({ user: r.referred, date: r.created_at });
-              });
-              const sorted = Object.values(grouped).sort((a, b) => b.referred.length - a.referred.length);
-
-              if (sorted.length === 0) {
-                return <p className="text-sm text-muted-foreground text-center py-8">No referrals yet</p>;
-              }
-
-              return (
-                <div className="space-y-3">
-                  {sorted.map((group) => (
-                    <Card key={group.referrer.id} className="gradient-card border-border/50 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-medium text-foreground text-sm">
-                            {[group.referrer.first_name, group.referrer.last_name].filter(Boolean).join(" ")}
-                          </p>
-                          {group.referrer.username && (
-                            <p className="text-xs text-muted-foreground">@{group.referrer.username}</p>
-                          )}
-                        </div>
-                        <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
-                          {group.referred.length} referral{group.referred.length !== 1 ? "s" : ""}
-                        </Badge>
+        {/* ========== REFERRALS TAB ========== */}
+        <TabsContent value="referrals">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">{allUsers.length} users &middot; {allReferrals.length} referrals</p>
+            </div>
+            <div className="space-y-3">
+              {allUsers.map((u: any) => {
+                const userReferrals = allReferrals.filter((r: any) => r.referrer?.id === u.id);
+                return (
+                  <Card key={u.id} className="gradient-card border-border/50 p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <div>
+                        <p className="font-medium text-foreground text-sm">
+                          {[u.first_name, u.last_name].filter(Boolean).join(" ")}
+                        </p>
+                        {u.username && <p className="text-xs text-muted-foreground">@{u.username}</p>}
                       </div>
-                      <div className="space-y-1.5 pl-3 border-l-2 border-primary/20">
-                        {group.referred.map((ref) => (
-                          <div key={ref.user?.id} className="flex items-center justify-between">
+                      <Badge className={userReferrals.length > 0 ? "bg-primary/20 text-primary border-primary/30 text-xs" : "bg-secondary text-muted-foreground border-border text-xs"}>
+                        {userReferrals.length} referral{userReferrals.length !== 1 ? "s" : ""}
+                      </Badge>
+                    </div>
+                    {userReferrals.length > 0 && (
+                      <div className="mt-2 space-y-1.5 pl-3 border-l-2 border-primary/20">
+                        {userReferrals.map((ref: any) => (
+                          <div key={ref.referred?.id || ref.id} className="flex items-center justify-between">
                             <div>
                               <p className="text-xs text-foreground">
-                                {[ref.user?.first_name, ref.user?.last_name].filter(Boolean).join(" ")}
+                                {[ref.referred?.first_name, ref.referred?.last_name].filter(Boolean).join(" ")}
                               </p>
-                              {ref.user?.username && (
-                                <p className="text-[10px] text-muted-foreground">@{ref.user.username}</p>
+                              {ref.referred?.username && (
+                                <p className="text-[10px] text-muted-foreground">@{ref.referred.username}</p>
                               )}
                             </div>
                             <p className="text-[10px] text-muted-foreground/60">
-                              {new Date(ref.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                              {new Date(ref.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                             </p>
                           </div>
                         ))}
                       </div>
-                    </Card>
-                  ))}
-                </div>
-              );
-            })()}
-            </>
-            )}
+                    )}
+                    {userReferrals.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground/50 mt-1">No referrals yet</p>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
           </motion.div>
         </TabsContent>
 
