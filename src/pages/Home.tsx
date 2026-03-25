@@ -231,7 +231,7 @@ export default function Home({ onTabChange }: HomeProps) {
               <p className="text-sm font-semibold text-foreground">The Stolen Breath</p>
               <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span></p>
               <div className="flex gap-2">
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.co/thesolenbreath", "_blank")}>
+                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.com/thestolenbreath", "_blank")}>
                   <BookOpen className="w-3 h-3 mr-1" /> Get Book
                 </Button>
                 <Button size="sm" variant="outline" className="border-primary/30 text-primary h-7 text-xs" onClick={() => setShowPromoModal(true)}>
