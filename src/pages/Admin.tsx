@@ -38,6 +38,9 @@ import {
   useDeleteRaffle,
   useDrawRaffleWinner,
   useRaffleEntries,
+  useAllPromoCodes,
+  useCreatePromoCode,
+  useGeneratePromoCodes,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
@@ -115,6 +118,7 @@ export default function Admin() {
   const { data: stateRankings = [] } = useStateRankings();
   const { data: allReferrals = [] } = useAllReferrals();
   const { data: raffles = [] } = useRaffles();
+  const { data: promoCodes = [] } = useAllPromoCodes();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -149,6 +153,8 @@ export default function Admin() {
   const createRaffleMutation = useCreateRaffle();
   const deleteRaffleMutation = useDeleteRaffle();
   const drawWinnerMutation = useDrawRaffleWinner();
+  const createPromoCodeMutation = useCreatePromoCode();
+  const generatePromoCodesMutation = useGeneratePromoCodes();
 
   // Activity form
   const [actTitle, setActTitle] = useState("");
@@ -183,6 +189,12 @@ export default function Admin() {
   const [raffleEnd, setRaffleEnd] = useState("");
   const [raffleMaxEntries, setRaffleMaxEntries] = useState("");
   const [viewingRaffleEntries, setViewingRaffleEntries] = useState<string | null>(null);
+
+  // Promo code form
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [promoReward, setPromoReward] = useState("500");
+  const [promoDesc, setPromoDesc] = useState("The Stolen Breath — Book Purchase Reward");
+  const [promoBatchCount, setPromoBatchCount] = useState("5");
 
   // Delete user confirmation
   const [deleteUserTarget, setDeleteUserTarget] = useState<any | null>(null);
@@ -584,6 +596,7 @@ export default function Admin() {
               )}
             </TabsTrigger>
             <TabsTrigger value="raffles" className="text-xs px-3">Raffles</TabsTrigger>
+            <TabsTrigger value="promos" className="text-xs px-3">Promos</TabsTrigger>
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
             <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
@@ -982,6 +995,91 @@ export default function Admin() {
                       </Card>
                     );
                   })}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== PROMOS TAB ========== */}
+        <TabsContent value="promos">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* Generate batch */}
+            <Card className="gradient-card border-border/50 p-5 mb-4">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Gift className="w-4 h-4 text-primary" />
+                Generate Promo Codes
+              </h3>
+              <div className="space-y-3">
+                <Input type="number" placeholder="How many codes?" value={promoBatchCount} onChange={(e) => setPromoBatchCount(e.target.value)} className="bg-secondary border-border" />
+                <Input type="number" placeholder="Reward per code (DR)" value={promoReward} onChange={(e) => setPromoReward(e.target.value)} className="bg-secondary border-border" />
+                <Input placeholder="Description" value={promoDesc} onChange={(e) => setPromoDesc(e.target.value)} className="bg-secondary border-border" />
+                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!promoBatchCount || !promoReward || generatePromoCodesMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      const result = await generatePromoCodesMutation.mutateAsync({
+                        count: parseInt(promoBatchCount),
+                        reward: parseInt(promoReward),
+                        description: promoDesc || undefined,
+                      });
+                      toast({ title: "Codes Generated", description: `${result?.length || 0} promo codes created` });
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                    }
+                  }}>
+                  {generatePromoCodesMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  Generate {promoBatchCount || 0} Codes
+                </Button>
+              </div>
+            </Card>
+
+            {/* Or create single code */}
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 text-sm">Or Create Single Code</h3>
+              <div className="flex gap-2">
+                <Input placeholder="Custom code" value={promoCodeInput} onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())} className="bg-secondary border-border font-mono flex-1" />
+                <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!promoCodeInput.trim() || createPromoCodeMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      await createPromoCodeMutation.mutateAsync({
+                        code: promoCodeInput.trim(),
+                        reward: parseInt(promoReward) || 500,
+                        description: promoDesc || undefined,
+                      });
+                      toast({ title: "Code Created", description: promoCodeInput.trim() });
+                      setPromoCodeInput("");
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message || "Duplicate code?", variant: "destructive" });
+                    }
+                  }}>
+                  {createPromoCodeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                </Button>
+              </div>
+            </Card>
+
+            {/* Code list */}
+            {promoCodes.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Codes ({promoCodes.length})</h3>
+                <div className="space-y-2">
+                  {promoCodes.map((p: any) => (
+                    <Card key={p.id} className={`border-border/50 p-3 ${p.is_used ? "opacity-60" : "gradient-card"}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-mono text-sm font-bold text-foreground">{p.code}</p>
+                          <p className="text-xs text-muted-foreground">{p.reward} DR — {p.description || "No description"}</p>
+                          {p.is_used && p.claimed_user && (
+                            <p className="text-xs text-emerald-400 mt-0.5">
+                              Claimed by {p.claimed_user.first_name}{p.claimed_user.username ? ` (@${p.claimed_user.username})` : ""} — {new Date(p.claimed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            </p>
+                          )}
+                        </div>
+                        <Badge className={p.is_used ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-primary/20 text-primary border-primary/30 text-[10px]"}>
+                          {p.is_used ? "Used" : "Available"}
+                        </Badge>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               </div>
             )}
