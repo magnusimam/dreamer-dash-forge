@@ -6,11 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowRight, Share2, Copy, Check,
-  Flame, Sparkles, TrendingUp, Loader2, MapPin,
+  Flame, Sparkles, TrendingUp, Loader2, MapPin, Shield,
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance } from "@/hooks/useSupabase";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +46,7 @@ export default function Home({ onTabChange }: HomeProps) {
   const { data: recentTransactions = [] } = useTransactions(3);
   const { data: alreadyCheckedIn = false } = useTodayCheckin();
   const checkinMutation = usePerformCheckin();
+  const streakInsuranceMutation = useBuyStreakInsurance();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -171,6 +172,44 @@ export default function Home({ onTabChange }: HomeProps) {
                 disabled={checkinMutation.isPending}
               >
                 {checkinMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Claim"}
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Streak Insurance */}
+      {streak >= 2 && alreadyCheckedIn && !(dbUser as any)?.streak_protected_until && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+          <Card className="border-orange-500/20 bg-orange-500/5 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-orange-500/15 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Protect Streak</p>
+                  <p className="text-xs text-muted-foreground">Keep your {streak}-day streak safe — 50 DR</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10 h-8"
+                onClick={async () => {
+                  const result = await streakInsuranceMutation.mutateAsync();
+                  if (result?.success) {
+                    hapticNotification("success");
+                    toast({ title: "Streak Protected!", description: `Your ${result.streak}-day streak is safe until tomorrow.` });
+                  } else {
+                    hapticNotification("error");
+                    toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                  }
+                }}
+                disabled={streakInsuranceMutation.isPending || balance < 50}
+              >
+                {streakInsuranceMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3 mr-1" />}
+                50 DR
               </Button>
             </div>
           </Card>
