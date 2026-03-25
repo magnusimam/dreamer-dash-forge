@@ -144,6 +144,9 @@ export default function Admin() {
   // Delete user confirmation
   const [deleteUserTarget, setDeleteUserTarget] = useState<any | null>(null);
 
+  // Users tab view toggle
+  const [usersView, setUsersView] = useState<"list" | "referrals">("list");
+
   // Redemption notes modal
   const [redeemAction, setRedeemAction] = useState<{ id: string; action: "approved" | "rejected" } | null>(null);
   const [redeemNotes, setRedeemNotes] = useState("");
@@ -540,7 +543,6 @@ export default function Admin() {
               )}
             </TabsTrigger>
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
-            <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
             <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
             <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>
             <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
@@ -837,9 +839,17 @@ export default function Admin() {
         {/* ========== USERS TAB ========== */}
         <TabsContent value="users">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground">{allUsers.length} registered users</p>
+            {/* Sub-toggle: Users vs Referrals */}
+            <div className="flex gap-2 mb-4">
+              <Button size="sm" variant={usersView === "list" ? "default" : "outline"} className={usersView === "list" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setUsersView("list")}>
+                <Users className="w-3.5 h-3.5 mr-1.5" /> Users ({allUsers.length})
+              </Button>
+              <Button size="sm" variant={usersView === "referrals" ? "default" : "outline"} className={usersView === "referrals" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setUsersView("referrals")}>
+                <Gift className="w-3.5 h-3.5 mr-1.5" /> Referrals ({allReferrals.length})
+              </Button>
             </div>
+
+            {usersView === "list" && (
             <div className="space-y-3">
               {allUsers.map((u: any) => (
                 <Card key={u.id} className="gradient-card border-border/50 p-4">
@@ -879,16 +889,11 @@ export default function Admin() {
                 </Card>
               ))}
             </div>
-          </motion.div>
-        </TabsContent>
-        {/* ========== REFERRALS TAB ========== */}
-        <TabsContent value="referrals">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground">{allReferrals.length} total referrals</p>
-            </div>
+            )}
+
+            {usersView === "referrals" && (
+            <>
             {(() => {
-              // Group referrals by referrer
               const grouped: Record<string, { referrer: any; referred: { user: any; date: string }[] }> = {};
               allReferrals.forEach((r: any) => {
                 const referrerId = r.referrer?.id;
@@ -943,6 +948,8 @@ export default function Admin() {
                 </div>
               );
             })()}
+            </>
+            )}
           </motion.div>
         </TabsContent>
 
