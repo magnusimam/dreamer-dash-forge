@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Confetti } from "@/components/Confetti";
 import { Card } from "@/components/ui/card";
@@ -13,37 +13,60 @@ import { notifyTransferReceived } from "@/lib/notifications";
 import {
   Send,
   Coins,
-  AtSign,
+  Search,
   MessageSquare,
   Loader2,
   CheckCircle,
   X,
+  User,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
+
+interface UserMatch {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  username: string | null;
+  telegram_id: number;
+}
 
 export default function Transfer() {
   const { toast } = useToast();
   const { dbUser } = useUser();
   const transferMutation = useTransferDR();
 
-  const [username, setUsername] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedUser, setSelectedUser] = useState<UserMatch | null>(null);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [lookupResult, setLookupResult] = useState<{ found: boolean; name?: string } | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<UserMatch[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   // Load saved draft from localStorage on mount
   useEffect(() => {
     const draft = localStorage.getItem("transfer_draft");
     if (draft) {
       try {
-        const { username: u, amount: a, note: n } = JSON.parse(draft);
-        if (u) setUsername(u);
+        const { amount: a, note: n } = JSON.parse(draft);
         if (a) setAmount(a);
         if (n) setNote(n);
       } catch {}
@@ -52,50 +75,55 @@ export default function Transfer() {
 
   // Save draft on change (debounced)
   useEffect(() => {
-    if (username || amount || note) {
+    if (amount || note) {
       const timer = setTimeout(() => {
-        localStorage.setItem("transfer_draft", JSON.stringify({ username, amount, note }));
+        localStorage.setItem("transfer_draft", JSON.stringify({ amount, note }));
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [username, amount, note]);
+  }, [amount, note]);
 
+  // Debounced user search
   useEffect(() => {
-    const trimmed = username.trim().replace(/^@/, "");
-    if (trimmed.length < 2) { setLookupResult(null); return; }
-    setLookupLoading(true);
+    if (selectedUser) return; // Don't search if user already selected
+    const trimmed = searchInput.trim().replace(/^@/, "");
+    if (trimmed.length < 2) { setSuggestions([]); setShowDropdown(false); return; }
+    setSearchLoading(true);
     const timer = setTimeout(async () => {
-      // Escape LIKE wildcards (% and _) for safe exact matching
       const escaped = trimmed.replace(/%/g, "\\%").replace(/_/g, "\\_");
-      // Search by username OR first_name in one query
       const { data } = await supabase
         .from("users")
-        .select("first_name, username")
-        .or(`username.ilike.${escaped},first_name.ilike.${escaped}`);
-      if (data && data.length === 1) {
-        setLookupResult({ found: true, name: data[0].first_name });
-      } else if (data && data.length > 1) {
-        // Multiple matches — check if any is an exact username match
-        const exactMatch = data.find(u => u.username && u.username.toLowerCase() === trimmed.toLowerCase());
-        if (exactMatch) {
-          setLookupResult({ found: true, name: exactMatch.first_name });
-        } else {
-          setLookupResult({ found: false });
-        }
-      } else {
-        setLookupResult({ found: false });
-      }
-      setLookupLoading(false);
-    }, 500);
-    return () => { clearTimeout(timer); setLookupLoading(false); };
-  }, [username]);
+        .select("id, first_name, last_name, username, telegram_id")
+        .or(`username.ilike.%${escaped}%,first_name.ilike.%${escaped}%`)
+        .neq("id", dbUser?.id || "")
+        .limit(10);
+      setSuggestions(data || []);
+      setShowDropdown(true);
+      setSearchLoading(false);
+    }, 300);
+    return () => { clearTimeout(timer); setSearchLoading(false); };
+  }, [searchInput, selectedUser, dbUser?.id]);
+
+  const handleSelectUser = (user: UserMatch) => {
+    setSelectedUser(user);
+    setSearchInput(user.username ? `@${user.username}` : user.first_name);
+    setShowDropdown(false);
+    if (errors.username) setErrors((prev) => { const { username, ...rest } = prev; return rest; });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedUser(null);
+    setSearchInput("");
+    setSuggestions([]);
+    inputRef.current?.focus();
+  };
 
   const balance = dbUser?.balance ?? 0;
   const parsedAmount = parseInt(amount) || 0;
 
   const handleReview = () => {
     const newErrors: Record<string, string> = {};
-    if (!username.trim()) newErrors.username = "Enter a recipient username or name";
+    if (!selectedUser) newErrors.username = "Select a recipient from the dropdown";
     if (parsedAmount < 5) newErrors.amount = "Minimum transfer is 5 DR";
     if (parsedAmount > balance) newErrors.amount = "Insufficient balance";
     if (Object.keys(newErrors).length > 0) {
@@ -107,9 +135,11 @@ export default function Transfer() {
   };
 
   const handleConfirmTransfer = async () => {
+    if (!selectedUser) return;
     try {
+      const recipientIdentifier = selectedUser.username || selectedUser.first_name;
       const result = await transferMutation.mutateAsync({
-        recipientUsername: username.trim().replace(/^@/, ""),
+        recipientUsername: recipientIdentifier,
         amount: parsedAmount,
         note: note.trim() || undefined,
       });
@@ -119,21 +149,16 @@ export default function Transfer() {
         setShowConfetti(true);
         setLastResult(result);
         setShowConfirm(false);
-        setUsername("");
+        setSelectedUser(null);
+        setSearchInput("");
         setAmount("");
         setNote("");
         localStorage.removeItem("transfer_draft");
-        toast({ title: "Transfer Sent! ✅", description: `${result.amount} DR sent to @${result.recipient_username}` });
-        // Notify recipient — search by username or first_name
-        const escapedRecipient = (result.recipient_username || "").replace(/%/g, "\\%").replace(/_/g, "\\_");
-        const { data: recipientRows } = await supabase
-          .from("users")
-          .select("telegram_id")
-          .or(`username.ilike.${escapedRecipient},first_name.ilike.${escapedRecipient}`)
-          .limit(1);
-        const recipient = recipientRows?.[0] || null;
-        if (recipient?.telegram_id) {
-          notifyTransferReceived(recipient.telegram_id, result.amount, dbUser?.username || dbUser?.first_name || "Someone", note.trim() || undefined);
+        const displayName = result.recipient_username || result.recipient;
+        toast({ title: "Transfer Sent!", description: `${result.amount} DR sent to ${displayName}` });
+        // Notify recipient
+        if (selectedUser.telegram_id) {
+          notifyTransferReceived(selectedUser.telegram_id, result.amount, dbUser?.username || dbUser?.first_name || "Someone", note.trim() || undefined);
         }
       } else {
         hapticNotification("error");
@@ -201,30 +226,92 @@ export default function Transfer() {
         <Card className="gradient-card border-border/50 p-5">
           <div className="space-y-4">
             {/* Recipient */}
-            <div>
+            <div ref={dropdownRef}>
               <label className="text-sm font-medium text-foreground block mb-2">Recipient</label>
               <div className="relative">
-                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="username or name"
-                  value={username}
-                  onChange={(e) => {
-                    setUsername(sanitize(e.target.value));
-                    if (errors.username) setErrors((prev) => { const { username, ...rest } = prev; return rest; });
-                  }}
-                  className="pl-9 bg-secondary border-border"
-                />
+                {selectedUser ? (
+                  <div className="flex items-center gap-2 bg-secondary border border-emerald-500/30 rounded-md px-3 py-2">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                      <User className="w-4 h-4 text-emerald-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {selectedUser.first_name}{selectedUser.last_name ? ` ${selectedUser.last_name}` : ""}
+                      </p>
+                      {selectedUser.username && (
+                        <p className="text-xs text-muted-foreground">@{selectedUser.username}</p>
+                      )}
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label="Clear" onClick={handleClearSelection}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      ref={inputRef}
+                      placeholder="Search by name or username..."
+                      value={searchInput}
+                      onChange={(e) => {
+                        setSearchInput(sanitize(e.target.value));
+                        if (errors.username) setErrors((prev) => { const { username, ...rest } = prev; return rest; });
+                      }}
+                      onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
+                      className="pl-9 bg-secondary border-border"
+                    />
+                    {searchLoading && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                    )}
+                  </>
+                )}
+
+                {/* Dropdown */}
+                <AnimatePresence>
+                  {showDropdown && !selectedUser && suggestions.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+                    >
+                      {suggestions.map((user) => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary/80 active:bg-secondary transition-colors text-left"
+                          onClick={() => handleSelectUser(user)}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <User className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {user.first_name}{user.last_name ? ` ${user.last_name}` : ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {user.username ? `@${user.username}` : "No username"}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* No results message */}
+                {showDropdown && !selectedUser && searchInput.trim().length >= 2 && !searchLoading && suggestions.length === 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg px-3 py-3">
+                    <p className="text-xs text-muted-foreground text-center">No users found</p>
+                  </div>
+                )}
               </div>
-              {errors.username ? (
+              {errors.username && (
                 <p className="text-xs text-destructive mt-1">{errors.username}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground mt-1">Enter recipient's Telegram username or first name</p>
               )}
-              {lookupLoading && <p className="text-xs text-muted-foreground mt-1">Looking up...</p>}
-              {lookupResult && !lookupLoading && !errors.username && (
-                lookupResult.found
-                  ? <p className="text-xs text-emerald-400 mt-1">Found: {lookupResult.name}</p>
-                  : <p className="text-xs text-destructive mt-1">User not found</p>
+              {!selectedUser && !errors.username && (
+                <p className="text-xs text-muted-foreground mt-1">Type to search for a user</p>
               )}
             </div>
 
@@ -302,7 +389,7 @@ export default function Transfer() {
             <Button
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
               onClick={handleReview}
-              disabled={!username.trim() || parsedAmount < 5 || parsedAmount > balance}
+              disabled={!selectedUser || parsedAmount < 5 || parsedAmount > balance}
             >
               <Send className="w-4 h-4 mr-2" />
               Review Transfer
@@ -348,7 +435,10 @@ export default function Transfer() {
               <div className="gradient-card border border-border/50 rounded-lg p-4 mb-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">To</span>
-                  <span className="text-foreground font-semibold">@{username.replace(/^@/, "")}</span>
+                  <span className="text-foreground font-semibold">
+                    {selectedUser?.first_name}{selectedUser?.last_name ? ` ${selectedUser.last_name}` : ""}
+                    {selectedUser?.username ? ` (@${selectedUser.username})` : ""}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Amount</span>
