@@ -17,6 +17,7 @@ import SupplyDashboard from "@/pages/SupplyDashboard";
 import States from "@/pages/States";
 import { showBackButton, hideBackButton } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
+import { useHeartbeat } from "@/hooks/useSupabase";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 import { supabase } from "@/lib/supabase";
 
@@ -30,6 +31,9 @@ const Index = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checkingReferral, setCheckingReferral] = useState(true);
   const scrollPositions = useRef<Record<string, number>>({});
+
+  // Heartbeat — updates last_active every 60s while app is open
+  useHeartbeat();
 
   const handleTabChange = (tab: string) => {
     scrollPositions.current[activeTab] = window.scrollY;

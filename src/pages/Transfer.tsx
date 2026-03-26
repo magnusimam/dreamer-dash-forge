@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
-import { useTransferDR } from "@/hooks/useSupabase";
+import { useTransferDR, isUserOnline } from "@/hooks/useSupabase";
 import { hapticNotification } from "@/lib/telegram";
 import { supabase } from "@/lib/supabase";
 import { notifyTransferReceived } from "@/lib/notifications";
@@ -29,6 +29,7 @@ interface UserMatch {
   last_name: string | null;
   username: string | null;
   telegram_id: number;
+  last_active: string | null;
 }
 
 export default function Transfer() {
@@ -93,7 +94,7 @@ export default function Transfer() {
       const escaped = trimmed.replace(/%/g, "\\%").replace(/_/g, "\\_");
       const { data } = await supabase
         .from("users")
-        .select("id, first_name, last_name, username, telegram_id")
+        .select("id, first_name, last_name, username, telegram_id, last_active")
         .or(`username.ilike.%${escaped}%,first_name.ilike.%${escaped}%`)
         .neq("id", dbUser?.id || "")
         .limit(10);
@@ -283,8 +284,9 @@ export default function Transfer() {
                           className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-secondary/80 active:bg-secondary transition-colors text-left"
                           onClick={() => handleSelectUser(user)}
                         >
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <div className="relative w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                             <User className="w-4 h-4 text-primary" />
+                            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isUserOnline(user.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">
