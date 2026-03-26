@@ -190,6 +190,7 @@ export default function Admin() {
   const [editingActivity, setEditingActivity] = useState<any | null>(null);
   const [actCodeRequired, setActCodeRequired] = useState(true);
   const [actProofRequired, setActProofRequired] = useState(false);
+  const [actMaxParticipants, setActMaxParticipants] = useState("");
 
   // Hackathon form
   const [hackTitle, setHackTitle] = useState("");
@@ -356,7 +357,7 @@ export default function Admin() {
 
   const resetActivityForm = () => {
     setActTitle(""); setActDesc(""); setActDate(""); setActReward(""); setActCategory("meeting");
-    setEditingActivity(null); setActCodeRequired(true); setActProofRequired(false);
+    setEditingActivity(null); setActCodeRequired(true); setActProofRequired(false); setActMaxParticipants("");
   };
 
   const handleCreateActivity = async () => {
@@ -366,7 +367,7 @@ export default function Admin() {
     }
     const code = generateCode(actTitle);
     try {
-      await createActivityMutation.mutateAsync({ title: actTitle, description: actDesc || undefined, category: actCategory, date: actDate, reward: parseInt(actReward), code, code_required: actCodeRequired, proof_required: actProofRequired });
+      await createActivityMutation.mutateAsync({ title: actTitle, description: actDesc || undefined, category: actCategory, date: actDate, reward: parseInt(actReward), code, code_required: actCodeRequired, proof_required: actProofRequired, max_participants: actMaxParticipants ? parseInt(actMaxParticipants) : null });
       if (actCodeRequired) {
         toast({ title: "Activity Created!", description: `Code: ${code}` });
       } else {
@@ -386,6 +387,7 @@ export default function Admin() {
     setActDate(act.date);
     setActReward(String(act.reward));
     setActCategory(act.category);
+    setActMaxParticipants(act.max_participants ? String(act.max_participants) : "");
   };
 
   const handleUpdateActivity = async () => {
@@ -394,6 +396,7 @@ export default function Admin() {
       await updateActivityMutation.mutateAsync({
         id: editingActivity.id, title: actTitle, description: actDesc || undefined,
         category: actCategory, date: actDate, reward: parseInt(actReward),
+        max_participants: actMaxParticipants ? parseInt(actMaxParticipants) : null,
       });
       toast({ title: "Activity Updated ✅" });
       resetActivityForm();
@@ -650,6 +653,7 @@ export default function Admin() {
                   <option value="event">Event</option>
                   <option value="outreach">Outreach</option>
                 </select>
+                <Input type="number" placeholder="Max participants (optional — leave empty for unlimited)" value={actMaxParticipants} onChange={(e) => setActMaxParticipants(e.target.value)} className="bg-secondary border-border" />
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm text-foreground">
                     <input type="checkbox" checked={actCodeRequired} onChange={(e) => setActCodeRequired(e.target.checked)} />
@@ -692,6 +696,7 @@ export default function Admin() {
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                             <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{new Date(act.date).toLocaleDateString()}</span>
                             <span className="flex items-center gap-1"><Coins className="w-3 h-3 text-primary" />{act.reward} DR</span>
+                            {act.max_participants && <span className="flex items-center gap-1"><Users className="w-3 h-3" />Max {act.max_participants}</span>}
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
