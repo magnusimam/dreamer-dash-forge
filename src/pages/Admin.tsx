@@ -42,6 +42,9 @@ import {
   useAllPromoCodes,
   useCreatePromoCode,
   useGeneratePromoCodes,
+  useMissions,
+  useCreateMission,
+  useDeleteMission,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
@@ -74,6 +77,8 @@ import {
   UserX,
   Ticket,
   Sparkles,
+  Target,
+  Lock,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -144,6 +149,7 @@ export default function Admin() {
   const { data: allReferrals = [] } = useAllReferrals();
   const { data: raffles = [] } = useRaffles();
   const { data: promoCodes = [] } = useAllPromoCodes();
+  const { data: allMissions = [] } = useMissions();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -180,6 +186,8 @@ export default function Admin() {
   const drawWinnerMutation = useDrawRaffleWinner();
   const createPromoCodeMutation = useCreatePromoCode();
   const generatePromoCodesMutation = useGeneratePromoCodes();
+  const createMissionMutation = useCreateMission();
+  const deleteMissionMutation = useDeleteMission();
 
   // Activity form
   const [actTitle, setActTitle] = useState("");
@@ -207,6 +215,14 @@ export default function Admin() {
   const [adjustUser, setAdjustUser] = useState<any | null>(null);
   const [adjustAmount, setAdjustAmount] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
+
+  // Mission form
+  const [missionTitle, setMissionTitle] = useState("");
+  const [missionDesc, setMissionDesc] = useState("");
+  const [missionReward, setMissionReward] = useState("");
+  const [missionUnlockFee, setMissionUnlockFee] = useState("");
+  const [missionCode, setMissionCode] = useState("");
+  const [missionExpiry, setMissionExpiry] = useState("");
 
   // Raffle form
   const [raffleTitle, setRaffleTitle] = useState("");
@@ -607,6 +623,7 @@ export default function Admin() {
         <div className="mb-6 overflow-x-auto scrollbar-hide -mx-4 px-4">
           <TabsList className="inline-flex w-auto min-w-full gap-1">
             <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>
+            <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>
             <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>
             <TabsTrigger value="redemptions" className="relative text-xs px-3">
               Redeem
@@ -728,6 +745,82 @@ export default function Admin() {
                       {viewingActivityParticipants === act.id && (
                         <ActivityParticipantsList activityId={act.id} />
                       )}
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== MISSIONS TAB ========== */}
+        <TabsContent value="missions">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Target className="w-4 h-4 text-primary" />
+                Create Monthly Mission
+              </h3>
+              <div className="space-y-3">
+                <Input placeholder="Mission title" value={missionTitle} onChange={(e) => setMissionTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
+                <Textarea placeholder="Mission description (hidden until unlocked)" value={missionDesc} onChange={(e) => setMissionDesc(e.target.value)} className="bg-secondary border-border min-h-[80px]" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Unlock Fee (DR)</label><Input type="number" placeholder="e.g. 100" value={missionUnlockFee} onChange={(e) => setMissionUnlockFee(e.target.value)} className="bg-secondary border-border" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Reward (DR)</label><Input type="number" placeholder="e.g. 500" value={missionReward} onChange={(e) => setMissionReward(e.target.value)} className="bg-secondary border-border" /></div>
+                </div>
+                <Input placeholder="Completion code (given to users who finish)" value={missionCode} onChange={(e) => setMissionCode(e.target.value.toUpperCase())} className="bg-secondary border-border font-mono" />
+                <div><label className="text-xs text-muted-foreground mb-1 block">Expires (optional)</label><Input type="date" value={missionExpiry} onChange={(e) => setMissionExpiry(e.target.value)} className="bg-secondary border-border" /></div>
+                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!missionTitle || !missionUnlockFee || !missionReward || !missionCode || createMissionMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      await createMissionMutation.mutateAsync({
+                        title: missionTitle,
+                        description: missionDesc || undefined,
+                        category: "special",
+                        reward: parseInt(missionReward),
+                        unlock_fee: parseInt(missionUnlockFee),
+                        completion_code: missionCode,
+                        expires_at: missionExpiry ? new Date(missionExpiry).toISOString() : undefined,
+                      });
+                      toast({ title: "Mission Created", description: `${missionTitle} — Code: ${missionCode}` });
+                      setMissionTitle(""); setMissionDesc(""); setMissionReward(""); setMissionUnlockFee(""); setMissionCode(""); setMissionExpiry("");
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                    }
+                  }}>
+                  {createMissionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Target className="w-4 h-4 mr-2" />}
+                  Create Mission
+                </Button>
+              </div>
+            </Card>
+
+            {allMissions.filter((m: any) => m.unlock_fee > 0).length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">Paid Missions ({allMissions.filter((m: any) => m.unlock_fee > 0).length})</h3>
+                <div className="space-y-3">
+                  {allMissions.filter((m: any) => m.unlock_fee > 0).map((m: any) => (
+                    <Card key={m.id} className="gradient-card border-border/50 p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-foreground">{m.title}</h4>
+                          {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={async () => { await deleteMissionMutation.mutateAsync(m.id); toast({ title: "Mission deleted" }); }}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                        <span className="flex items-center gap-1"><Lock className="w-3 h-3" />{m.unlock_fee} DR unlock</span>
+                        <span className="flex items-center gap-1"><Coins className="w-3 h-3 text-primary" />+{m.reward} DR reward</span>
+                        {m.expires_at && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(m.expires_at).toLocaleDateString()}</span>}
+                      </div>
+                      <div className="flex items-center gap-2 p-2 bg-secondary rounded-lg">
+                        <KeyRound className="w-4 h-4 text-primary" />
+                        <code className="text-sm text-primary font-mono flex-1">{m.completion_code}</code>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Copy" onClick={() => { navigator.clipboard.writeText(m.completion_code); toast({ title: "Copied!" }); }}>
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </Card>
                   ))}
                 </div>
