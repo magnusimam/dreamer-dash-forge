@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useLeaderboard } from "@/hooks/useSupabase";
+import { useLeaderboard, isUserOnline } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { Trophy, TrendingUp, Flame, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -106,10 +106,13 @@ export default function Leaderboard() {
                     )}>
                       #{user.rank}
                     </span>
-                    <Avatar className="w-9 h-9">
-                      <AvatarImage src={user.photo_url} />
-                      <AvatarFallback className="text-xs">{initials || "?"}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={user.photo_url} />
+                        <AvatarFallback className="text-xs">{initials || "?"}</AvatarFallback>
+                      </Avatar>
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isUserOnline(user.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground text-sm truncate">
                         {[user.first_name, user.last_name].filter(Boolean).join(" ")}

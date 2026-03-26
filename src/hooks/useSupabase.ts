@@ -1,6 +1,40 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
+
+// ============================================================
+// HEARTBEAT — updates last_active every 60s
+// ============================================================
+
+export function useHeartbeat() {
+  const { dbUser } = useUser();
+
+  useEffect(() => {
+    if (!dbUser?.id) return;
+
+    const ping = () => {
+      supabase
+        .from("users")
+        .update({ last_active: new Date().toISOString() })
+        .eq("id", dbUser.id)
+        .then(() => {});
+    };
+
+    // Ping immediately on mount
+    ping();
+
+    // Then every 60 seconds
+    const interval = setInterval(ping, 60000);
+    return () => clearInterval(interval);
+  }, [dbUser?.id]);
+}
+
+export function isUserOnline(lastActive: string | null): boolean {
+  if (!lastActive) return false;
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  return new Date(lastActive).getTime() > fiveMinutesAgo;
+}
 
 // ============================================================
 // TOKEN SUPPLY

@@ -46,6 +46,7 @@ import {
   useCreateMission,
   useDeleteMission,
   useMissionParticipants,
+  isUserOnline,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
@@ -1293,6 +1294,7 @@ export default function Admin() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${isUserOnline(u.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
                         <p className="font-medium text-foreground text-sm">
                           {[u.first_name, u.last_name].filter(Boolean).join(" ")}
                         </p>
