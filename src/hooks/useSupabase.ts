@@ -722,6 +722,52 @@ export function useDeleteMission() {
   });
 }
 
+export function useMissionParticipants(missionId: string | null) {
+  return useQuery({
+    queryKey: ["mission_participants", missionId],
+    queryFn: async () => {
+      if (!missionId) return { unlocked: [], completed: [] };
+      // Fetch unlocks
+      const { data: unlocks, error: uErr } = await supabase
+        .from("mission_unlocks")
+        .select("*")
+        .eq("mission_id", missionId)
+        .order("created_at", { ascending: false });
+      if (uErr) throw uErr;
+      // Fetch completions
+      const { data: completions, error: cErr } = await supabase
+        .from("mission_completions")
+        .select("*")
+        .eq("mission_id", missionId)
+        .order("completed_at", { ascending: false });
+      if (cErr) throw cErr;
+      const completedUserIds = new Set((completions || []).map((c: any) => c.user_id));
+      // Fetch user info for all unique user IDs
+      const allUserIds = [...new Set([...(unlocks || []).map((u: any) => u.user_id), ...(completions || []).map((c: any) => c.user_id)])];
+      const userMap: Record<string, any> = {};
+      await Promise.all(
+        allUserIds.map(async (uid) => {
+          const { data: user } = await supabase
+            .from("users")
+            .select("first_name, last_name, username")
+            .eq("id", uid)
+            .maybeSingle();
+          if (user) userMap[uid] = user;
+        })
+      );
+      return {
+        unlocked: (unlocks || []).map((u: any) => ({
+          ...u,
+          user: userMap[u.user_id],
+          completed: completedUserIds.has(u.user_id),
+        })),
+        completed: (completions || []).map((c: any) => ({ ...c, user: userMap[c.user_id] })),
+      };
+    },
+    enabled: !!missionId,
+  });
+}
+
 // ============================================================
 // REFERRALS
 // ============================================================
