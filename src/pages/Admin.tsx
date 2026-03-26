@@ -1730,11 +1730,70 @@ export default function Admin() {
               </Button>
             </Card>
 
+            {/* Quick Rebroadcast */}
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Megaphone className="w-4 h-4 text-primary" />
+                Quick Rebroadcast
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">Tap to resend a notification to all users for any active item.</p>
+              <div className="space-y-2">
+                {activities.map((act: any) => (
+                  <div key={act.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{act.title}</p>
+                      <p className="text-[10px] text-muted-foreground">Activity · {act.reward} DR</p>
+                    </div>
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-primary/30 text-primary shrink-0 ml-2" onClick={() => { broadcastNewActivity(act.title, act.reward); toast({ title: "Rebroadcast sent", description: act.title }); }}>
+                      <Send className="w-3 h-3 mr-1" /> Send
+                    </Button>
+                  </div>
+                ))}
+                {allMissions.filter((m: any) => m.unlock_fee > 0 && m.is_active).map((m: any) => (
+                  <div key={m.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{m.title}</p>
+                      <p className="text-[10px] text-muted-foreground">Mission · Unlock {m.unlock_fee} DR · Reward {m.reward} DR</p>
+                    </div>
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-primary/30 text-primary shrink-0 ml-2" onClick={() => { broadcastNewMission(m.title, m.unlock_fee, m.reward); toast({ title: "Rebroadcast sent", description: m.title }); }}>
+                      <Send className="w-3 h-3 mr-1" /> Send
+                    </Button>
+                  </div>
+                ))}
+                {raffles.filter((r: any) => r.status === "active").map((r: any) => (
+                  <div key={r.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{r.title}</p>
+                      <p className="text-[10px] text-muted-foreground">Raffle · {r.entry_fee} DR entry</p>
+                    </div>
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-primary/30 text-primary shrink-0 ml-2" onClick={() => { broadcastNewRaffle(r.title, r.entry_fee); toast({ title: "Rebroadcast sent", description: r.title }); }}>
+                      <Send className="w-3 h-3 mr-1" /> Send
+                    </Button>
+                  </div>
+                ))}
+                {hackathons.filter((h: any) => h.status !== "completed").map((h: any) => (
+                  <div key={h.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{h.title}</p>
+                      <p className="text-[10px] text-muted-foreground">Hackathon · {h.entry_fee} DR entry · {h.prize_pool} DR prize</p>
+                    </div>
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-primary/30 text-primary shrink-0 ml-2" onClick={() => { broadcastNewHackathon(h.title, h.entry_fee, h.prize_pool); toast({ title: "Rebroadcast sent", description: h.title }); }}>
+                      <Send className="w-3 h-3 mr-1" /> Send
+                    </Button>
+                  </div>
+                ))}
+                {activities.length === 0 && allMissions.filter((m: any) => m.unlock_fee > 0).length === 0 && raffles.filter((r: any) => r.status === "active").length === 0 && hackathons.filter((h: any) => h.status !== "completed").length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-4">No active items to rebroadcast</p>
+                )}
+              </div>
+            </Card>
+
             <Card className="gradient-card border-border/50 p-4">
-              <h4 className="font-medium text-foreground mb-3 text-sm">Auto-notifications</h4>
               <div className="space-y-2 text-xs text-muted-foreground">
                 <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> New activity created — all users notified</p>
                 <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> New hackathon posted — all users notified</p>
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> New mission created — all users notified</p>
+                <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> New raffle created — all users notified</p>
                 <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> Redemption approved/rejected — user notified</p>
                 <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> Proof approved/rejected — user notified</p>
                 <p className="flex items-center gap-2"><CheckCircle className="w-3 h-3 text-emerald-400" /> Transfer received — recipient notified</p>
