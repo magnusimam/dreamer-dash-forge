@@ -364,6 +364,17 @@ export default function Admin() {
     }
   };
 
+  const broadcastNewMission = (title: string, unlockFee: number, reward: number) => {
+    for (const u of allUsers) {
+      if (u.telegram_id && u.telegram_id !== 0) {
+        notifyUser(
+          u.telegram_id,
+          `🎯 <b>New Mission!</b>\n\n<b>${title}</b>\nUnlock: ${unlockFee} DR | Reward: ${reward} DR\n\nOpen the app to start the mission!`
+        );
+      }
+    }
+  };
+
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast({ title: "Copied!", description: code });
@@ -783,6 +794,7 @@ export default function Admin() {
                         expires_at: missionExpiry ? new Date(missionExpiry).toISOString() : undefined,
                       });
                       toast({ title: "Mission Created", description: `${missionTitle} — Code: ${missionCode}` });
+                      broadcastNewMission(missionTitle, parseInt(missionUnlockFee), parseInt(missionReward));
                       setMissionTitle(""); setMissionDesc(""); setMissionReward(""); setMissionUnlockFee(""); setMissionCode(""); setMissionExpiry("");
                     } catch (err: any) {
                       toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
