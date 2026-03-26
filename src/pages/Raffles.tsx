@@ -55,7 +55,7 @@ function RaffleCard({ raffle, isEntered, onEnter }: { raffle: any; isEntered: bo
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
         <span className="flex items-center gap-1"><Coins className="w-3 h-3 text-primary" />{raffle.entry_fee} DR</span>
         {!isEnded && <span className="flex items-center gap-1"><Timer className="w-3 h-3" />{countdown}</span>}
-        {raffle.max_entries && <span className="flex items-center gap-1"><Users className="w-3 h-3" />Max {raffle.max_entries}</span>}
+        <span className="flex items-center gap-1"><Users className="w-3 h-3" />{raffle.entry_count || 0} entries{raffle.max_entries ? ` / ${raffle.max_entries}` : ""}</span>
       </div>
 
       {winner && (

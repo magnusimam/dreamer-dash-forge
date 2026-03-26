@@ -244,21 +244,25 @@ export function useRaffles() {
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      // Fetch winner names for ended raffles
-      const withWinners = await Promise.all(
+      // Fetch winner names and entry counts
+      const withExtras = await Promise.all(
         (data || []).map(async (r: any) => {
+          const { count } = await supabase
+            .from("raffle_entries")
+            .select("*", { count: "exact", head: true })
+            .eq("raffle_id", r.id);
           if (r.winner_id) {
             const { data: winner } = await supabase
               .from("users")
               .select("first_name, username")
               .eq("id", r.winner_id)
               .maybeSingle();
-            return { ...r, winner };
+            return { ...r, winner, entry_count: count ?? 0 };
           }
-          return { ...r, winner: null };
+          return { ...r, winner: null, entry_count: count ?? 0 };
         })
       );
-      return withWinners;
+      return withExtras;
     },
   });
 }
