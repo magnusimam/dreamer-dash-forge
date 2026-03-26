@@ -410,6 +410,17 @@ export default function Admin() {
     }
   };
 
+  const broadcastNewRaffle = (title: string, fee: number) => {
+    for (const u of allUsers) {
+      if (u.telegram_id && u.telegram_id !== 0) {
+        notifyUser(
+          u.telegram_id,
+          `🎟 <b>New Raffle!</b>\n\n<b>${title}</b>\nEntry: ${fee} DR\n\nPay to enter for a chance to win big! Open the app now!`
+        );
+      }
+    }
+  };
+
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast({ title: "Copied!", description: code });
@@ -1103,6 +1114,7 @@ export default function Admin() {
                         max_entries: raffleMaxEntries ? parseInt(raffleMaxEntries) : undefined,
                       });
                       toast({ title: "Raffle Created", description: raffleTitle });
+                      broadcastNewRaffle(raffleTitle, parseInt(raffleFee));
                       setRaffleTitle(""); setRaffleDesc(""); setRaffleFee(""); setRaffleEnd(""); setRaffleMaxEntries("");
                     } catch (err: any) {
                       toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
