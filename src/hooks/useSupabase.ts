@@ -627,11 +627,12 @@ export function useCompleteMission() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (missionId: string) => {
+    mutationFn: async ({ missionId, code }: { missionId: string; code?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("complete_mission", {
         p_user_id: dbUser.id,
         p_mission_id: missionId,
+        p_code: code || null,
       });
       if (error) throw error;
       return data;
@@ -641,6 +642,82 @@ export function useCompleteMission() {
       queryClient.invalidateQueries({ queryKey: ["mission_completions"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+  });
+}
+
+export function useUserMissionUnlocks() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["mission_unlocks", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [];
+      const { data, error } = await supabase
+        .from("mission_unlocks")
+        .select("mission_id")
+        .eq("user_id", dbUser.id);
+      if (error) throw error;
+      return data.map((u) => u.mission_id);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useUnlockMission() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (missionId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("unlock_mission", {
+        p_user_id: dbUser.id,
+        p_mission_id: missionId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["mission_unlocks"] });
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useCreateMission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (mission: { title: string; description?: string; category: string; reward: number; unlock_fee: number; completion_code?: string; expires_at?: string }) => {
+      const { data, error } = await supabase
+        .from("missions")
+        .insert(mission)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+    },
+  });
+}
+
+export function useDeleteMission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (missionId: string) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({ is_active: false })
+        .eq("id", missionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
     },
   });
 }

@@ -12,6 +12,11 @@ import {
   useLogActivity,
   useTodayCheckin,
   usePerformCheckin,
+  useMissions,
+  useUserMissionCompletions,
+  useUserMissionUnlocks,
+  useUnlockMission,
+  useCompleteMission,
 } from "@/hooks/useSupabase";
 import {
   CalendarDays,
@@ -22,6 +27,9 @@ import {
   X,
   Loader2,
   Camera,
+  Lock,
+  Unlock,
+  Target,
 } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
@@ -45,6 +53,11 @@ export default function ActivityLog() {
   const { data: alreadyCheckedIn = false } = useTodayCheckin();
   const logActivityMutation = useLogActivity();
   const checkinMutation = usePerformCheckin();
+  const { data: missions = [] } = useMissions();
+  const { data: completedMissionIds = [] } = useUserMissionCompletions();
+  const { data: unlockedMissionIds = [] } = useUserMissionUnlocks();
+  const unlockMissionMutation = useUnlockMission();
+  const completeMissionMutation = useCompleteMission();
 
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [codeInput, setCodeInput] = useState("");
@@ -53,6 +66,8 @@ export default function ActivityLog() {
   const [uploading, setUploading] = useState(false);
   const [codeSubmitted, setCodeSubmitted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [selectedMission, setSelectedMission] = useState<any | null>(null);
+  const [missionCodeInput, setMissionCodeInput] = useState("");
 
   const handleDailyCheckIn = async () => {
     if (alreadyCheckedIn) return;
@@ -202,6 +217,122 @@ export default function ActivityLog() {
           </div>
         </Card>
       </motion.div>
+
+      {/* Monthly Missions */}
+      {missions.filter((m: any) => m.unlock_fee > 0).length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Target className="w-5 h-5 text-primary" /> Monthly Missions
+          </h2>
+          <div className="space-y-3">
+            {missions.filter((m: any) => m.unlock_fee > 0).map((mission: any) => {
+              const isUnlocked = unlockedMissionIds.includes(mission.id);
+              const isCompleted = completedMissionIds.includes(mission.id);
+              const isExpired = mission.expires_at && new Date(mission.expires_at) < new Date();
+
+              return (
+                <Card key={mission.id} className={`gradient-card border-border/50 p-4 ${isExpired ? "opacity-50" : ""}`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground text-sm">{mission.title}</h3>
+                        {isCompleted && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Completed</Badge>}
+                        {isExpired && <Badge className="bg-muted text-muted-foreground text-[10px]">Expired</Badge>}
+                      </div>
+                      {isUnlocked ? (
+                        <p className="text-xs text-muted-foreground mt-1">{mission.description}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-1 italic">Unlock to see mission details</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                    <span className="flex items-center gap-1"><Lock className="w-3 h-3" />{mission.unlock_fee} DR to unlock</span>
+                    <span className="flex items-center gap-1"><Coins className="w-3 h-3 text-primary" />+{mission.reward} DR reward</span>
+                    {mission.expires_at && (
+                      <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{new Date(mission.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                    )}
+                  </div>
+
+                  {isCompleted ? (
+                    <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      <span className="text-sm text-emerald-400 font-medium">Mission Complete — +{mission.reward} DR</span>
+                    </div>
+                  ) : isUnlocked ? (
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setSelectedMission(mission); setMissionCodeInput(""); }}>
+                      <KeyRound className="w-4 h-4 mr-2" /> Enter Completion Code
+                    </Button>
+                  ) : isExpired ? null : (
+                    <Button
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+                      disabled={unlockMissionMutation.isPending || (dbUser?.balance ?? 0) < mission.unlock_fee}
+                      onClick={async () => {
+                        try {
+                          const result = await unlockMissionMutation.mutateAsync(mission.id);
+                          if (result?.success) {
+                            hapticNotification("success");
+                            toast({ title: "Mission Unlocked!", description: `${result.mission} — ${result.description || "Check the details"}` });
+                          } else {
+                            hapticNotification("error");
+                            toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                          }
+                        } catch (err: any) {
+                          hapticNotification("error");
+                          toast({ title: "Error", description: err?.message || "Failed to unlock", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      {unlockMissionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Unlock className="w-4 h-4 mr-2" />}
+                      Unlock for {mission.unlock_fee} DR
+                    </Button>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Mission Code Modal */}
+      <AnimatePresence>
+        {selectedMission && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setSelectedMission(null)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground text-lg">Complete Mission</h3>
+                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setSelectedMission(null)}><X className="w-4 h-4" /></Button>
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">{selectedMission.title}</p>
+              <p className="text-xs text-muted-foreground mb-4">{selectedMission.description}</p>
+              <Input placeholder="Enter completion code" value={missionCodeInput} onChange={(e) => setMissionCodeInput(e.target.value.toUpperCase())} className="mb-4 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionCodeInput.trim() || completeMissionMutation.isPending}
+                onClick={async () => {
+                  try {
+                    const result = await completeMissionMutation.mutateAsync({ missionId: selectedMission.id, code: missionCodeInput.trim() });
+                    if (result?.success) {
+                      hapticNotification("success");
+                      setShowConfetti(true);
+                      toast({ title: "Mission Complete!", description: `+${result.reward} DR for "${result.mission}"` });
+                      setSelectedMission(null);
+                      setMissionCodeInput("");
+                    } else {
+                      hapticNotification("error");
+                      toast({ title: "Failed", description: result?.error || "Invalid code", variant: "destructive" });
+                    }
+                  } catch (err: any) {
+                    hapticNotification("error");
+                    toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                  }
+                }}>
+                {completeMissionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                Claim {selectedMission.reward} DR
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Activities */}
       <h2 className="text-lg font-semibold text-foreground mb-3">
