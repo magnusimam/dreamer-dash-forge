@@ -45,6 +45,7 @@ import {
   useMissions,
   useCreateMission,
   useDeleteMission,
+  useMissionParticipants,
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
@@ -103,6 +104,39 @@ function RaffleEntriesList({ raffleId }: { raffleId: string }) {
         </div>
       ))}
       <p className="text-[10px] text-muted-foreground">{entries.length} total entries</p>
+    </div>
+  );
+}
+
+function MissionParticipantsList({ missionId }: { missionId: string }) {
+  const { data, isLoading } = useMissionParticipants(missionId);
+  if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
+  if (!data || data.unlocked.length === 0) return <p className="text-xs text-muted-foreground mt-2">No one has unlocked this mission yet</p>;
+  return (
+    <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-primary/20">
+      {data.unlocked.map((u: any) => (
+        <div key={u.id} className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div>
+              <p className="text-xs text-foreground">
+                {[u.user?.first_name, u.user?.last_name].filter(Boolean).join(" ")}
+              </p>
+              {u.user?.username && <p className="text-[10px] text-muted-foreground">@{u.user.username}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-muted-foreground/60">
+              {new Date(u.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </p>
+            {u.completed ? (
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">Completed</span>
+            ) : (
+              <span className="text-[10px] bg-primary/20 text-primary border border-primary/30 rounded px-1.5 py-0.5">Unlocked</span>
+            )}
+          </div>
+        </div>
+      ))}
+      <p className="text-[10px] text-muted-foreground">{data.unlocked.length} unlocked · {data.completed.length} completed</p>
     </div>
   );
 }
@@ -232,6 +266,7 @@ export default function Admin() {
   const [raffleMaxEntries, setRaffleMaxEntries] = useState("");
   const [viewingRaffleEntries, setViewingRaffleEntries] = useState<string | null>(null);
   const [viewingActivityParticipants, setViewingActivityParticipants] = useState<string | null>(null);
+  const [viewingMissionParticipants, setViewingMissionParticipants] = useState<string | null>(null);
 
   // Promo code form
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -833,6 +868,12 @@ export default function Admin() {
                           <Copy className="w-3.5 h-3.5" />
                         </Button>
                       </div>
+                      <Button size="sm" variant="outline" className="mt-2 w-full border-border text-xs" onClick={() => setViewingMissionParticipants(viewingMissionParticipants === m.id ? null : m.id)}>
+                        <Users className="w-3 h-3 mr-1" /> {viewingMissionParticipants === m.id ? "Hide" : "View"} Participants
+                      </Button>
+                      {viewingMissionParticipants === m.id && (
+                        <MissionParticipantsList missionId={m.id} />
+                      )}
                     </Card>
                   ))}
                 </div>
