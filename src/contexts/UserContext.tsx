@@ -14,10 +14,13 @@ interface DbUser {
   streak: number;
   last_check_in: string | null;
   is_admin: boolean;
+  is_super_admin: boolean;
   status: string;
   created_at: string;
   referral_code: string | null;
   state_id: string | null;
+  streak_protected_until: string | null;
+  last_active: string | null;
 }
 
 interface UserContextValue {
