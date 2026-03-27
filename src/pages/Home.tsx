@@ -198,7 +198,7 @@ export default function Home({ onTabChange }: HomeProps) {
       )}
 
       {/* Streak Insurance */}
-      {streak >= 2 && !alreadyCheckedIn && !(dbUser as any)?.streak_protected_until && (
+      {streak >= 2 && !alreadyCheckedIn && !dbUser?.streak_protected_until && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
           <Card className="border-orange-500/20 bg-orange-500/5 p-3">
             <div className="flex items-center justify-between">

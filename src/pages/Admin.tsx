@@ -170,6 +170,7 @@ export default function Admin() {
   const { toast } = useToast();
   const { dbUser } = useUser();
   const queryClient = useQueryClient();
+  const isSuperAdmin = !!dbUser?.is_super_admin;
 
   // Data hooks
   const { data: activities = [] } = useActivities();
@@ -681,7 +682,7 @@ export default function Admin() {
         <div className="mb-6 overflow-x-auto scrollbar-hide -mx-4 px-4">
           <TabsList className="inline-flex w-auto min-w-full gap-1">
             <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>
-            <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>}
             <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>
             <TabsTrigger value="redemptions" className="relative text-xs px-3">
               Redeem
@@ -699,12 +700,12 @@ export default function Admin() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="raffles" className="text-xs px-3">Raffles</TabsTrigger>
-            <TabsTrigger value="promos" className="text-xs px-3">Promos</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="raffles" className="text-xs px-3">Raffles</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="promos" className="text-xs px-3">Promos</TabsTrigger>}
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
             <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
-            <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>
-            <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>}
             <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
           </TabsList>
         </div>
@@ -1315,10 +1316,12 @@ export default function Admin() {
                         <p className="text-primary font-bold text-sm">{u.balance.toLocaleString()} DR</p>
                         <p className="text-xs text-muted-foreground">Earned: {u.total_earned.toLocaleString()}</p>
                       </div>
-                      <Button size="icon" variant="outline" className="h-8 w-8 border-primary/30" aria-label="Adjust balance" onClick={() => { setAdjustUser(u); setAdjustAmount(""); setAdjustReason(""); }}>
-                        <Coins className="w-3.5 h-3.5 text-primary" />
-                      </Button>
-                      {!u.is_admin && (
+                      {isSuperAdmin && (
+                        <Button size="icon" variant="outline" className="h-8 w-8 border-primary/30" aria-label="Adjust balance" onClick={() => { setAdjustUser(u); setAdjustAmount(""); setAdjustReason(""); }}>
+                          <Coins className="w-3.5 h-3.5 text-primary" />
+                        </Button>
+                      )}
+                      {isSuperAdmin && !u.is_admin && (
                         <Button size="icon" variant="outline" className="h-8 w-8 border-destructive/30" aria-label="Delete user" onClick={() => setDeleteUserTarget(u)}>
                           <UserX className="w-3.5 h-3.5 text-destructive" />
                         </Button>
