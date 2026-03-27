@@ -62,10 +62,13 @@ export default function Leaderboard() {
             return (
               <div key={user.user_id} className={cn("flex flex-col items-center", isFirst ? "order-2" : idx === 1 ? "order-1" : "order-3")}>
                 <Trophy className={cn("w-5 h-5 mb-1", rankColors[idx])} />
-                <Avatar className={cn("mb-2 border-2", isFirst ? "w-16 h-16 border-yellow-400" : "w-12 h-12 border-border")}>
-                  <AvatarImage src={user.photo_url} />
-                  <AvatarFallback className={cn("text-sm", rankBgs[idx])}>{initials || "?"}</AvatarFallback>
-                </Avatar>
+                <div className="relative mb-2">
+                  <Avatar className={cn("border-2", isFirst ? "w-16 h-16 border-yellow-400" : "w-12 h-12 border-border")}>
+                    <AvatarImage src={user.photo_url} />
+                    <AvatarFallback className={cn("text-sm", rankBgs[idx])}>{initials || "?"}</AvatarFallback>
+                  </Avatar>
+                  <span className={`absolute bottom-0 right-0 ${isFirst ? "w-3.5 h-3.5 border-2" : "w-2.5 h-2.5 border-2"} rounded-full border-card ${isUserOnline(user.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+                </div>
                 <p className="text-xs font-medium text-foreground text-center truncate max-w-[80px]">
                   {user.first_name}
                 </p>

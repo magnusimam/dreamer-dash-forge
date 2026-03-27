@@ -110,12 +110,15 @@ export default function Profile({ onTabChange }: ProfileProps) {
       >
         <Card className="gradient-card border-border/50 p-6 mb-6">
           <div className="flex items-center gap-4 mb-4">
-            <Avatar className="w-16 h-16">
-              <AvatarImage src={user?.photoUrl} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-16 h-16">
+                <AvatarImage src={user?.photoUrl} />
+                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card bg-emerald-400" />
+            </div>
             <div>
               <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
               {user?.username && (
