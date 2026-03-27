@@ -296,12 +296,15 @@ export default function States() {
                           )}>
                             {i + 1}
                           </span>
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={member.photo_url} />
-                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                              {initials || "?"}
-                            </AvatarFallback>
-                          </Avatar>
+                          <div className="relative">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={member.photo_url} />
+                              <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                                {initials || "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${member.last_active && new Date(member.last_active).getTime() > Date.now() - 300000 ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">
                               {name}

@@ -1420,7 +1420,7 @@ export function useStateMembers(stateId: string | null) {
       if (!stateId) return [];
       const { data, error } = await supabase
         .from("users")
-        .select("id, first_name, last_name, username, photo_url, balance, total_earned, status")
+        .select("id, first_name, last_name, username, photo_url, balance, total_earned, status, last_active")
         .eq("state_id", stateId)
         .order("balance", { ascending: false });
       if (error) throw error;

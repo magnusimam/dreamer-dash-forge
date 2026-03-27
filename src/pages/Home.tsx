@@ -126,12 +126,15 @@ export default function Home({ onTabChange }: HomeProps) {
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Avatar className="w-11 h-11 border-2 border-primary/30">
-              <AvatarImage src={user?.photoUrl} />
-              <AvatarFallback className="bg-primary/20 text-primary font-bold text-sm">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-11 h-11 border-2 border-primary/30">
+                <AvatarImage src={user?.photoUrl} />
+                <AvatarFallback className="bg-primary/20 text-primary font-bold text-sm">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card bg-emerald-400" />
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-bold text-foreground">
