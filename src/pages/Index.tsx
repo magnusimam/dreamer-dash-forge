@@ -47,8 +47,7 @@ const Index = () => {
         // Admins always have access
         if (dbUser.is_admin) {
           setCheckingReferral(false);
-          const onboarded = localStorage.getItem(ONBOARDING_KEY);
-          if (!onboarded) setShowOnboarding(true);
+          localStorage.setItem(ONBOARDING_KEY, "true");
           return;
         }
 
@@ -60,10 +59,9 @@ const Index = () => {
           .maybeSingle();
 
         if (data) {
-          // User has been referred — grant access
+          // User has been referred — grant access, set flag so we don't check again
           setCheckingReferral(false);
-          const onboarded = localStorage.getItem(ONBOARDING_KEY);
-          if (!onboarded) setShowOnboarding(true);
+          localStorage.setItem(ONBOARDING_KEY, "true");
         } else {
           // Not referred — must complete onboarding with referral code
           setCheckingReferral(false);
