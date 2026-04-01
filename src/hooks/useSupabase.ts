@@ -643,6 +643,20 @@ export function useMissions() {
   });
 }
 
+export function useAllMissionsAdmin() {
+  return useQuery({
+    queryKey: ["admin_missions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("missions")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useUserMissionCompletions() {
   const { dbUser } = useUser();
   return useQuery({
@@ -756,6 +770,7 @@ export function useDeleteMission() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_missions"] });
     },
   });
 }

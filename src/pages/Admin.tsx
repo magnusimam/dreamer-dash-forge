@@ -43,6 +43,7 @@ import {
   useCreatePromoCode,
   useGeneratePromoCodes,
   useMissions,
+  useAllMissionsAdmin,
   useCreateMission,
   useDeleteMission,
   useMissionParticipants,
@@ -185,7 +186,7 @@ export default function Admin() {
   const { data: allReferrals = [] } = useAllReferrals();
   const { data: raffles = [] } = useRaffles();
   const { data: promoCodes = [] } = useAllPromoCodes();
-  const { data: allMissions = [] } = useMissions();
+  const { data: allMissions = [] } = useAllMissionsAdmin();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -856,18 +857,25 @@ export default function Admin() {
 
             {allMissions.filter((m: any) => m.unlock_fee > 0).length > 0 && (
               <div>
-                <h3 className="font-semibold text-foreground mb-3">Paid Missions ({allMissions.filter((m: any) => m.unlock_fee > 0).length})</h3>
+                <h3 className="font-semibold text-foreground mb-3">All Missions ({allMissions.filter((m: any) => m.unlock_fee > 0).length})</h3>
                 <div className="space-y-3">
                   {allMissions.filter((m: any) => m.unlock_fee > 0).map((m: any) => (
-                    <Card key={m.id} className="gradient-card border-border/50 p-4">
+                    <Card key={m.id} className={`gradient-card border-border/50 p-4 ${!m.is_active ? "opacity-60" : ""}`}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h4 className="font-medium text-foreground">{m.title}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-foreground">{m.title}</h4>
+                            <Badge className={m.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
+                              {m.is_active ? "Active" : "Archived"}
+                            </Badge>
+                          </div>
                           {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}
                         </div>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={async () => { await deleteMissionMutation.mutateAsync(m.id); toast({ title: "Mission deleted" }); }}>
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        {m.is_active && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await deleteMissionMutation.mutateAsync(m.id); toast({ title: "Mission Archived", description: "Hidden from users but data preserved" }); }}>
+                            Archive
+                          </Button>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
                         <span className="flex items-center gap-1"><Lock className="w-3 h-3" />{m.unlock_fee} DR unlock</span>
