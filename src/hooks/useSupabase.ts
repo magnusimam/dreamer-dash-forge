@@ -90,6 +90,20 @@ export function useActivities() {
   });
 }
 
+export function useAllActivitiesAdmin() {
+  return useQuery({
+    queryKey: ["admin_activities"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activities")
+        .select("*")
+        .order("date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useUserActivityLogs() {
   const { dbUser } = useUser();
   return useQuery({
@@ -1219,11 +1233,15 @@ export function useDeleteActivity() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("activities").delete().eq("id", id);
+      const { error } = await supabase
+        .from("activities")
+        .update({ is_active: false })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["activities"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_activities"] });
     },
   });
 }
