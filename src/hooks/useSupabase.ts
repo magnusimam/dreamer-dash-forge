@@ -85,7 +85,17 @@ export function useActivities() {
         .eq("is_active", true)
         .order("date", { ascending: false });
       if (error) throw error;
-      return data;
+      // Fetch participant count for each activity
+      const withCounts = await Promise.all(
+        (data || []).map(async (act: any) => {
+          const { count } = await supabase
+            .from("activity_logs")
+            .select("*", { count: "exact", head: true })
+            .eq("activity_id", act.id);
+          return { ...act, participant_count: count ?? 0 };
+        })
+      );
+      return withCounts;
     },
   });
 }
