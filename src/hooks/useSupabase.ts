@@ -1256,6 +1256,24 @@ export function useDeleteActivity() {
   });
 }
 
+export function useToggleActivityStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from("activities")
+        .update({ status })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_activities"] });
+    },
+  });
+}
+
 // ============================================================
 // ADMIN: Create Hackathon
 // ============================================================
