@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useActivities,
+  useAllActivitiesAdmin,
   useCreateActivity,
   useUpdateActivity,
   useDeleteActivity,
@@ -174,7 +175,7 @@ export default function Admin() {
   const isSuperAdmin = !!dbUser?.is_super_admin;
 
   // Data hooks
-  const { data: activities = [] } = useActivities();
+  const { data: activities = [] } = useAllActivitiesAdmin();
   const { data: hackathons = [] } = useHackathons();
   const { data: redemptions = [] } = useRedemptionRequests();
   const { data: allUsers = [] } = useAllUsers();
@@ -765,10 +766,15 @@ export default function Admin() {
                 <h3 className="font-semibold text-foreground mb-3">All Activities ({activities.length})</h3>
                 <div className="space-y-3">
                   {activities.map((act: any) => (
-                    <Card key={act.id} className="gradient-card border-border/50 p-4">
+                    <Card key={act.id} className={`gradient-card border-border/50 p-4 ${!act.is_active ? "opacity-60" : ""}`}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h4 className="font-medium text-foreground">{act.title}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-foreground">{act.title}</h4>
+                            <Badge className={act.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
+                              {act.is_active ? "Active" : "Archived"}
+                            </Badge>
+                          </div>
                           {act.description && <p className="text-xs text-muted-foreground mt-1">{act.description}</p>}
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                             <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{new Date(act.date).toLocaleDateString()}</span>
@@ -778,12 +784,16 @@ export default function Admin() {
                         </div>
                         <div className="flex items-center gap-1">
                           <Badge variant="secondary" className="text-xs">{act.category}</Badge>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => handleDeleteActivity(act.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          {act.is_active && (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived", description: "Hidden from users but data preserved" }); }}>
+                                Archive
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                       {act.code_required !== false ? (
