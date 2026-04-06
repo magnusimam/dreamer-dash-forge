@@ -14,6 +14,7 @@ import {
   useCreateActivity,
   useUpdateActivity,
   useDeleteActivity,
+  useToggleActivityStatus,
   useActivityParticipants,
   useHackathons,
   useCreateHackathon,
@@ -207,6 +208,7 @@ export default function Admin() {
   const createActivityMutation = useCreateActivity();
   const updateActivityMutation = useUpdateActivity();
   const deleteActivityMutation = useDeleteActivity();
+  const toggleActivityStatusMutation = useToggleActivityStatus();
   const createHackathonMutation = useCreateHackathon();
   const updateHackathonMutation = useUpdateHackathon();
   const deleteHackathonMutation = useDeleteHackathon();
@@ -771,9 +773,13 @@ export default function Admin() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <h4 className="font-medium text-foreground">{act.title}</h4>
-                            <Badge className={act.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>
-                              {act.is_active ? "Active" : "Archived"}
-                            </Badge>
+                            {!act.is_active ? (
+                              <Badge className="bg-muted text-muted-foreground text-[10px]">Archived</Badge>
+                            ) : act.status === "ended" ? (
+                              <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px]">Ended</Badge>
+                            ) : (
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Active</Badge>
+                            )}
                           </div>
                           {act.description && <p className="text-xs text-muted-foreground mt-1">{act.description}</p>}
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
@@ -789,6 +795,15 @@ export default function Admin() {
                               <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
                                 <Pencil className="w-3 h-3" />
                               </Button>
+                              {act.status === "ended" ? (
+                                <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "active" }); toast({ title: "Activity Reopened" }); }}>
+                                  Reopen
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="outline" className="h-7 text-xs border-red-500/30 text-red-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "ended" }); toast({ title: "Activity Ended", description: "Shows as ended for users" }); }}>
+                                  End
+                                </Button>
+                              )}
                               <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived", description: "Hidden from users but data preserved" }); }}>
                                 Archive
                               </Button>

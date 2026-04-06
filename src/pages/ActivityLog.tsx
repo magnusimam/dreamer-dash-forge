@@ -378,6 +378,7 @@ export default function ActivityLog() {
             .map((activity: any, index: number) => {
             const isLogged = loggedActivityIds.includes(activity.id);
             const isFull = activity.max_participants && activity.participant_count >= activity.max_participants;
+            const isManuallyEnded = activity.status === "ended";
             return (
               <motion.div
                 key={activity.id}
@@ -385,7 +386,7 @@ export default function ActivityLog() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 + index * 0.08 }}
               >
-                <Card className={`gradient-card border-border/50 p-4 ${isFull && !isLogged ? "opacity-60" : ""}`}>
+                <Card className={`gradient-card border-border/50 p-4 ${(isFull || isManuallyEnded) && !isLogged ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 pr-3">
                       <div className="flex items-center gap-2 mb-2">
@@ -398,7 +399,7 @@ export default function ActivityLog() {
                         {isLogged && (
                           <CheckCircle className="w-4 h-4 text-primary" />
                         )}
-                        {isFull && !isLogged && (
+                        {(isFull || isManuallyEnded) && !isLogged && (
                           <Badge className="bg-muted text-muted-foreground text-[10px]">Ended</Badge>
                         )}
                       </div>
@@ -439,9 +440,9 @@ export default function ActivityLog() {
                       <Badge className="bg-primary/20 text-primary border-primary/30">
                         Logged
                       </Badge>
-                    ) : isFull ? (
+                    ) : isFull || isManuallyEnded ? (
                       <Badge className="bg-muted text-muted-foreground border-border">
-                        Full
+                        Ended
                       </Badge>
                     ) : (
                       <Button
