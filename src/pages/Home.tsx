@@ -50,17 +50,20 @@ export default function Home({ onTabChange }: HomeProps) {
   const checkinMutation = usePerformCheckin();
   const streakInsuranceMutation = useBuyStreakInsurance();
   const claimPromoMutation = useClaimPromoCode();
-  const { data: promoClaimCount = 0 } = useQuery({
-    queryKey: ["promo_claim_count"],
+  const { data: promoStats = { claimed: 0, total: 0 } } = useQuery({
+    queryKey: ["promo_stats"],
     queryFn: async () => {
-      const { count, error } = await supabase
+      const { count: claimed } = await supabase
         .from("promo_codes")
         .select("*", { count: "exact", head: true })
         .eq("is_used", true);
-      if (error) throw error;
-      return count ?? 0;
+      const { count: total } = await supabase
+        .from("promo_codes")
+        .select("*", { count: "exact", head: true });
+      return { claimed: claimed ?? 0, total: total ?? 0 };
     },
   });
+  const allPromosClaimed = promoStats.total > 0 && promoStats.claimed >= promoStats.total;
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -245,15 +248,20 @@ export default function Home({ onTabChange }: HomeProps) {
             <div className="flex-1">
               <p className="text-sm font-semibold text-foreground">The Stolen Breath</p>
               <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span>
-                {promoClaimCount > 0 && <span className="text-purple-400"> · {promoClaimCount} claimed</span>}
+                {promoStats.claimed > 0 && <span className="text-purple-400"> · {promoStats.claimed} claimed</span>}
+                {allPromosClaimed && <span className="text-muted-foreground"> · All codes claimed</span>}
               </p>
               <div className="flex gap-2">
                 <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.com/thestolenbreath", "_blank")}>
                   <BookOpen className="w-3 h-3 mr-1" /> Get Book
                 </Button>
-                <Button size="sm" variant="outline" className="border-primary/30 text-primary h-7 text-xs" onClick={() => setShowPromoModal(true)}>
-                  <Gift className="w-3 h-3 mr-1" /> Claim 500 DR
-                </Button>
+                {allPromosClaimed ? (
+                  <Badge className="bg-muted text-muted-foreground border-border text-xs h-7 flex items-center">All Claimed</Badge>
+                ) : (
+                  <Button size="sm" variant="outline" className="border-primary/30 text-primary h-7 text-xs" onClick={() => setShowPromoModal(true)}>
+                    <Gift className="w-3 h-3 mr-1" /> Claim 500 DR
+                  </Button>
+                )}
               </div>
             </div>
           </div>

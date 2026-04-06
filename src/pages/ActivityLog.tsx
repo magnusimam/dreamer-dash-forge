@@ -231,13 +231,13 @@ export default function ActivityLog() {
               const isExpired = mission.expires_at && new Date(mission.expires_at) < new Date();
 
               return (
-                <Card key={mission.id} className={`gradient-card border-border/50 p-4 ${isExpired ? "opacity-50" : ""}`}>
+                <Card key={mission.id} className={`gradient-card border-border/50 p-4 ${isExpired && !isCompleted ? "opacity-50" : ""}`}>
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-foreground text-sm">{mission.title}</h3>
                         {isCompleted && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Completed</Badge>}
-                        {isExpired && <Badge className="bg-muted text-muted-foreground text-[10px]">Expired</Badge>}
+                        {isExpired && !isCompleted && <Badge className="bg-muted text-muted-foreground text-[10px]">Ended</Badge>}
                       </div>
                       {isUnlocked ? (
                         <p className="text-xs text-muted-foreground mt-1">{mission.description}</p>
@@ -264,7 +264,11 @@ export default function ActivityLog() {
                     <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setSelectedMission(mission); setMissionCodeInput(""); }}>
                       <KeyRound className="w-4 h-4 mr-2" /> Enter Completion Code
                     </Button>
-                  ) : isExpired ? null : (
+                  ) : isExpired ? (
+                    <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-2">
+                      <span className="text-sm text-muted-foreground font-medium">This mission has ended</span>
+                    </div>
+                  ) : (
                     <Button
                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
                       disabled={unlockMissionMutation.isPending || (dbUser?.balance ?? 0) < mission.unlock_fee}
