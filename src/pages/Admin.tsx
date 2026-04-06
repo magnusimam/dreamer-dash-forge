@@ -48,6 +48,7 @@ import {
   useAllMissionsAdmin,
   useCreateMission,
   useDeleteMission,
+  useUnarchiveMission,
   useMissionParticipants,
   isUserOnline,
 } from "@/hooks/useSupabase";
@@ -228,6 +229,7 @@ export default function Admin() {
   const generatePromoCodesMutation = useGeneratePromoCodes();
   const createMissionMutation = useCreateMission();
   const deleteMissionMutation = useDeleteMission();
+  const unarchiveMissionMutation = useUnarchiveMission();
 
   // Activity form
   const [actTitle, setActTitle] = useState("");
@@ -896,9 +898,13 @@ export default function Admin() {
                           </div>
                           {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}
                         </div>
-                        {m.is_active && (
+                        {m.is_active ? (
                           <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await deleteMissionMutation.mutateAsync(m.id); toast({ title: "Mission Archived", description: "Hidden from users but data preserved" }); }}>
                             Archive
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await unarchiveMissionMutation.mutateAsync(m.id); toast({ title: "Mission Unarchived", description: "Now visible to users again" }); }} disabled={unarchiveMissionMutation.isPending}>
+                            Unarchive
                           </Button>
                         )}
                       </div>
