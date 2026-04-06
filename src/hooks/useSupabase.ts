@@ -799,6 +799,24 @@ export function useDeleteMission() {
   });
 }
 
+export function useUnarchiveMission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (missionId: string) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({ is_active: true })
+        .eq("id", missionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_missions"] });
+    },
+  });
+}
+
 export function useMissionParticipants(missionId: string | null) {
   return useQuery({
     queryKey: ["mission_participants", missionId],
