@@ -373,6 +373,7 @@ export default function ActivityLog() {
             .filter((activity: any) => categoryFilter === "all" || activity.category === categoryFilter)
             .map((activity: any, index: number) => {
             const isLogged = loggedActivityIds.includes(activity.id);
+            const isFull = activity.max_participants && activity.participant_count >= activity.max_participants;
             return (
               <motion.div
                 key={activity.id}
@@ -380,7 +381,7 @@ export default function ActivityLog() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 + index * 0.08 }}
               >
-                <Card className="gradient-card border-border/50 p-4">
+                <Card className={`gradient-card border-border/50 p-4 ${isFull && !isLogged ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 pr-3">
                       <div className="flex items-center gap-2 mb-2">
@@ -392,6 +393,9 @@ export default function ActivityLog() {
                         </Badge>
                         {isLogged && (
                           <CheckCircle className="w-4 h-4 text-primary" />
+                        )}
+                        {isFull && !isLogged && (
+                          <Badge className="bg-muted text-muted-foreground text-[10px]">Ended</Badge>
                         )}
                       </div>
                       <h3 className="font-semibold text-foreground mb-1">
@@ -420,11 +424,20 @@ export default function ActivityLog() {
                           +{activity.reward} DR
                         </span>
                       </span>
+                      {activity.max_participants && (
+                        <span className="flex items-center gap-1">
+                          {activity.participant_count}/{activity.max_participants} claimed
+                        </span>
+                      )}
                     </div>
 
                     {isLogged ? (
                       <Badge className="bg-primary/20 text-primary border-primary/30">
                         Logged
+                      </Badge>
+                    ) : isFull ? (
+                      <Badge className="bg-muted text-muted-foreground border-border">
+                        Full
                       </Badge>
                     ) : (
                       <Button
