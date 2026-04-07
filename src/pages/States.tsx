@@ -4,8 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import UserProfileModal from "@/components/UserProfileModal";
 import {
-  AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -32,6 +32,7 @@ export default function States() {
   const [confirmState, setConfirmState] = useState<{ id: string; name: string } | null>(null);
   const [selectedState, setSelectedState] = useState<{ id: string; name: string; member_count: number; total_balance: number; rank: number } | null>(null);
   const { data: stateMembers = [], isLoading: membersLoading } = useStateMembers(selectedState?.id ?? null);
+  const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
 
   const myState = rankings.find((s: any) => s.state_id === dbUser?.state_id);
   const hasJoined = !!dbUser?.state_id;
@@ -296,7 +297,7 @@ export default function States() {
                           )}>
                             {i + 1}
                           </span>
-                          <div className="relative">
+                          <button className="relative" onClick={() => setViewProfileUserId(member.id)}>
                             <Avatar className="w-8 h-8">
                               <AvatarImage src={member.photo_url} />
                               <AvatarFallback className="bg-primary/20 text-primary text-xs">
@@ -304,7 +305,7 @@ export default function States() {
                               </AvatarFallback>
                             </Avatar>
                             <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${member.last_active && new Date(member.last_active).getTime() > Date.now() - 300000 ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
-                          </div>
+                          </button>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">
                               {name}
@@ -333,6 +334,13 @@ export default function States() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {viewProfileUserId && (
+        <UserProfileModal
+          userId={viewProfileUserId}
+          onClose={() => setViewProfileUserId(null)}
+        />
+      )}
     </motion.div>
   );
 }
