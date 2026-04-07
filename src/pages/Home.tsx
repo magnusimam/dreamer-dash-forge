@@ -7,11 +7,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowRight, Share2, Copy, Check,
-  Flame, Sparkles, TrendingUp, Loader2, MapPin, Shield, BookOpen, Gift, X,
+  Flame, Sparkles, TrendingUp, Loader2, MapPin, Shield, BookOpen, Gift, X, Cake,
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useClaimPromoCode } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useClaimPromoCode, useTodaysBirthdays, isUserOnline } from "@/hooks/useSupabase";
+import UserProfileModal from "@/components/UserProfileModal";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +70,8 @@ export default function Home({ onTabChange }: HomeProps) {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoCode, setPromoCode] = useState("");
+  const { data: todaysBirthdays = [] } = useTodaysBirthdays();
+  const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: stateRankings = [] } = useStateRankings();
   const topState = stateRankings[0] || null;
@@ -267,6 +270,52 @@ export default function Home({ onTabChange }: HomeProps) {
           </div>
         </Card>
       </motion.div>
+
+      {/* Birthday Banner */}
+      {todaysBirthdays.filter((u: any) => u.id !== dbUser?.id).length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+          <Card className="border-pink-500/20 bg-gradient-to-r from-pink-500/10 to-purple-500/10 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Cake className="w-5 h-5 text-pink-400" />
+              <p className="text-sm font-semibold text-foreground">Happy Birthday!</p>
+            </div>
+            <div className="space-y-2">
+              {todaysBirthdays.filter((u: any) => u.id !== dbUser?.id).map((u: any) => (
+                <div key={u.id} className="flex items-center justify-between">
+                  <button className="flex items-center gap-2 text-left" onClick={() => setViewProfileUserId(u.id)}>
+                    <div className="relative">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={u.photo_url} />
+                        <AvatarFallback className="bg-pink-500/20 text-pink-400 text-xs">
+                          {[u.first_name?.[0], u.last_name?.[0]].filter(Boolean).join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${isUserOnline(u.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+                    </div>
+                    <p className="text-xs text-foreground">
+                      <span className="font-medium">{u.first_name}</span> is celebrating today!
+                    </p>
+                  </button>
+                  {onTabChange && (
+                    <Button size="sm" className="bg-pink-600 hover:bg-pink-700 text-white h-7 text-xs" onClick={() => onTabChange("transfer")}>
+                      <Coins className="w-3 h-3 mr-1" /> Gift DR
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* User Profile Modal */}
+      {viewProfileUserId && (
+        <UserProfileModal
+          userId={viewProfileUserId}
+          onClose={() => setViewProfileUserId(null)}
+          onTransfer={onTabChange ? () => onTabChange("transfer") : undefined}
+        />
+      )}
 
       {/* Promo Code Modal */}
       <AnimatePresence>

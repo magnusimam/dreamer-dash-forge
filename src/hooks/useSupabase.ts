@@ -37,6 +37,90 @@ export function isUserOnline(lastActive: string | null): boolean {
 }
 
 // ============================================================
+// BIRTHDAYS
+// ============================================================
+
+export function useSetBirthday() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (birthday: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { error } = await supabase
+        .from("users")
+        .update({ birthday })
+        .eq("id", dbUser.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["todays_birthdays"] });
+    },
+  });
+}
+
+export function useTodaysBirthdays() {
+  return useQuery({
+    queryKey: ["todays_birthdays"],
+    queryFn: async () => {
+      const today = new Date();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      // Supabase doesn't support EXTRACT in filters, so fetch all users with birthdays and filter client-side
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, photo_url, birthday, last_active")
+        .not("birthday", "is", null);
+      if (error) throw error;
+      return (data || []).filter((u: any) => {
+        const bday = new Date(u.birthday);
+        return bday.getMonth() + 1 === month && bday.getDate() === day;
+      });
+    },
+    refetchInterval: 60000,
+  });
+}
+
+export function useUserProfile(userId: string | null) {
+  return useQuery({
+    queryKey: ["user_profile", userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, photo_url, balance, total_earned, streak, status, state_id, created_at, last_active, birthday")
+        .eq("id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      // Get state name
+      let stateName = null;
+      if (data.state_id) {
+        const { data: state } = await supabase
+          .from("states")
+          .select("name")
+          .eq("id", data.state_id)
+          .maybeSingle();
+        stateName = state?.name;
+      }
+      // Get referral count
+      const { count: referralCount } = await supabase
+        .from("referrals")
+        .select("*", { count: "exact", head: true })
+        .eq("referrer_id", data.id);
+      // Get achievements
+      const { data: achievements } = await supabase
+        .from("user_achievements")
+        .select("*, achievement:achievement_id(name, icon, description)")
+        .eq("user_id", data.id);
+      return { ...data, state_name: stateName, referral_count: referralCount ?? 0, achievements: achievements || [] };
+    },
+    enabled: !!userId,
+  });
+}
+
+// ============================================================
 // TOKEN SUPPLY
 // ============================================================
 
