@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowRight, Share2, Copy, Check,
-  Flame, Sparkles, TrendingUp, Loader2, MapPin, Shield, BookOpen, Gift, X, Cake,
+  Flame, Sparkles, TrendingUp, Loader2, MapPin, Shield, BookOpen, Gift, X, Cake, Coins,
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
