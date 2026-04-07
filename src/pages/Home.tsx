@@ -87,6 +87,11 @@ export default function Home({ onTabChange }: HomeProps) {
     ? [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join("")
     : "DR";
 
+  // Inactivity warning
+  const daysSinceCheckin = dbUser?.last_check_in
+    ? Math.floor((Date.now() - new Date(dbUser.last_check_in).getTime()) / 86400000)
+    : null;
+
   // Progress nudge
   const tierThresholds = [
     { tier: "Silver", threshold: 5000 },
@@ -170,6 +175,42 @@ export default function Home({ onTabChange }: HomeProps) {
           )}
         </div>
       </motion.div>
+
+      {/* Inactivity Warning */}
+      {daysSinceCheckin !== null && daysSinceCheckin >= 5 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+          <Card className={`p-3 ${daysSinceCheckin >= 30 ? "border-destructive/50 bg-destructive/10" : daysSinceCheckin >= 10 ? "border-red-500/30 bg-red-500/10" : "border-orange-500/30 bg-orange-500/10"}`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${daysSinceCheckin >= 30 ? "bg-destructive/20" : daysSinceCheckin >= 10 ? "bg-red-500/20" : "bg-orange-500/20"}`}>
+                <span className="text-lg">{daysSinceCheckin >= 30 ? "🚨" : daysSinceCheckin >= 10 ? "⚠️" : "⏰"}</span>
+              </div>
+              <div className="flex-1">
+                {daysSinceCheckin >= 30 ? (
+                  <>
+                    <p className="text-sm font-semibold text-destructive">Account at Risk!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days inactive. -200 DR penalty applied. Your account may be flagged for deletion.</p>
+                  </>
+                ) : daysSinceCheckin >= 10 ? (
+                  <>
+                    <p className="text-sm font-semibold text-red-400">Inactivity Penalty!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. -200 DR deducted. Check in now to stop losing DR!</p>
+                  </>
+                ) : daysSinceCheckin >= 7 ? (
+                  <>
+                    <p className="text-sm font-semibold text-orange-400">Inactivity Warning!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. -50 DR deducted. Check in daily to keep your DR safe!</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-orange-400">Check In Soon!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. Penalties start at 7 days!</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Quick Check-in Banner */}
       {!alreadyCheckedIn && (
