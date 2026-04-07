@@ -178,28 +178,40 @@ export default function Profile({ onTabChange }: ProfileProps) {
           {/* Birthday */}
           <div className="mt-3 pt-3 border-t border-border/50">
             <p className="text-xs text-muted-foreground mb-1">Birthday</p>
-            {dbUser?.birthday ? (
-              <p className="text-sm text-foreground font-medium">
-                🎂 {new Date(dbUser.birthday).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}
-              </p>
-            ) : (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  className="flex-1 h-8 px-3 rounded-md bg-secondary border border-border text-foreground text-sm"
-                  onChange={async (e) => {
-                    if (e.target.value) {
-                      try {
-                        await setBirthdayMutation.mutateAsync(e.target.value);
-                        toast({ title: "Birthday Set!", description: "Your birthday has been saved." });
-                      } catch {
-                        toast({ title: "Error", description: "Failed to save birthday.", variant: "destructive" });
-                      }
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dbUser?.birthday || ""}
+                className="flex-1 h-8 px-3 rounded-md bg-secondary border border-border text-foreground text-sm"
+                onChange={async (e) => {
+                  if (e.target.value) {
+                    try {
+                      await setBirthdayMutation.mutateAsync(e.target.value);
+                      toast({ title: "Birthday Updated!", description: "Your birthday has been saved." });
+                    } catch {
+                      toast({ title: "Error", description: "Failed to save birthday.", variant: "destructive" });
+                    }
+                  }
+                }}
+              />
+              {dbUser?.birthday && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-destructive hover:text-destructive"
+                  onClick={async () => {
+                    try {
+                      await setBirthdayMutation.mutateAsync(null as any);
+                      toast({ title: "Birthday Removed" });
+                    } catch {
+                      toast({ title: "Error", description: "Failed to remove birthday.", variant: "destructive" });
                     }
                   }}
-                />
-              </div>
-            )}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </Card>
       </motion.div>

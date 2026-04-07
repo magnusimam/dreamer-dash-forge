@@ -45,7 +45,7 @@ export function useSetBirthday() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (birthday: string) => {
+    mutationFn: async (birthday: string | null) => {
       if (!dbUser) throw new Error("Not logged in");
       const { error } = await supabase
         .from("users")
