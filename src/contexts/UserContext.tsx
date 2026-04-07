@@ -21,6 +21,7 @@ interface DbUser {
   state_id: string | null;
   streak_protected_until: string | null;
   last_active: string | null;
+  birthday: string | null;
 }
 
 interface UserContextValue {

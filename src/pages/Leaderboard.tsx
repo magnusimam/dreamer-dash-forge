@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -6,6 +7,7 @@ import { useLeaderboard, isUserOnline } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { Trophy, TrendingUp, Flame, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import UserProfileModal from "@/components/UserProfileModal";
 
 const rankColors = ["text-yellow-400", "text-gray-300", "text-amber-600"];
 const rankBgs = ["bg-yellow-400/20", "bg-gray-300/20", "bg-amber-600/20"];
@@ -15,6 +17,7 @@ export default function Leaderboard() {
   const { dbUser } = useUser();
 
   const myRank = leaderboard.find((u: any) => u.user_id === dbUser?.id);
+  const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
 
   return (
     <motion.div
@@ -109,13 +112,13 @@ export default function Leaderboard() {
                     )}>
                       #{user.rank}
                     </span>
-                    <div className="relative">
+                    <button className="relative" onClick={() => setViewProfileUserId(user.user_id)}>
                       <Avatar className="w-9 h-9">
                         <AvatarImage src={user.photo_url} />
                         <AvatarFallback className="text-xs">{initials || "?"}</AvatarFallback>
                       </Avatar>
                       <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isUserOnline(user.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground text-sm truncate">
                         {[user.first_name, user.last_name].filter(Boolean).join(" ")}
@@ -140,6 +143,13 @@ export default function Leaderboard() {
             );
           })}
         </div>
+      )}
+
+      {viewProfileUserId && (
+        <UserProfileModal
+          userId={viewProfileUserId}
+          onClose={() => setViewProfileUserId(null)}
+        />
       )}
     </motion.div>
   );

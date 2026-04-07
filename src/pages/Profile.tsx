@@ -13,7 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useSetBirthday } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -37,6 +37,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const { data: achievements } = useAchievements();
   const { data: unlockedIds } = useUserAchievements();
   const checkAchievements = useCheckAchievements();
+  const setBirthdayMutation = useSetBirthday();
   const { data: referralCount } = useUserReferralCount();
   const { data: referredBy } = useReferredBy();
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
@@ -173,6 +174,33 @@ export default function Profile({ onTabChange }: ProfileProps) {
               </p>
             </div>
           )}
+
+          {/* Birthday */}
+          <div className="mt-3 pt-3 border-t border-border/50">
+            <p className="text-xs text-muted-foreground mb-1">Birthday</p>
+            {dbUser?.birthday ? (
+              <p className="text-sm text-foreground font-medium">
+                🎂 {new Date(dbUser.birthday).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}
+              </p>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  className="flex-1 h-8 px-3 rounded-md bg-secondary border border-border text-foreground text-sm"
+                  onChange={async (e) => {
+                    if (e.target.value) {
+                      try {
+                        await setBirthdayMutation.mutateAsync(e.target.value);
+                        toast({ title: "Birthday Set!", description: "Your birthday has been saved." });
+                      } catch {
+                        toast({ title: "Error", description: "Failed to save birthday.", variant: "destructive" });
+                      }
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </Card>
       </motion.div>
 
