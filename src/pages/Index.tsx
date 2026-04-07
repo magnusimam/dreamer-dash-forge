@@ -17,7 +17,7 @@ import SupplyDashboard from "@/pages/SupplyDashboard";
 import States from "@/pages/States";
 import { showBackButton, hideBackButton } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
-import { useHeartbeat } from "@/hooks/useSupabase";
+import { useHeartbeat, useInactivityCheck } from "@/hooks/useSupabase";
 import { notifyUser } from "@/lib/notifications";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 import { supabase } from "@/lib/supabase";
@@ -35,6 +35,9 @@ const Index = () => {
 
   // Heartbeat — updates last_active every 60s while app is open
   useHeartbeat();
+
+  // Inactivity penalty check — runs once per day
+  useInactivityCheck();
 
   // Auto-broadcast birthdays once per day (triggered by first admin to open the app)
   useEffect(() => {

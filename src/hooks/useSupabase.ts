@@ -37,6 +37,42 @@ export function isUserOnline(lastActive: string | null): boolean {
 }
 
 // ============================================================
+// INACTIVITY PENALTY
+// ============================================================
+
+export function useInactivityCheck() {
+  const { dbUser, refreshUser } = useUser();
+
+  useEffect(() => {
+    if (!dbUser?.id) return;
+    const key = `inactivity_check_${new Date().toISOString().split("T")[0]}`;
+    if (localStorage.getItem(key)) return;
+
+    const check = async () => {
+      const { data, error } = await supabase.rpc("apply_inactivity_penalty", {
+        p_user_id: dbUser.id,
+      });
+      if (error) return;
+      localStorage.setItem(key, "checked");
+      if (data?.penalty > 0) {
+        refreshUser();
+      }
+      // Send Telegram warning for 30-day inactive users
+      if (data?.warning === "30_day_warning" && dbUser.telegram_id) {
+        supabase.functions.invoke("send-notification", {
+          body: {
+            telegram_id: dbUser.telegram_id,
+            message: `🚨 <b>Account Warning!</b>\n\nYou've been inactive for ${data.days_inactive} days.\n\n-${data.penalty} DR has been deducted.\n\nYour account may be flagged for deletion if you remain inactive. Open the app and check in now!`,
+          },
+        }).catch(() => {});
+      }
+    };
+
+    check();
+  }, [dbUser?.id]);
+}
+
+// ============================================================
 // BIRTHDAYS
 // ============================================================
 
