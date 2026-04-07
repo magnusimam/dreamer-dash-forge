@@ -18,6 +18,7 @@ import States from "@/pages/States";
 import { showBackButton, hideBackButton } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import { useHeartbeat } from "@/hooks/useSupabase";
+import { notifyUser } from "@/lib/notifications";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 import { supabase } from "@/lib/supabase";
 
@@ -34,6 +35,56 @@ const Index = () => {
 
   // Heartbeat — updates last_active every 60s while app is open
   useHeartbeat();
+
+  // Auto-broadcast birthdays once per day (triggered by first admin to open the app)
+  useEffect(() => {
+    if (!dbUser?.is_admin) return;
+    const today = new Date().toISOString().split("T")[0];
+    const key = `birthday_broadcast_${today}`;
+    if (localStorage.getItem(key)) return;
+
+    const broadcastBirthdays = async () => {
+      const { data: allUsers } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, birthday, telegram_id")
+        .not("birthday", "is", null);
+      if (!allUsers) return;
+
+      const todayMonth = new Date().getMonth() + 1;
+      const todayDay = new Date().getDate();
+      const birthdayUsers = allUsers.filter((u: any) => {
+        const bday = new Date(u.birthday);
+        return bday.getMonth() + 1 === todayMonth && bday.getDate() === todayDay;
+      });
+
+      if (birthdayUsers.length === 0) {
+        localStorage.setItem(key, "no_birthdays");
+        return;
+      }
+
+      // Get all users to notify
+      const { data: recipients } = await supabase
+        .from("users")
+        .select("telegram_id")
+        .neq("telegram_id", 0);
+
+      if (!recipients) return;
+
+      for (const bUser of birthdayUsers) {
+        const name = [bUser.first_name, bUser.last_name].filter(Boolean).join(" ");
+        const msg = `🎂 <b>Happy Birthday!</b>\n\nToday is <b>${name}</b>${bUser.username ? ` (@${bUser.username})` : ""}'s birthday!\n\nWish them a happy birthday with some Dreamers Coins! 🎉\n\nOpen the app to send them DR!`;
+        for (const r of recipients) {
+          if (r.telegram_id !== bUser.telegram_id) {
+            notifyUser(r.telegram_id, msg);
+          }
+        }
+      }
+
+      localStorage.setItem(key, "sent");
+    };
+
+    broadcastBirthdays();
+  }, [dbUser?.is_admin]);
 
   const handleTabChange = (tab: string) => {
     scrollPositions.current[activeTab] = window.scrollY;
