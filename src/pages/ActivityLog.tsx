@@ -16,6 +16,7 @@ import {
   useUserMissionCompletions,
   useUserMissionUnlocks,
   useUnlockMission,
+  useSubmitMissionProof,
   useCompleteMission,
 } from "@/hooks/useSupabase";
 import {
@@ -56,10 +57,13 @@ export default function ActivityLog() {
   const logActivityMutation = useLogActivity();
   const checkinMutation = usePerformCheckin();
   const { data: missions = [] } = useMissions();
-  const { data: completedMissionIds = [] } = useUserMissionCompletions();
+  const { data: missionCompletionData = { ids: [], statuses: {} } } = useUserMissionCompletions();
+  const completedMissionIds = missionCompletionData.ids;
+  const missionStatuses = missionCompletionData.statuses;
   const { data: unlockedMissionIds = [] } = useUserMissionUnlocks();
   const unlockMissionMutation = useUnlockMission();
   const completeMissionMutation = useCompleteMission();
+  const submitMissionProofMutation = useSubmitMissionProof();
 
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [codeInput, setCodeInput] = useState("");
@@ -70,6 +74,8 @@ export default function ActivityLog() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMission, setSelectedMission] = useState<any | null>(null);
   const [missionCodeInput, setMissionCodeInput] = useState("");
+  const [missionProofFile, setMissionProofFile] = useState<File | null>(null);
+  const [missionUploading, setMissionUploading] = useState(false);
   const [giftSearchInput, setGiftSearchInput] = useState("");
   const [giftSuggestions, setGiftSuggestions] = useState<any[]>([]);
   const [selectedGiftUser, setSelectedGiftUser] = useState<any | null>(null);
@@ -264,7 +270,11 @@ export default function ActivityLog() {
           <div className="space-y-3">
             {missions.filter((m: any) => m.unlock_fee > 0).map((mission: any) => {
               const isUnlocked = unlockedMissionIds.includes(mission.id);
-              const isCompleted = completedMissionIds.includes(mission.id);
+              const isSubmitted = completedMissionIds.includes(mission.id);
+              const missionStatus = missionStatuses[mission.id];
+              const isApproved = missionStatus === "approved";
+              const isPending = missionStatus === "pending";
+              const isCompleted = isApproved;
               const isExpired = mission.expires_at && new Date(mission.expires_at) < new Date();
 
               return (
@@ -294,14 +304,19 @@ export default function ActivityLog() {
                     )}
                   </div>
 
-                  {isCompleted ? (
+                  {isApproved ? (
                     <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
                       <CheckCircle className="w-4 h-4 text-emerald-400" />
                       <span className="text-sm text-emerald-400 font-medium">Mission Complete — +{mission.reward} DR</span>
                     </div>
+                  ) : isPending ? (
+                    <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
+                      <Loader2 className="w-4 h-4 text-orange-400" />
+                      <span className="text-sm text-orange-400 font-medium">Proof submitted — Awaiting review</span>
+                    </div>
                   ) : isUnlocked ? (
-                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setSelectedMission(mission); setMissionCodeInput(""); }}>
-                      <KeyRound className="w-4 h-4 mr-2" /> Enter Completion Code
+                    <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setSelectedMission(mission); setMissionProofFile(null); }}>
+                      <Camera className="w-4 h-4 mr-2" /> Upload Proof & Submit
                     </Button>
                   ) : isExpired ? (
                     <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-3 py-2">
@@ -338,22 +353,34 @@ export default function ActivityLog() {
         </div>
       )}
 
-      {/* Mission Code Modal */}
+      {/* Mission Proof Upload Modal */}
       <AnimatePresence>
         {selectedMission && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setSelectedMission(null)}>
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground text-lg">Complete Mission</h3>
+                <h3 className="font-semibold text-foreground text-lg">Submit Proof</h3>
                 <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setSelectedMission(null)}><X className="w-4 h-4" /></Button>
               </div>
               <p className="text-sm font-medium text-foreground mb-1">{selectedMission.title}</p>
               <p className="text-xs text-muted-foreground mb-4">{selectedMission.description}</p>
-              <Input placeholder="Enter completion code" value={missionCodeInput} onChange={(e) => setMissionCodeInput(e.target.value.toUpperCase())} className="mb-3 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
+
+              <p className="text-xs text-muted-foreground mb-2">Upload proof (screenshot, photo, receipt)</p>
+              <label className="flex items-center justify-center gap-2 w-full h-20 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 mb-3">
+                {missionProofFile ? (
+                  <span className="text-sm text-primary font-medium">{missionProofFile.name}</span>
+                ) : (
+                  <>
+                    <Camera className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Tap to select image</span>
+                  </>
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => setMissionProofFile(e.target.files?.[0] || null)} />
+              </label>
 
               {/* Gift recipient search */}
               <div ref={giftDropdownRef} className="relative mb-4">
-                <p className="text-xs text-muted-foreground mb-1">Who did you gift?</p>
+                <p className="text-xs text-muted-foreground mb-1">Who did you gift? (optional)</p>
                 {selectedGiftUser ? (
                   <div className="flex items-center gap-2 bg-secondary border border-emerald-500/30 rounded-md px-3 py-2">
                     <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center">
@@ -394,35 +421,37 @@ export default function ActivityLog() {
                 )}
               </div>
 
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionCodeInput.trim() || completeMissionMutation.isPending}
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionProofFile || submitMissionProofMutation.isPending || missionUploading}
                 onClick={async () => {
+                  if (!missionProofFile || !dbUser) return;
+                  setMissionUploading(true);
                   try {
-                    const giftName = selectedGiftUser ? [selectedGiftUser.first_name, selectedGiftUser.last_name].filter(Boolean).join(" ") : undefined;
-                    const result = await completeMissionMutation.mutateAsync({ missionId: selectedMission.id, code: missionCodeInput.trim(), note: giftName });
+                    const proofUrl = await uploadImage("mission-proofs", missionProofFile, dbUser.id);
+                    const result = await submitMissionProofMutation.mutateAsync({ missionId: selectedMission.id, proofUrl });
                     if (result?.success) {
                       hapticNotification("success");
-                      setShowConfetti(true);
-                      toast({ title: "Mission Complete!", description: `+${result.reward} DR for "${result.mission}"` });
-                      // Notify the gifted user
+                      toast({ title: "Proof Submitted!", description: "Admin will review and approve your mission." });
                       if (selectedGiftUser?.telegram_id) {
-                        const senderName = [dbUser?.first_name, dbUser?.last_name].filter(Boolean).join(" ");
+                        const senderName = [dbUser.first_name, dbUser.last_name].filter(Boolean).join(" ");
                         notifyUser(selectedGiftUser.telegram_id, `🎁 <b>You've been gifted!</b>\n\n<b>${senderName}</b> just gifted you ₦1,000 as part of the Dreamers Mission!\n\nOpen the app to say thank you! 🎉`);
                       }
                       setSelectedMission(null);
-                      setMissionCodeInput("");
+                      setMissionProofFile(null);
                       setSelectedGiftUser(null);
                       setGiftSearchInput("");
                     } else {
                       hapticNotification("error");
-                      toast({ title: "Failed", description: result?.error || "Invalid code", variant: "destructive" });
+                      toast({ title: "Failed", description: result?.error, variant: "destructive" });
                     }
                   } catch (err: any) {
                     hapticNotification("error");
-                    toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                    toast({ title: "Error", description: err?.message || "Failed to submit", variant: "destructive" });
+                  } finally {
+                    setMissionUploading(false);
                   }
                 }}>
-                {completeMissionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                Claim {selectedMission.reward} DR
+                {missionUploading || submitMissionProofMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Camera className="w-4 h-4 mr-2" />}
+                Submit for Review
               </Button>
             </motion.div>
           </motion.div>

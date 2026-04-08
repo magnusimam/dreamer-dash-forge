@@ -824,13 +824,16 @@ export function useUserMissionCompletions() {
   return useQuery({
     queryKey: ["mission_completions", dbUser?.id],
     queryFn: async () => {
-      if (!dbUser) return [];
+      if (!dbUser) return { ids: [] as string[], statuses: {} as Record<string, string> };
       const { data, error } = await supabase
         .from("mission_completions")
-        .select("mission_id")
+        .select("mission_id, status")
         .eq("user_id", dbUser.id);
       if (error) throw error;
-      return data.map((c) => c.mission_id);
+      const ids = (data || []).map((c) => c.mission_id);
+      const statuses: Record<string, string> = {};
+      (data || []).forEach((c) => { statuses[c.mission_id] = c.status; });
+      return { ids, statuses };
     },
     enabled: !!dbUser,
   });
@@ -897,6 +900,93 @@ export function useUnlockMission() {
       queryClient.invalidateQueries({ queryKey: ["mission_unlocks"] });
       queryClient.invalidateQueries({ queryKey: ["missions"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useSubmitMissionProof() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ missionId, proofUrl }: { missionId: string; proofUrl: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("submit_mission_proof", {
+        p_user_id: dbUser.id,
+        p_mission_id: missionId,
+        p_proof_url: proofUrl,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mission_completions"] });
+    },
+  });
+}
+
+export function usePendingMissionSubmissions() {
+  return useQuery({
+    queryKey: ["pending_mission_submissions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mission_completions")
+        .select("*")
+        .eq("status", "pending")
+        .order("completed_at", { ascending: false });
+      if (error) throw error;
+      // Fetch user and mission info
+      const withDetails = await Promise.all(
+        (data || []).map(async (c: any) => {
+          const { data: user } = await supabase.from("users").select("first_name, last_name, username, telegram_id").eq("id", c.user_id).maybeSingle();
+          const { data: mission } = await supabase.from("missions").select("title, reward").eq("id", c.mission_id).maybeSingle();
+          return { ...c, user, mission };
+        })
+      );
+      return withDetails;
+    },
+  });
+}
+
+export function useApproveMissionSubmission() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (completionId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("approve_mission_submission", {
+        p_admin_id: dbUser.id,
+        p_completion_id: completionId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pending_mission_submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["mission_completions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+    },
+  });
+}
+
+export function useRejectMissionSubmission() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (completionId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("reject_mission_submission", {
+        p_admin_id: dbUser.id,
+        p_completion_id: completionId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pending_mission_submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["mission_completions"] });
     },
   });
 }
