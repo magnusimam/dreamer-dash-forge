@@ -1,22 +1,24 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { AnimatePresence } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
 import Home from "@/pages/Home";
 import ActivityLog from "@/pages/ActivityLog";
-import Hackathons from "@/pages/Hackathons";
 import Raffles from "@/pages/Raffles";
 import Redeem from "@/pages/Redeem";
 import Profile from "@/pages/Profile";
-import Admin from "@/pages/Admin";
-import Transfer from "@/pages/Transfer";
-import Leaderboard from "@/pages/Leaderboard";
-import Transactions from "@/pages/Transactions";
-import RedemptionHistory from "@/pages/RedemptionHistory";
 import Onboarding from "@/pages/Onboarding";
-import SupplyDashboard from "@/pages/SupplyDashboard";
-import States from "@/pages/States";
-import UserSettings from "@/pages/UserSettings";
-import Community from "@/pages/Community";
+
+// Lazy load sub-pages (only loaded when navigated to)
+const Hackathons = lazy(() => import("@/pages/Hackathons"));
+const Admin = lazy(() => import("@/pages/Admin"));
+const Transfer = lazy(() => import("@/pages/Transfer"));
+const Leaderboard = lazy(() => import("@/pages/Leaderboard"));
+const Transactions = lazy(() => import("@/pages/Transactions"));
+const RedemptionHistory = lazy(() => import("@/pages/RedemptionHistory"));
+const SupplyDashboard = lazy(() => import("@/pages/SupplyDashboard"));
+const States = lazy(() => import("@/pages/States"));
+const UserSettings = lazy(() => import("@/pages/UserSettings"));
+const Community = lazy(() => import("@/pages/Community"));
 import { showBackButton, hideBackButton } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import { useHeartbeat, useInactivityCheck } from "@/hooks/useSupabase";
@@ -258,7 +260,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <AnimatePresence mode="wait">{renderCurrentPage()}</AnimatePresence>
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
+        <AnimatePresence mode="wait">{renderCurrentPage()}</AnimatePresence>
+      </Suspense>
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} notifications={0} />
     </div>
   );
