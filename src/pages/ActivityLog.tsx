@@ -395,7 +395,7 @@ export default function ActivityLog() {
 
               {/* Gift recipient search */}
               <div ref={giftDropdownRef} className="relative mb-4">
-                <p className="text-xs text-muted-foreground mb-1">Who did you gift? (optional)</p>
+                <p className="text-xs text-muted-foreground mb-1">Who did you gift?</p>
                 {selectedGiftUser ? (
                   <div className="flex items-center gap-2 bg-secondary border border-emerald-500/30 rounded-md px-3 py-2">
                     <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center">
@@ -436,7 +436,7 @@ export default function ActivityLog() {
                 )}
               </div>
 
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionProofFile || submitMissionProofMutation.isPending || missionUploading}
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionProofFile || !selectedGiftUser || submitMissionProofMutation.isPending || missionUploading}
                 onClick={async () => {
                   if (!missionProofFile || !dbUser) return;
                   setMissionUploading(true);
