@@ -37,6 +37,69 @@ export function isUserOnline(lastActive: string | null): boolean {
 }
 
 // ============================================================
+// COMMUNITY DASHBOARD
+// ============================================================
+
+export function useGiftWall() {
+  return useQuery({
+    queryKey: ["gift_wall"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mission_completions")
+        .select("*")
+        .eq("status", "approved")
+        .not("proof_url", "is", null)
+        .order("completed_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const withDetails = await Promise.all(
+        (data || []).map(async (c: any) => {
+          const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url").eq("id", c.user_id).maybeSingle();
+          const { data: mission } = await supabase.from("missions").select("title").eq("id", c.mission_id).maybeSingle();
+          return { ...c, user, mission };
+        })
+      );
+      return withDetails;
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useCommunityStats() {
+  return useQuery({
+    queryKey: ["community_stats"],
+    queryFn: async () => {
+      const { data: users, error } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, photo_url, balance, total_earned, streak, last_active")
+        .order("total_earned", { ascending: false });
+      if (error) throw error;
+
+      const stats = await Promise.all(
+        (users || []).map(async (u: any) => {
+          const { count: missionCount } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("status", "approved");
+          const { count: raffleCount } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+          const { count: raffleWins } = await supabase.from("raffles").select("*", { count: "exact", head: true }).eq("winner_id", u.id);
+          const { count: activityCount } = await supabase.from("activity_logs").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+          const { count: giftsGiven } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("status", "approved").not("proof_url", "is", null);
+          return {
+            ...u,
+            missions: missionCount ?? 0,
+            raffles: raffleCount ?? 0,
+            raffle_wins: raffleWins ?? 0,
+            activities: activityCount ?? 0,
+            gifts_given: giftsGiven ?? 0,
+            engagement: (missionCount ?? 0) * 3 + (activityCount ?? 0) * 2 + (raffleCount ?? 0) + ((raffleWins ?? 0) * 5),
+          };
+        })
+      );
+
+      return stats.sort((a, b) => b.engagement - a.engagement);
+    },
+  });
+}
+
+// ============================================================
 // INACTIVITY PENALTY
 // ============================================================
 
