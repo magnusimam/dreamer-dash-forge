@@ -68,55 +68,49 @@ export function useGiftWall() {
   return useQuery({
     queryKey: ["gift_wall"],
     queryFn: async () => {
-      // Get mission completions with proof
-      const { data: missionGifts } = await supabase
-        .from("mission_completions")
-        .select("*")
-        .eq("status", "approved")
-        .not("proof_url", "is", null)
-        .order("completed_at", { ascending: false })
-        .limit(30);
+      // Fetch all 3 sources in parallel
+      const [missionRes, promoRes, transferRes] = await Promise.all([
+        supabase.from("mission_completions").select("*").eq("status", "approved").not("proof_url", "is", null).order("completed_at", { ascending: false }).limit(20),
+        supabase.from("promo_codes").select("*").eq("is_used", true).order("claimed_at", { ascending: false }).limit(15),
+        supabase.from("transactions").select("*").eq("type", "transfer_out").order("created_at", { ascending: false }).limit(15),
+      ]);
 
-      // Get promo code claims
-      const { data: promoClaims } = await supabase
-        .from("promo_codes")
-        .select("*")
-        .eq("is_used", true)
-        .order("claimed_at", { ascending: false })
-        .limit(20);
+      // Collect all unique user IDs and mission IDs
+      const userIds = new Set<string>();
+      const missionIds = new Set<string>();
+      (missionRes.data || []).forEach((g: any) => { userIds.add(g.user_id); missionIds.add(g.mission_id); });
+      (promoRes.data || []).forEach((p: any) => { if (p.claimed_by) userIds.add(p.claimed_by); });
+      (transferRes.data || []).forEach((t: any) => { userIds.add(t.user_id); });
 
-      // Get recent transfers
-      const { data: transfers } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("type", "transfer_out")
-        .order("created_at", { ascending: false })
-        .limit(20);
+      // Batch fetch users and missions
+      const [usersRes, missionsRes] = await Promise.all([
+        userIds.size > 0 ? supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", [...userIds]) : { data: [] },
+        missionIds.size > 0 ? supabase.from("missions").select("id, title").in("id", [...missionIds]) : { data: [] },
+      ]);
 
-      // Build unified feed
+      const userMap: Record<string, any> = {};
+      (usersRes.data || []).forEach((u: any) => { userMap[u.id] = u; });
+      const missionMap: Record<string, any> = {};
+      (missionsRes.data || []).forEach((m: any) => { missionMap[m.id] = m; });
+
+      // Build feed
       const feed: any[] = [];
-
-      for (const g of (missionGifts || [])) {
-        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", g.user_id).maybeSingle();
-        const { data: mission } = await supabase.from("missions").select("title").eq("id", g.mission_id).maybeSingle();
-        feed.push({ type: "mission", user, title: mission?.title, date: g.completed_at, id: "m-" + g.id, user_id: g.user_id });
-      }
-
-      for (const p of (promoClaims || [])) {
-        if (!p.claimed_by) continue;
-        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", p.claimed_by).maybeSingle();
-        feed.push({ type: "promo", user, title: p.description || "Promo reward", date: p.claimed_at, id: "p-" + p.id, user_id: p.claimed_by });
-      }
-
-      for (const t of (transfers || [])) {
-        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", t.user_id).maybeSingle();
-        feed.push({ type: "transfer", user, title: t.description, amount: Math.abs(t.amount), date: t.created_at, id: "t-" + t.id, user_id: t.user_id });
-      }
+      (missionRes.data || []).forEach((g: any) => {
+        feed.push({ type: "mission", user: userMap[g.user_id], title: missionMap[g.mission_id]?.title, date: g.completed_at, id: "m-" + g.id, user_id: g.user_id });
+      });
+      (promoRes.data || []).forEach((p: any) => {
+        if (!p.claimed_by) return;
+        feed.push({ type: "promo", user: userMap[p.claimed_by], title: p.description || "Promo reward", date: p.claimed_at, id: "p-" + p.id, user_id: p.claimed_by });
+      });
+      (transferRes.data || []).forEach((t: any) => {
+        feed.push({ type: "transfer", user: userMap[t.user_id], title: t.description, amount: Math.abs(t.amount), date: t.created_at, id: "t-" + t.id, user_id: t.user_id });
+      });
 
       feed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      return feed.slice(0, 50);
+      return feed.slice(0, 40);
     },
-    refetchInterval: 30000,
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -124,41 +118,24 @@ export function useCommunityStats() {
   return useQuery({
     queryKey: ["community_stats"],
     queryFn: async () => {
-      const { data: users, error } = await supabase
-        .from("users")
-        .select("id, first_name, last_name, username, photo_url, balance, total_earned, streak, last_active")
-        .order("total_earned", { ascending: false });
+      const { data, error } = await supabase.rpc("get_community_stats");
       if (error) throw error;
-
-      const stats = await Promise.all(
-        (users || []).map(async (u: any) => {
-          const { count: missionCount } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("status", "approved");
-          const { count: raffleCount } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-          const { count: raffleWins } = await supabase.from("raffles").select("*", { count: "exact", head: true }).eq("winner_id", u.id);
-          const { count: activityCount } = await supabase.from("activity_logs").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-          const { count: promoCount } = await supabase.from("promo_codes").select("*", { count: "exact", head: true }).eq("claimed_by", u.id);
-          const { count: checkinCount } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-          const { count: transferCount } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("type", "transfer_out");
-          const { count: redeemCount } = await supabase.from("redemption_requests").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-          const { count: hackathonCount } = await supabase.from("hackathon_registrations").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-          return {
-            ...u,
-            missions: missionCount ?? 0,
-            raffles: raffleCount ?? 0,
-            raffle_wins: raffleWins ?? 0,
-            activities: activityCount ?? 0,
-            promos: promoCount ?? 0,
-            checkins: checkinCount ?? 0,
-            transfers: transferCount ?? 0,
-            redeems: redeemCount ?? 0,
-            hackathons: hackathonCount ?? 0,
-            engagement: (missionCount ?? 0) * 3 + (activityCount ?? 0) * 2 + (raffleCount ?? 0) + ((raffleWins ?? 0) * 5) + (promoCount ?? 0) * 2 + (checkinCount ?? 0) + (transferCount ?? 0) + (hackathonCount ?? 0) * 3,
-          };
-        })
-      );
-
-      return stats.sort((a, b) => b.engagement - a.engagement);
+      return (data || []).map((u: any) => ({
+        ...u,
+        id: u.user_id,
+        missions: Number(u.missions),
+        raffles: Number(u.raffles),
+        raffle_wins: Number(u.raffle_wins),
+        activities: Number(u.activities),
+        promos: Number(u.promos),
+        checkins: Number(u.checkins),
+        transfers: Number(u.transfers),
+        redeems: Number(u.redeems),
+        hackathons: Number(u.hackathons),
+        engagement: Number(u.engagement),
+      }));
     },
+    staleTime: 60000, // cache for 1 minute
   });
 }
 
@@ -266,27 +243,32 @@ export function useLiveTicker() {
         .select("user_id, type, amount, description, created_at")
         .order("created_at", { ascending: false })
         .limit(15);
+      if (!recent || recent.length === 0) return [];
 
-      const feed = await Promise.all(
-        (recent || []).map(async (t: any) => {
-          const { data: user } = await supabase.from("users").select("first_name").eq("id", t.user_id).maybeSingle();
-          let text = "";
-          if (t.type === "checkin") text = `${user?.first_name} checked in`;
-          else if (t.type === "earn") text = `${user?.first_name} earned ${Math.abs(t.amount)} DR`;
-          else if (t.type === "transfer_out") text = `${user?.first_name} sent DR`;
-          else if (t.type === "transfer_in") text = `${user?.first_name} received DR`;
-          else if (t.type === "raffle_entry") text = `${user?.first_name} entered a raffle`;
-          else if (t.type === "raffle_win") text = `${user?.first_name} won a raffle! 🎉`;
-          else if (t.type === "mission") text = t.amount > 0 ? `${user?.first_name} completed a mission` : `${user?.first_name} unlocked a mission`;
-          else if (t.type === "promo") text = `${user?.first_name} claimed a promo`;
-          else if (t.type === "redeem") text = `${user?.first_name} redeemed DR`;
-          else text = `${user?.first_name} — ${t.description}`;
-          return { text, date: t.created_at, id: t.user_id + t.created_at };
-        })
-      );
-      return feed.filter((f) => f.text);
+      // Batch fetch users
+      const userIds = [...new Set(recent.map((t: any) => t.user_id))];
+      const { data: users } = await supabase.from("users").select("id, first_name").in("id", userIds);
+      const userMap: Record<string, string> = {};
+      (users || []).forEach((u: any) => { userMap[u.id] = u.first_name; });
+
+      return recent.map((t: any) => {
+        const name = userMap[t.user_id] || "Someone";
+        let text = "";
+        if (t.type === "checkin") text = `${name} checked in`;
+        else if (t.type === "earn") text = `${name} earned ${Math.abs(t.amount)} DR`;
+        else if (t.type === "transfer_out") text = `${name} sent DR`;
+        else if (t.type === "transfer_in") text = `${name} received DR`;
+        else if (t.type === "raffle_entry") text = `${name} entered a raffle`;
+        else if (t.type === "raffle_win") text = `${name} won a raffle! 🎉`;
+        else if (t.type === "mission") text = t.amount > 0 ? `${name} completed a mission` : `${name} unlocked a mission`;
+        else if (t.type === "promo") text = `${name} claimed a promo`;
+        else if (t.type === "redeem") text = `${name} redeemed DR`;
+        else text = `${name} — ${t.description}`;
+        return { text, date: t.created_at, id: t.user_id + t.created_at };
+      }).filter((f: any) => f.text);
     },
-    refetchInterval: 20000,
+    staleTime: 15000,
+    refetchInterval: 30000,
   });
 }
 
@@ -477,16 +459,14 @@ export function useActivities() {
         .eq("is_active", true)
         .order("date", { ascending: false });
       if (error) throw error;
-      // Fetch participant count for each activity
-      const withCounts = await Promise.all(
-        (data || []).map(async (act: any) => {
-          const { count } = await supabase
-            .from("activity_logs")
-            .select("*", { count: "exact", head: true })
-            .eq("activity_id", act.id);
-          return { ...act, participant_count: count ?? 0 };
-        })
-      );
+      // Batch fetch participant counts
+      const actIds = (data || []).map((a: any) => a.id);
+      const { data: logs } = actIds.length > 0
+        ? await supabase.from("activity_logs").select("activity_id").in("activity_id", actIds)
+        : { data: [] };
+      const countMap: Record<string, number> = {};
+      (logs || []).forEach((l: any) => { countMap[l.activity_id] = (countMap[l.activity_id] || 0) + 1; });
+      const withCounts = (data || []).map((act: any) => ({ ...act, participant_count: countMap[act.id] || 0 }));
       return withCounts;
     },
   });
@@ -694,25 +674,27 @@ export function useRaffles() {
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      // Fetch winner names and entry counts
-      const withExtras = await Promise.all(
-        (data || []).map(async (r: any) => {
-          const { count } = await supabase
-            .from("raffle_entries")
-            .select("*", { count: "exact", head: true })
-            .eq("raffle_id", r.id);
-          if (r.winner_id) {
-            const { data: winner } = await supabase
-              .from("users")
-              .select("first_name, username")
-              .eq("id", r.winner_id)
-              .maybeSingle();
-            return { ...r, winner, entry_count: count ?? 0 };
-          }
-          return { ...r, winner: null, entry_count: count ?? 0 };
-        })
-      );
-      return withExtras;
+      // Batch fetch winner names and entry counts
+      const raffleIds = (data || []).map((r: any) => r.id);
+      const winnerIds = (data || []).filter((r: any) => r.winner_id).map((r: any) => r.winner_id);
+
+      const [entriesRes, winnersRes] = await Promise.all([
+        raffleIds.length > 0 ? supabase.from("raffle_entries").select("raffle_id").in("raffle_id", raffleIds) : { data: [] },
+        winnerIds.length > 0 ? supabase.from("users").select("id, first_name, username").in("id", winnerIds) : { data: [] },
+      ]);
+
+      // Count entries per raffle
+      const entryCounts: Record<string, number> = {};
+      (entriesRes.data || []).forEach((e: any) => { entryCounts[e.raffle_id] = (entryCounts[e.raffle_id] || 0) + 1; });
+
+      const winnerMap: Record<string, any> = {};
+      (winnersRes.data || []).forEach((w: any) => { winnerMap[w.id] = w; });
+
+      return (data || []).map((r: any) => ({
+        ...r,
+        winner: r.winner_id ? winnerMap[r.winner_id] || null : null,
+        entry_count: entryCounts[r.id] || 0,
+      }));
     },
   });
 }
