@@ -116,6 +116,7 @@ export function useCommunityStats() {
           const { count: checkinCount } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true }).eq("user_id", u.id);
           const { count: transferCount } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("type", "transfer_out");
           const { count: redeemCount } = await supabase.from("redemption_requests").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+          const { count: hackathonCount } = await supabase.from("hackathon_registrations").select("*", { count: "exact", head: true }).eq("user_id", u.id);
           return {
             ...u,
             missions: missionCount ?? 0,
@@ -126,7 +127,8 @@ export function useCommunityStats() {
             checkins: checkinCount ?? 0,
             transfers: transferCount ?? 0,
             redeems: redeemCount ?? 0,
-            engagement: (missionCount ?? 0) * 3 + (activityCount ?? 0) * 2 + (raffleCount ?? 0) + ((raffleWins ?? 0) * 5) + (promoCount ?? 0) * 2 + (checkinCount ?? 0) + (transferCount ?? 0),
+            hackathons: hackathonCount ?? 0,
+            engagement: (missionCount ?? 0) * 3 + (activityCount ?? 0) * 2 + (raffleCount ?? 0) + ((raffleWins ?? 0) * 5) + (promoCount ?? 0) * 2 + (checkinCount ?? 0) + (transferCount ?? 0) + (hackathonCount ?? 0) * 3,
           };
         })
       );

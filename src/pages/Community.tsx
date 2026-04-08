@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useGiftWall, useCommunityStats, isUserOnline } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import UserProfileModal from "@/components/UserProfileModal";
-import { Gift, Trophy, Target, Ticket, ClipboardList, Flame, Loader2, Crown, TrendingUp, CheckCircle, Send, BookOpen, ShoppingBag } from "lucide-react";
+import { Gift, Trophy, Target, Ticket, ClipboardList, Flame, Loader2, Crown, TrendingUp, CheckCircle, Send, BookOpen, Rocket } from "lucide-react";
 
 export default function Community() {
   const { dbUser } = useUser();
@@ -54,10 +54,14 @@ export default function Community() {
                 <p className="text-[10px] text-muted-foreground">Raffles</p>
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="grid grid-cols-5 gap-2 text-center">
               <div>
                 <p className="text-lg font-bold text-primary">{myStats.raffle_wins}</p>
                 <p className="text-[10px] text-muted-foreground">Wins</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-foreground">{myStats.hackathons}</p>
+                <p className="text-[10px] text-muted-foreground">Hacks</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-foreground">{myStats.promos}</p>
@@ -193,6 +197,7 @@ export default function Community() {
                         <span className="flex items-center gap-0.5" title="Missions"><Target className="w-2.5 h-2.5" />{u.missions}</span>
                         <span className="flex items-center gap-0.5" title="Raffles"><Ticket className="w-2.5 h-2.5" />{u.raffles}</span>
                         {u.raffle_wins > 0 && <span className="flex items-center gap-0.5 text-primary" title="Raffle wins"><Trophy className="w-2.5 h-2.5" />{u.raffle_wins}</span>}
+                        {u.hackathons > 0 && <span className="flex items-center gap-0.5" title="Hackathons"><Rocket className="w-2.5 h-2.5" />{u.hackathons}</span>}
                         {u.promos > 0 && <span className="flex items-center gap-0.5 text-purple-400" title="Promos"><BookOpen className="w-2.5 h-2.5" />{u.promos}</span>}
                         {u.transfers > 0 && <span className="flex items-center gap-0.5" title="Transfers"><Send className="w-2.5 h-2.5" />{u.transfers}</span>}
                         {u.streak > 0 && <span className="flex items-center gap-0.5" title="Streak"><Flame className="w-2.5 h-2.5 text-orange-400" />{u.streak}</span>}
