@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useClaimPromoCode, useTodaysBirthdays, isUserOnline } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useClaimPromoCode, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats } from "@/hooks/useSupabase";
 import UserProfileModal from "@/components/UserProfileModal";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
@@ -71,6 +71,7 @@ export default function Home({ onTabChange }: HomeProps) {
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const { data: todaysBirthdays = [] } = useTodaysBirthdays();
+  const { data: featuredDreamer } = useFeaturedDreamer();
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: stateRankings = [] } = useStateRankings();
@@ -277,6 +278,29 @@ export default function Home({ onTabChange }: HomeProps) {
                 {streakInsuranceMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3 mr-1" />}
                 50 DR
               </Button>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Featured Dreamer Spotlight */}
+      {featuredDreamer && featuredDreamer.id !== dbUser?.id && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+          <Card className="border-yellow-500/20 bg-gradient-to-r from-yellow-500/5 to-primary/5 p-3 cursor-pointer" onClick={() => setViewProfileUserId(featuredDreamer.id)}>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Avatar className="w-10 h-10 border-2 border-yellow-400/50">
+                  <AvatarImage src={featuredDreamer.photo_url} />
+                  <AvatarFallback className="text-xs">{featuredDreamer.first_name?.[0]}</AvatarFallback>
+                </Avatar>
+                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-card ${isUserOnline(featuredDreamer.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] text-yellow-400 font-medium uppercase tracking-wider">Featured Dreamer</p>
+                <p className="text-sm font-semibold text-foreground">{featuredDreamer.first_name} {featuredDreamer.last_name || ""}</p>
+                <p className="text-[10px] text-muted-foreground">{featuredDreamer.status} · {featuredDreamer.streak} day streak</p>
+              </div>
+              <Sparkles className="w-5 h-5 text-yellow-400 shrink-0" />
             </div>
           </Card>
         </motion.div>

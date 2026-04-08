@@ -37,6 +37,30 @@ export function isUserOnline(lastActive: string | null): boolean {
 }
 
 // ============================================================
+// LEVEL SYSTEM
+// ============================================================
+
+const LEVEL_THRESHOLDS = [0, 10, 25, 50, 100, 175, 275, 400, 550, 750, 1000, 1300, 1650, 2050, 2500, 3000, 3600, 4300, 5100, 6000, 7000, 8200, 9600, 11200, 13000, 15000, 17500, 20500, 24000, 28000, 32500, 37500, 43000, 49000, 56000, 64000, 73000, 83000, 94000, 106000, 120000, 135000, 152000, 170000, 190000, 212000, 236000, 262000, 290000, 320000];
+
+export function getDreamerLevel(engagementPoints: number): { level: number; currentXP: number; nextXP: number; progress: number; title: string } {
+  let level = 1;
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+    if (engagementPoints >= LEVEL_THRESHOLDS[i]) {
+      level = i + 1;
+      break;
+    }
+  }
+  const currentThreshold = LEVEL_THRESHOLDS[level - 1] || 0;
+  const nextThreshold = LEVEL_THRESHOLDS[level] || currentThreshold + 1000;
+  const progress = Math.min(((engagementPoints - currentThreshold) / (nextThreshold - currentThreshold)) * 100, 100);
+
+  const titles = ["Newcomer", "Explorer", "Learner", "Contributor", "Builder", "Achiever", "Champion", "Leader", "Master", "Legend"];
+  const titleIndex = Math.min(Math.floor((level - 1) / 5), titles.length - 1);
+
+  return { level, currentXP: engagementPoints, nextXP: nextThreshold, progress, title: titles[titleIndex] };
+}
+
+// ============================================================
 // COMMUNITY DASHBOARD
 // ============================================================
 
@@ -135,6 +159,134 @@ export function useCommunityStats() {
 
       return stats.sort((a, b) => b.engagement - a.engagement);
     },
+  });
+}
+
+export function useWeeklyMVP() {
+  return useQuery({
+    queryKey: ["weekly_mvp"],
+    queryFn: async () => {
+      // Get current week's MVP
+      const { data: current } = await supabase
+        .from("weekly_mvps")
+        .select("*")
+        .order("week_start", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Get past MVPs for hall of fame
+      const { data: pastMvps } = await supabase
+        .from("weekly_mvps")
+        .select("*")
+        .order("week_start", { ascending: false })
+        .limit(5);
+
+      // Fetch user details
+      const withUsers = await Promise.all(
+        (pastMvps || []).map(async (m: any) => {
+          const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", m.user_id).maybeSingle();
+          return { ...m, user };
+        })
+      );
+
+      let currentUser = null;
+      if (current) {
+        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", current.user_id).maybeSingle();
+        currentUser = { ...current, user };
+      }
+
+      return { current: currentUser, history: withUsers };
+    },
+  });
+}
+
+export function useFeaturedDreamer() {
+  return useQuery({
+    queryKey: ["featured_dreamer"],
+    queryFn: async () => {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - dayOfWeek);
+      const weekStartStr = weekStart.toISOString().split("T")[0];
+
+      const { data: featured } = await supabase
+        .from("featured_dreamers")
+        .select("*")
+        .eq("week_start", weekStartStr)
+        .maybeSingle();
+
+      if (featured) {
+        const { data: user } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, balance, streak, status, last_active").eq("id", featured.user_id).maybeSingle();
+        return user;
+      }
+
+      // Auto-pick a random featured dreamer for this week
+      const { data: users } = await supabase.from("users").select("id").eq("is_admin", false);
+      if (users && users.length > 0) {
+        const randomUser = users[Math.floor(Math.random() * users.length)];
+        await supabase.from("featured_dreamers").insert({ user_id: randomUser.id, week_start: weekStartStr });
+        const { data: user } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, balance, streak, status, last_active").eq("id", randomUser.id).maybeSingle();
+        return user;
+      }
+      return null;
+    },
+  });
+}
+
+export function useCommunityMilestones() {
+  return useQuery({
+    queryKey: ["community_milestones"],
+    queryFn: async () => {
+      const { count: totalUsers } = await supabase.from("users").select("*", { count: "exact", head: true });
+      const { count: totalCheckins } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true });
+      const { count: totalActivities } = await supabase.from("activity_logs").select("*", { count: "exact", head: true });
+      const { count: totalTransfers } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("type", "transfer_out");
+      const { count: totalMissions } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("status", "approved");
+      const { count: totalRaffles } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true });
+
+      return {
+        users: { current: totalUsers ?? 0, target: Math.ceil((totalUsers ?? 0) / 50) * 50 || 50 },
+        checkins: { current: totalCheckins ?? 0, target: Math.ceil((totalCheckins ?? 0) / 500) * 500 || 500 },
+        activities: { current: totalActivities ?? 0, target: Math.ceil((totalActivities ?? 0) / 200) * 200 || 200 },
+        transfers: { current: totalTransfers ?? 0, target: Math.ceil((totalTransfers ?? 0) / 100) * 100 || 100 },
+        missions: { current: totalMissions ?? 0, target: Math.ceil((totalMissions ?? 0) / 50) * 50 || 50 },
+        raffles: { current: totalRaffles ?? 0, target: Math.ceil((totalRaffles ?? 0) / 100) * 100 || 100 },
+      };
+    },
+  });
+}
+
+export function useLiveTicker() {
+  return useQuery({
+    queryKey: ["live_ticker"],
+    queryFn: async () => {
+      const { data: recent } = await supabase
+        .from("transactions")
+        .select("user_id, type, amount, description, created_at")
+        .order("created_at", { ascending: false })
+        .limit(15);
+
+      const feed = await Promise.all(
+        (recent || []).map(async (t: any) => {
+          const { data: user } = await supabase.from("users").select("first_name").eq("id", t.user_id).maybeSingle();
+          let text = "";
+          if (t.type === "checkin") text = `${user?.first_name} checked in`;
+          else if (t.type === "earn") text = `${user?.first_name} earned ${Math.abs(t.amount)} DR`;
+          else if (t.type === "transfer_out") text = `${user?.first_name} sent DR`;
+          else if (t.type === "transfer_in") text = `${user?.first_name} received DR`;
+          else if (t.type === "raffle_entry") text = `${user?.first_name} entered a raffle`;
+          else if (t.type === "raffle_win") text = `${user?.first_name} won a raffle! 🎉`;
+          else if (t.type === "mission") text = t.amount > 0 ? `${user?.first_name} completed a mission` : `${user?.first_name} unlocked a mission`;
+          else if (t.type === "promo") text = `${user?.first_name} claimed a promo`;
+          else if (t.type === "redeem") text = `${user?.first_name} redeemed DR`;
+          else text = `${user?.first_name} — ${t.description}`;
+          return { text, date: t.created_at, id: t.user_id + t.created_at };
+        })
+      );
+      return feed.filter((f) => f.text);
+    },
+    refetchInterval: 20000,
   });
 }
 
