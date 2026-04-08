@@ -1,14 +1,54 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useUserProfile, isUserOnline } from "@/hooks/useSupabase";
-import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award } from "lucide-react";
+import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award, Eye, EyeOff, Copy, Check } from "lucide-react";
 
 const achievementIcons: Record<string, string> = {
   star: "⭐", rocket: "🚀", crown: "👑", gem: "💎", flame: "🔥", heart: "❤️", shield: "🛡️",
 };
+
+function BankDetailsToggle({ bankName, accountNumber, accountName }: { bankName: string; accountNumber: string; accountName: string }) {
+  const [visible, setVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(`${accountName}\n${bankName}\n${accountNumber}`);
+    setCopied(true);
+    setTimeout(() => {
+      setCopied(false);
+      setVisible(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="mb-4 bg-secondary/50 rounded-lg p-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs font-medium text-muted-foreground">Bank Details</p>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => setVisible(!visible)}>
+          {visible ? <EyeOff className="w-3 h-3 mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
+          {visible ? "Hide" : "Show"}
+        </Button>
+      </div>
+      {visible ? (
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-foreground font-medium">{accountName}</p>
+            <p className="text-xs text-muted-foreground">{bankName} — {accountNumber}</p>
+          </div>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopy}>
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Tap "Show" to view bank details</p>
+      )}
+    </div>
+  );
+}
 
 interface UserProfileModalProps {
   userId: string | null;
@@ -115,11 +155,11 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
 
               {/* Bank Details */}
               {profile.bank_name && profile.account_number && (
-                <div className="mb-4 bg-secondary/50 rounded-lg p-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Bank Details</p>
-                  <p className="text-sm text-foreground font-medium">{profile.account_name}</p>
-                  <p className="text-xs text-muted-foreground">{profile.bank_name} — {profile.account_number}</p>
-                </div>
+                <BankDetailsToggle
+                  bankName={profile.bank_name}
+                  accountNumber={profile.account_number}
+                  accountName={profile.account_name}
+                />
               )}
 
               {/* Achievements */}
