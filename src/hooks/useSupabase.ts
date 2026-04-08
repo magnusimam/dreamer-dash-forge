@@ -44,22 +44,53 @@ export function useGiftWall() {
   return useQuery({
     queryKey: ["gift_wall"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get mission completions with proof
+      const { data: missionGifts } = await supabase
         .from("mission_completions")
         .select("*")
         .eq("status", "approved")
         .not("proof_url", "is", null)
         .order("completed_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      const withDetails = await Promise.all(
-        (data || []).map(async (c: any) => {
-          const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url").eq("id", c.user_id).maybeSingle();
-          const { data: mission } = await supabase.from("missions").select("title").eq("id", c.mission_id).maybeSingle();
-          return { ...c, user, mission };
-        })
-      );
-      return withDetails;
+        .limit(30);
+
+      // Get promo code claims
+      const { data: promoClaims } = await supabase
+        .from("promo_codes")
+        .select("*")
+        .eq("is_used", true)
+        .order("claimed_at", { ascending: false })
+        .limit(20);
+
+      // Get recent transfers
+      const { data: transfers } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("type", "transfer_out")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      // Build unified feed
+      const feed: any[] = [];
+
+      for (const g of (missionGifts || [])) {
+        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", g.user_id).maybeSingle();
+        const { data: mission } = await supabase.from("missions").select("title").eq("id", g.mission_id).maybeSingle();
+        feed.push({ type: "mission", user, title: mission?.title, date: g.completed_at, id: "m-" + g.id, user_id: g.user_id });
+      }
+
+      for (const p of (promoClaims || [])) {
+        if (!p.claimed_by) continue;
+        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", p.claimed_by).maybeSingle();
+        feed.push({ type: "promo", user, title: p.description || "Promo reward", date: p.claimed_at, id: "p-" + p.id, user_id: p.claimed_by });
+      }
+
+      for (const t of (transfers || [])) {
+        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", t.user_id).maybeSingle();
+        feed.push({ type: "transfer", user, title: t.description, amount: Math.abs(t.amount), date: t.created_at, id: "t-" + t.id, user_id: t.user_id });
+      }
+
+      feed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      return feed.slice(0, 50);
     },
     refetchInterval: 30000,
   });
@@ -81,15 +112,21 @@ export function useCommunityStats() {
           const { count: raffleCount } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true }).eq("user_id", u.id);
           const { count: raffleWins } = await supabase.from("raffles").select("*", { count: "exact", head: true }).eq("winner_id", u.id);
           const { count: activityCount } = await supabase.from("activity_logs").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-          const { count: giftsGiven } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("status", "approved").not("proof_url", "is", null);
+          const { count: promoCount } = await supabase.from("promo_codes").select("*", { count: "exact", head: true }).eq("claimed_by", u.id);
+          const { count: checkinCount } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+          const { count: transferCount } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("type", "transfer_out");
+          const { count: redeemCount } = await supabase.from("redemption_requests").select("*", { count: "exact", head: true }).eq("user_id", u.id);
           return {
             ...u,
             missions: missionCount ?? 0,
             raffles: raffleCount ?? 0,
             raffle_wins: raffleWins ?? 0,
             activities: activityCount ?? 0,
-            gifts_given: giftsGiven ?? 0,
-            engagement: (missionCount ?? 0) * 3 + (activityCount ?? 0) * 2 + (raffleCount ?? 0) + ((raffleWins ?? 0) * 5),
+            promos: promoCount ?? 0,
+            checkins: checkinCount ?? 0,
+            transfers: transferCount ?? 0,
+            redeems: redeemCount ?? 0,
+            engagement: (missionCount ?? 0) * 3 + (activityCount ?? 0) * 2 + (raffleCount ?? 0) + ((raffleWins ?? 0) * 5) + (promoCount ?? 0) * 2 + (checkinCount ?? 0) + (transferCount ?? 0),
           };
         })
       );
