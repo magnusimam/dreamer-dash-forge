@@ -916,6 +916,25 @@ export function useCreateMission() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_missions"] });
+    },
+  });
+}
+
+export function useUpdateMission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...fields }: { id: string; title?: string; description?: string; reward?: number; unlock_fee?: number; completion_code?: string; expires_at?: string | null }) => {
+      const { error } = await supabase
+        .from("missions")
+        .update(fields)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_missions"] });
     },
   });
 }
