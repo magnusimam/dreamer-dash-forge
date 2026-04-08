@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useClaimPromoCode, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats } from "@/hooks/useSupabase";
 import UserProfileModal from "@/components/UserProfileModal";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
@@ -50,26 +50,9 @@ export default function Home({ onTabChange }: HomeProps) {
   const { data: alreadyCheckedIn = false } = useTodayCheckin();
   const checkinMutation = usePerformCheckin();
   const streakInsuranceMutation = useBuyStreakInsurance();
-  const claimPromoMutation = useClaimPromoCode();
-  const { data: promoStats = { claimed: 0, total: 0 } } = useQuery({
-    queryKey: ["promo_stats"],
-    queryFn: async () => {
-      const { count: claimed } = await supabase
-        .from("promo_codes")
-        .select("*", { count: "exact", head: true })
-        .eq("is_used", true);
-      const { count: total } = await supabase
-        .from("promo_codes")
-        .select("*", { count: "exact", head: true });
-      return { claimed: claimed ?? 0, total: total ?? 0 };
-    },
-  });
-  const allPromosClaimed = promoStats.total > 0 && promoStats.claimed >= promoStats.total;
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [showPromoModal, setShowPromoModal] = useState(false);
-  const [promoCode, setPromoCode] = useState("");
   const { data: todaysBirthdays = [] } = useTodaysBirthdays();
   const { data: featuredDreamer } = useFeaturedDreamer();
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
@@ -306,35 +289,6 @@ export default function Home({ onTabChange }: HomeProps) {
         </motion.div>
       )}
 
-      {/* Book Promo Banner */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-        <Card className="border-purple-500/20 bg-gradient-to-r from-purple-500/10 to-primary/10 p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0">
-              <BookOpen className="w-5 h-5 text-purple-400" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">The Stolen Breath</p>
-              <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span>
-                {promoStats.claimed > 0 && <span className="text-purple-400"> · {promoStats.claimed} claimed</span>}
-                {allPromosClaimed && <span className="text-muted-foreground"> · All codes claimed</span>}
-              </p>
-              <div className="flex gap-2">
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.com/thestolenbreath", "_blank")}>
-                  <BookOpen className="w-3 h-3 mr-1" /> Get Book
-                </Button>
-                {allPromosClaimed ? (
-                  <Badge className="bg-muted text-muted-foreground border-border text-xs h-7 flex items-center">All Claimed</Badge>
-                ) : (
-                  <Button size="sm" variant="outline" className="border-primary/30 text-primary h-7 text-xs" onClick={() => setShowPromoModal(true)}>
-                    <Gift className="w-3 h-3 mr-1" /> Claim 500 DR
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
 
       {/* Birthday Banner */}
       {todaysBirthdays.filter((u: any) => u.id !== dbUser?.id).length > 0 && (
@@ -381,44 +335,6 @@ export default function Home({ onTabChange }: HomeProps) {
           onTransfer={onTabChange ? () => onTabChange("transfer") : undefined}
         />
       )}
-
-      {/* Promo Code Modal */}
-      <AnimatePresence>
-        {showPromoModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setShowPromoModal(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground text-lg">Claim Promo Code</h3>
-                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setShowPromoModal(false)}><X className="w-4 h-4" /></Button>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">Enter the code you received after purchasing <span className="text-foreground font-medium">The Stolen Breath</span></p>
-              <Input placeholder="Enter code (e.g. BREATH-A7X2)" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} className="mb-4 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
-              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!promoCode.trim() || claimPromoMutation.isPending}
-                onClick={async () => {
-                  try {
-                    const result = await claimPromoMutation.mutateAsync(promoCode.trim());
-                    if (result?.success) {
-                      hapticNotification("success");
-                      setShowConfetti(true);
-                      toast({ title: "Code Claimed!", description: `+${result.reward} DR — ${result.description || "Promo reward"}` });
-                      setPromoCode("");
-                      setShowPromoModal(false);
-                    } else {
-                      hapticNotification("error");
-                      toast({ title: "Invalid Code", description: result?.error || "Code not recognized", variant: "destructive" });
-                    }
-                  } catch (err: any) {
-                    hapticNotification("error");
-                    toast({ title: "Error", description: err?.message || "Failed to claim code. Make sure the code is valid.", variant: "destructive" });
-                  }
-                }}>
-                {claimPromoMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Gift className="w-4 h-4 mr-2" />}
-                Claim Reward
-              </Button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Balance Card */}
       <BalanceCard balance={balance} dailyEarnings={streak ? streak * 25 : 0} />

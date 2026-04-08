@@ -18,6 +18,7 @@ import {
   useUnlockMission,
   useSubmitMissionProof,
   useCompleteMission,
+  useClaimPromoCode,
 } from "@/hooks/useSupabase";
 import {
   CalendarDays,
@@ -31,6 +32,8 @@ import {
   Lock,
   Unlock,
   Target,
+  BookOpen,
+  Gift,
 } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
@@ -46,6 +49,7 @@ const categoryColors: Record<string, string> = {
   workshop: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   event: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   outreach: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  promo: "bg-pink-500/20 text-pink-400 border-pink-500/30",
 };
 
 export default function ActivityLog() {
@@ -64,6 +68,9 @@ export default function ActivityLog() {
   const unlockMissionMutation = useUnlockMission();
   const completeMissionMutation = useCompleteMission();
   const submitMissionProofMutation = useSubmitMissionProof();
+  const claimPromoMutation = useClaimPromoCode();
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
 
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [codeInput, setCodeInput] = useState("");
@@ -458,6 +465,72 @@ export default function ActivityLog() {
         )}
       </AnimatePresence>
 
+      {/* Promo Section */}
+      {(categoryFilter === "all" || categoryFilter === "promo") && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-pink-400" /> Promos
+          </h2>
+          <Card className="gradient-card border-pink-500/20 p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center shrink-0">
+                <BookOpen className="w-5 h-5 text-pink-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">The Stolen Breath</p>
+                <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span></p>
+                <div className="flex gap-2">
+                  <Button size="sm" className="bg-pink-600 hover:bg-pink-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.com/thestolenbreath", "_blank")}>
+                    <BookOpen className="w-3 h-3 mr-1" /> Get Book
+                  </Button>
+                  <Button size="sm" variant="outline" className="border-primary/30 text-primary h-7 text-xs" onClick={() => setShowPromoModal(true)}>
+                    <Gift className="w-3 h-3 mr-1" /> Claim 500 DR
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Promo Claim Modal */}
+      <AnimatePresence>
+        {showPromoModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setShowPromoModal(false)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground text-lg">Claim Promo Code</h3>
+                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setShowPromoModal(false)}><X className="w-4 h-4" /></Button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Enter the code you received after purchasing <span className="text-foreground font-medium">The Stolen Breath</span></p>
+              <Input placeholder="Enter code (e.g. BREATH-A7X2)" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} className="mb-4 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
+              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!promoCode.trim() || claimPromoMutation.isPending}
+                onClick={async () => {
+                  try {
+                    const result = await claimPromoMutation.mutateAsync(promoCode.trim());
+                    if (result?.success) {
+                      hapticNotification("success");
+                      setShowConfetti(true);
+                      toast({ title: "Code Claimed!", description: `+${result.reward} DR — ${result.description || "Promo reward"}` });
+                      setPromoCode("");
+                      setShowPromoModal(false);
+                    } else {
+                      hapticNotification("error");
+                      toast({ title: "Invalid Code", description: result?.error || "Code not recognized", variant: "destructive" });
+                    }
+                  } catch (err: any) {
+                    hapticNotification("error");
+                    toast({ title: "Error", description: err?.message || "Failed to claim code.", variant: "destructive" });
+                  }
+                }}>
+                {claimPromoMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Gift className="w-4 h-4 mr-2" />}
+                Claim Reward
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Activities */}
       <h2 className="text-lg font-semibold text-foreground mb-3">
         Community Activities
@@ -466,7 +539,7 @@ export default function ActivityLog() {
       {/* Category filter chips */}
       <div className="mb-4 overflow-x-auto scrollbar-hide">
         <div className="flex gap-2 pb-2">
-          {["all", "meeting", "workshop", "event", "outreach"].map((cat) => (
+          {["all", "meeting", "workshop", "event", "outreach", "promo"].map((cat) => (
             <Button
               key={cat}
               size="sm"
