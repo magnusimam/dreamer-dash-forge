@@ -68,6 +68,7 @@ export default function ActivityLog() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMission, setSelectedMission] = useState<any | null>(null);
   const [missionCodeInput, setMissionCodeInput] = useState("");
+  const [missionNote, setMissionNote] = useState("");
 
   const handleDailyCheckIn = async () => {
     if (alreadyCheckedIn) return;
@@ -310,17 +311,19 @@ export default function ActivityLog() {
               </div>
               <p className="text-sm font-medium text-foreground mb-1">{selectedMission.title}</p>
               <p className="text-xs text-muted-foreground mb-4">{selectedMission.description}</p>
-              <Input placeholder="Enter completion code" value={missionCodeInput} onChange={(e) => setMissionCodeInput(e.target.value.toUpperCase())} className="mb-4 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
+              <Input placeholder="Enter completion code" value={missionCodeInput} onChange={(e) => setMissionCodeInput(e.target.value.toUpperCase())} className="mb-3 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
+              <Input placeholder="Who did you gift? (e.g. John Doe)" value={missionNote} onChange={(e) => setMissionNote(e.target.value)} className="mb-4 bg-secondary border-border" />
               <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionCodeInput.trim() || completeMissionMutation.isPending}
                 onClick={async () => {
                   try {
-                    const result = await completeMissionMutation.mutateAsync({ missionId: selectedMission.id, code: missionCodeInput.trim() });
+                    const result = await completeMissionMutation.mutateAsync({ missionId: selectedMission.id, code: missionCodeInput.trim(), note: missionNote.trim() || undefined });
                     if (result?.success) {
                       hapticNotification("success");
                       setShowConfetti(true);
                       toast({ title: "Mission Complete!", description: `+${result.reward} DR for "${result.mission}"` });
                       setSelectedMission(null);
                       setMissionCodeInput("");
+                      setMissionNote("");
                     } else {
                       hapticNotification("error");
                       toast({ title: "Failed", description: result?.error || "Invalid code", variant: "destructive" });
