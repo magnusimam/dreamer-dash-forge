@@ -47,6 +47,7 @@ import {
   useMissions,
   useAllMissionsAdmin,
   useCreateMission,
+  useUpdateMission,
   useDeleteMission,
   useUnarchiveMission,
   useMissionParticipants,
@@ -228,6 +229,7 @@ export default function Admin() {
   const createPromoCodeMutation = useCreatePromoCode();
   const generatePromoCodesMutation = useGeneratePromoCodes();
   const createMissionMutation = useCreateMission();
+  const updateMissionMutation = useUpdateMission();
   const deleteMissionMutation = useDeleteMission();
   const unarchiveMissionMutation = useUnarchiveMission();
 
@@ -265,6 +267,7 @@ export default function Admin() {
   const [missionUnlockFee, setMissionUnlockFee] = useState("");
   const [missionCode, setMissionCode] = useState("");
   const [missionExpiry, setMissionExpiry] = useState("");
+  const [editingMission, setEditingMission] = useState<any | null>(null);
 
   // Raffle form
   const [raffleTitle, setRaffleTitle] = useState("");
@@ -846,7 +849,7 @@ export default function Admin() {
             <Card className="gradient-card border-border/50 p-5 mb-6">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Target className="w-4 h-4 text-primary" />
-                Create Monthly Mission
+                {editingMission ? "Edit Mission" : "Create Monthly Mission"}
               </h3>
               <div className="space-y-3">
                 <Input placeholder="Mission title" value={missionTitle} onChange={(e) => setMissionTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
@@ -857,28 +860,58 @@ export default function Admin() {
                 </div>
                 <Input placeholder="Completion code (given to users who finish)" value={missionCode} onChange={(e) => setMissionCode(e.target.value.toUpperCase())} className="bg-secondary border-border font-mono" />
                 <div><label className="text-xs text-muted-foreground mb-1 block">Expires (optional)</label><Input type="date" value={missionExpiry} onChange={(e) => setMissionExpiry(e.target.value)} className="bg-secondary border-border" /></div>
-                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!missionTitle || !missionUnlockFee || !missionReward || !missionCode || createMissionMutation.isPending}
-                  onClick={async () => {
-                    try {
-                      await createMissionMutation.mutateAsync({
-                        title: missionTitle,
-                        description: missionDesc || undefined,
-                        category: "special",
-                        reward: parseInt(missionReward),
-                        unlock_fee: parseInt(missionUnlockFee),
-                        completion_code: missionCode,
-                        expires_at: missionExpiry ? new Date(missionExpiry).toISOString() : undefined,
-                      });
-                      toast({ title: "Mission Created", description: `${missionTitle} — Code: ${missionCode}` });
-                      broadcastNewMission(missionTitle, parseInt(missionUnlockFee), parseInt(missionReward));
-                      setMissionTitle(""); setMissionDesc(""); setMissionReward(""); setMissionUnlockFee(""); setMissionCode(""); setMissionExpiry("");
-                    } catch (err: any) {
-                      toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
-                    }
-                  }}>
-                  {createMissionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Target className="w-4 h-4 mr-2" />}
-                  Create Mission
-                </Button>
+                <div className="flex gap-2">
+                  {editingMission ? (
+                    <>
+                      <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!missionTitle || !missionUnlockFee || !missionReward || !missionCode || updateMissionMutation.isPending}
+                        onClick={async () => {
+                          try {
+                            await updateMissionMutation.mutateAsync({
+                              id: editingMission.id,
+                              title: missionTitle,
+                              description: missionDesc || undefined,
+                              reward: parseInt(missionReward),
+                              unlock_fee: parseInt(missionUnlockFee),
+                              completion_code: missionCode,
+                              expires_at: missionExpiry ? new Date(missionExpiry).toISOString() : null,
+                            });
+                            toast({ title: "Mission Updated" });
+                            setEditingMission(null);
+                            setMissionTitle(""); setMissionDesc(""); setMissionReward(""); setMissionUnlockFee(""); setMissionCode(""); setMissionExpiry("");
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                          }
+                        }}>
+                        {updateMissionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={() => { setEditingMission(null); setMissionTitle(""); setMissionDesc(""); setMissionReward(""); setMissionUnlockFee(""); setMissionCode(""); setMissionExpiry(""); }}>Cancel</Button>
+                    </>
+                  ) : (
+                    <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!missionTitle || !missionUnlockFee || !missionReward || !missionCode || createMissionMutation.isPending}
+                      onClick={async () => {
+                        try {
+                          await createMissionMutation.mutateAsync({
+                            title: missionTitle,
+                            description: missionDesc || undefined,
+                            category: "special",
+                            reward: parseInt(missionReward),
+                            unlock_fee: parseInt(missionUnlockFee),
+                            completion_code: missionCode,
+                            expires_at: missionExpiry ? new Date(missionExpiry).toISOString() : undefined,
+                          });
+                          toast({ title: "Mission Created", description: `${missionTitle} — Code: ${missionCode}` });
+                          broadcastNewMission(missionTitle, parseInt(missionUnlockFee), parseInt(missionReward));
+                          setMissionTitle(""); setMissionDesc(""); setMissionReward(""); setMissionUnlockFee(""); setMissionCode(""); setMissionExpiry("");
+                        } catch (err: any) {
+                          toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                        }
+                      }}>
+                      {createMissionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Target className="w-4 h-4 mr-2" />}
+                      Create Mission
+                    </Button>
+                  )}
+                </div>
               </div>
             </Card>
 
@@ -898,15 +931,31 @@ export default function Admin() {
                           </div>
                           {m.description && <p className="text-xs text-muted-foreground mt-1">{m.description}</p>}
                         </div>
-                        {m.is_active ? (
-                          <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await deleteMissionMutation.mutateAsync(m.id); toast({ title: "Mission Archived", description: "Hidden from users but data preserved" }); }}>
-                            Archive
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await unarchiveMissionMutation.mutateAsync(m.id); toast({ title: "Mission Unarchived", description: "Now visible to users again" }); }} disabled={unarchiveMissionMutation.isPending}>
-                            Unarchive
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {m.is_active && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => {
+                              setEditingMission(m);
+                              setMissionTitle(m.title);
+                              setMissionDesc(m.description || "");
+                              setMissionReward(String(m.reward));
+                              setMissionUnlockFee(String(m.unlock_fee));
+                              setMissionCode(m.completion_code || "");
+                              setMissionExpiry(m.expires_at ? m.expires_at.split("T")[0] : "");
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}>
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          )}
+                          {m.is_active ? (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await deleteMissionMutation.mutateAsync(m.id); toast({ title: "Mission Archived" }); }}>
+                              Archive
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await unarchiveMissionMutation.mutateAsync(m.id); toast({ title: "Mission Unarchived" }); }} disabled={unarchiveMissionMutation.isPending}>
+                              Unarchive
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
                         <span className="flex items-center gap-1"><Lock className="w-3 h-3" />{m.unlock_fee} DR unlock</span>
