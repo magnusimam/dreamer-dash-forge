@@ -15,6 +15,7 @@ import RedemptionHistory from "@/pages/RedemptionHistory";
 import Onboarding from "@/pages/Onboarding";
 import SupplyDashboard from "@/pages/SupplyDashboard";
 import States from "@/pages/States";
+import UserSettings from "@/pages/UserSettings";
 import { showBackButton, hideBackButton } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import { useHeartbeat, useInactivityCheck } from "@/hooks/useSupabase";
@@ -22,7 +23,7 @@ import { notifyUser } from "@/lib/notifications";
 import logoImg from "@/assets/dreamers-coin-logo.png";
 import { supabase } from "@/lib/supabase";
 
-const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply", "states", "hackathons"]);
+const SUB_TABS = new Set(["admin", "transfer", "leaderboard", "transactions", "redemption-history", "supply", "states", "hackathons", "settings"]);
 
 const ONBOARDING_KEY = "dreamer_dash_onboarded";
 
@@ -149,6 +150,7 @@ const Index = () => {
         : activeTab === "transfer" || activeTab === "leaderboard" ? "profile"
         : activeTab === "redemption-history" ? "redeem"
         : activeTab === "hackathons" ? "raffles"
+        : activeTab === "settings" ? "profile"
         : activeTab === "states" ? "home"
         : "home";
       showBackButton(() => handleTabChange(backTo));
@@ -201,6 +203,8 @@ const Index = () => {
         return <RedemptionHistory />;
       case "supply":
         return <SupplyDashboard />;
+      case "settings":
+        return <UserSettings />;
       case "states":
         return <States />;
       default:

@@ -13,8 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { Input } from "@/components/ui/input";
-import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useSetBirthday, useSaveBankDetails } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -38,11 +37,6 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const { data: achievements } = useAchievements();
   const { data: unlockedIds } = useUserAchievements();
   const checkAchievements = useCheckAchievements();
-  const setBirthdayMutation = useSetBirthday();
-  const saveBankMutation = useSaveBankDetails();
-  const [bankName, setBankName] = useState(dbUser?.bank_name || "");
-  const [accountNumber, setAccountNumber] = useState(dbUser?.account_number || "");
-  const [accountName, setAccountName] = useState(dbUser?.account_name || "");
   const { data: referralCount } = useUserReferralCount();
   const { data: referredBy } = useReferredBy();
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
@@ -125,7 +119,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
               </Avatar>
               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card bg-emerald-400" />
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
               {user?.username && (
                 <p className="text-sm text-muted-foreground">@{user.username}</p>
@@ -143,6 +137,11 @@ export default function Profile({ onTabChange }: ProfileProps) {
                 )}
               </div>
             </div>
+            {onTabChange && (
+              <Button size="icon" variant="outline" className="self-start h-9 w-9 border-border shrink-0" aria-label="Settings" onClick={() => onTabChange("settings")}>
+                <Settings className="w-4 h-4" />
+              </Button>
+            )}
           </div>
 
           {dbUser?.referral_code && (
@@ -180,75 +179,6 @@ export default function Profile({ onTabChange }: ProfileProps) {
             </div>
           )}
 
-          {/* Birthday */}
-          <div className="mt-3 pt-3 border-t border-border/50">
-            <p className="text-xs text-muted-foreground mb-1">Birthday</p>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={dbUser?.birthday || ""}
-                className="flex-1 h-8 px-3 rounded-md bg-secondary border border-border text-foreground text-sm"
-                onChange={async (e) => {
-                  if (e.target.value) {
-                    try {
-                      await setBirthdayMutation.mutateAsync(e.target.value);
-                      toast({ title: "Birthday Updated!", description: "Your birthday has been saved." });
-                    } catch {
-                      toast({ title: "Error", description: "Failed to save birthday.", variant: "destructive" });
-                    }
-                  }
-                }}
-              />
-              {dbUser?.birthday && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-destructive hover:text-destructive"
-                  onClick={async () => {
-                    try {
-                      await setBirthdayMutation.mutateAsync(null as any);
-                      toast({ title: "Birthday Removed" });
-                    } catch {
-                      toast({ title: "Error", description: "Failed to remove birthday.", variant: "destructive" });
-                    }
-                  }}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Bank Details */}
-          <div className="mt-3 pt-3 border-t border-border/50">
-            <p className="text-xs text-muted-foreground mb-2">Bank Details</p>
-            {dbUser?.bank_name && dbUser?.account_number && dbUser?.account_name ? (
-              <div className="space-y-1">
-                <p className="text-sm text-foreground font-medium">{dbUser.account_name}</p>
-                <p className="text-xs text-muted-foreground">{dbUser.bank_name} — {dbUser.account_number}</p>
-                <Button variant="ghost" size="sm" className="text-xs text-primary h-6 px-0" onClick={() => { setBankName(dbUser.bank_name || ""); setAccountNumber(dbUser.account_number || ""); setAccountName(dbUser.account_name || ""); }}>
-                  Edit
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Input placeholder="Bank name (e.g. Access Bank)" value={bankName} onChange={(e) => setBankName(e.target.value)} className="bg-secondary border-border h-8 text-sm" />
-                <Input placeholder="Account number" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} className="bg-secondary border-border h-8 text-sm" />
-                <Input placeholder="Account name" value={accountName} onChange={(e) => setAccountName(e.target.value)} className="bg-secondary border-border h-8 text-sm" />
-                <Button size="sm" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs" disabled={!bankName.trim() || !accountNumber.trim() || !accountName.trim() || saveBankMutation.isPending}
-                  onClick={async () => {
-                    try {
-                      await saveBankMutation.mutateAsync({ bank_name: bankName.trim(), account_number: accountNumber.trim(), account_name: accountName.trim() });
-                      toast({ title: "Bank Details Saved!" });
-                    } catch {
-                      toast({ title: "Error", description: "Failed to save.", variant: "destructive" });
-                    }
-                  }}>
-                  Save Bank Details
-                </Button>
-              </div>
-            )}
-          </div>
         </Card>
       </motion.div>
 
