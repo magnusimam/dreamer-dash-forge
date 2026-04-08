@@ -448,6 +448,32 @@ export default function Home({ onTabChange }: HomeProps) {
         </Button>
       </motion.div>
 
+      {/* Community & Extras */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="grid grid-cols-2 gap-3 mb-6">
+        <Card className="gradient-card border-border/50 p-3 cursor-pointer hover:border-primary/30 transition-smooth" onClick={() => onTabChange("community")}>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-pink-500/15 flex items-center justify-center">
+              <Gift className="w-4 h-4 text-pink-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Community</p>
+              <p className="text-[10px] text-muted-foreground">Gift wall & stats</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="gradient-card border-border/50 p-3 cursor-pointer hover:border-primary/30 transition-smooth" onClick={() => onTabChange("supply")}>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">DR Supply</p>
+              <p className="text-[10px] text-muted-foreground">Tokenomics</p>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+
       {/* State Rankings Teaser */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
