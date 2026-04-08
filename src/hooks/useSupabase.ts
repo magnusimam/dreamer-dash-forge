@@ -96,6 +96,24 @@ export function useSetBirthday() {
   });
 }
 
+export function useSaveBankDetails() {
+  const { dbUser, refreshUser } = useUser();
+
+  return useMutation({
+    mutationFn: async ({ bank_name, account_number, account_name }: { bank_name: string; account_number: string; account_name: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { error } = await supabase
+        .from("users")
+        .update({ bank_name, account_number, account_name })
+        .eq("id", dbUser.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refreshUser();
+    },
+  });
+}
+
 export function useTodaysBirthdays() {
   return useQuery({
     queryKey: ["todays_birthdays"],
@@ -125,7 +143,7 @@ export function useUserProfile(userId: string | null) {
       if (!userId) return null;
       const { data, error } = await supabase
         .from("users")
-        .select("id, first_name, last_name, username, photo_url, balance, total_earned, streak, status, state_id, created_at, last_active, birthday")
+        .select("id, first_name, last_name, username, photo_url, balance, total_earned, streak, status, state_id, created_at, last_active, birthday, bank_name, account_number, account_name")
         .eq("id", userId)
         .maybeSingle();
       if (error) throw error;
@@ -823,12 +841,13 @@ export function useCompleteMission() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ missionId, code }: { missionId: string; code?: string }) => {
+    mutationFn: async ({ missionId, code, note }: { missionId: string; code?: string; note?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("complete_mission", {
         p_user_id: dbUser.id,
         p_mission_id: missionId,
         p_code: code || null,
+        p_note: note || null,
       });
       if (error) throw error;
       return data;

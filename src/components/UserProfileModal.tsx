@@ -113,6 +113,15 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                 </div>
               </div>
 
+              {/* Bank Details */}
+              {profile.bank_name && profile.account_number && (
+                <div className="mb-4 bg-secondary/50 rounded-lg p-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Bank Details</p>
+                  <p className="text-sm text-foreground font-medium">{profile.account_name}</p>
+                  <p className="text-xs text-muted-foreground">{profile.bank_name} — {profile.account_number}</p>
+                </div>
+              )}
+
               {/* Achievements */}
               {profile.achievements.length > 0 && (
                 <div className="mb-4">
