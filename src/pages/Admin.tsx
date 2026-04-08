@@ -49,6 +49,9 @@ import {
   useCreateMission,
   useUpdateMission,
   useDeleteMission,
+  usePendingMissionSubmissions,
+  useApproveMissionSubmission,
+  useRejectMissionSubmission,
   useUnarchiveMission,
   useMissionParticipants,
   isUserOnline,
@@ -191,6 +194,9 @@ export default function Admin() {
   const { data: raffles = [] } = useRaffles();
   const { data: promoCodes = [] } = useAllPromoCodes();
   const { data: allMissions = [] } = useAllMissionsAdmin();
+  const { data: pendingMissionSubs = [] } = usePendingMissionSubmissions();
+  const approveMissionMutation = useApproveMissionSubmission();
+  const rejectMissionMutation = useRejectMissionSubmission();
 
   // Pending proofs query
   const { data: pendingProofs = [] } = useQuery({
@@ -914,6 +920,61 @@ export default function Admin() {
                 </div>
               </div>
             </Card>
+
+            {/* Pending Mission Submissions */}
+            {pendingMissionSubs.length > 0 && (
+              <Card className="border-orange-500/20 bg-orange-500/5 p-5 mb-6">
+                <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-400" />
+                  Pending Submissions ({pendingMissionSubs.length})
+                </h3>
+                <div className="space-y-3">
+                  {pendingMissionSubs.map((sub: any) => (
+                    <div key={sub.id} className="bg-secondary/50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{sub.user?.first_name}{sub.user?.last_name ? ` ${sub.user.last_name}` : ""}</p>
+                          {sub.user?.username && <p className="text-[10px] text-muted-foreground">@{sub.user.username}</p>}
+                        </div>
+                        <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]">{sub.mission?.title}</Badge>
+                      </div>
+                      {sub.proof_url && (
+                        <img src={sub.proof_url} alt="Proof" className="w-full h-40 object-cover rounded-lg border border-border mb-2 cursor-pointer" onClick={() => window.open(sub.proof_url, "_blank")} />
+                      )}
+                      <p className="text-[10px] text-muted-foreground mb-2">
+                        Submitted {new Date(sub.completed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} — Reward: {sub.mission?.reward} DR
+                      </p>
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={approveMissionMutation.isPending}
+                          onClick={async () => {
+                            const result = await approveMissionMutation.mutateAsync(sub.id);
+                            if (result?.success) {
+                              toast({ title: "Approved!", description: `${result.user} earned ${result.reward} DR for ${result.mission}` });
+                              if (result.telegram_id) {
+                                notifyUser(result.telegram_id, `✅ <b>Mission Approved!</b>\n\nYour proof for <b>${result.mission}</b> has been approved!\n\n+${result.reward} DR has been added to your balance! 🎉`);
+                              }
+                            } else {
+                              toast({ title: "Error", description: result?.error, variant: "destructive" });
+                            }
+                          }}>
+                          <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 border-destructive/30 text-destructive" disabled={rejectMissionMutation.isPending}
+                          onClick={async () => {
+                            await rejectMissionMutation.mutateAsync(sub.id);
+                            toast({ title: "Rejected", description: "User can resubmit" });
+                            if (sub.user?.telegram_id) {
+                              notifyUser(sub.user.telegram_id, `❌ <b>Mission Rejected</b>\n\nYour proof for <b>${sub.mission?.title}</b> was not accepted.\n\nPlease resubmit with valid proof.`);
+                            }
+                          }}>
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             {allMissions.filter((m: any) => m.unlock_fee > 0).length > 0 && (
               <div>
