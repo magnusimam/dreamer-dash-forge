@@ -272,14 +272,16 @@ export default function ActivityLog() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-foreground text-sm">{mission.title}</h3>
+                        <h3 className="font-semibold text-foreground text-sm">
+                          {isUnlocked || isCompleted ? mission.title : "🔒 Mystery Mission"}
+                        </h3>
                         {isCompleted && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Completed</Badge>}
                         {isExpired && !isCompleted && <Badge className="bg-muted text-muted-foreground text-[10px]">Ended</Badge>}
                       </div>
-                      {isUnlocked ? (
+                      {isUnlocked || isCompleted ? (
                         <p className="text-xs text-muted-foreground mt-1">{mission.description}</p>
                       ) : (
-                        <p className="text-xs text-muted-foreground mt-1 italic">Unlock to see mission details</p>
+                        <p className="text-xs text-muted-foreground mt-1 italic">Pay to unlock and reveal this mission</p>
                       )}
                     </div>
                   </div>
