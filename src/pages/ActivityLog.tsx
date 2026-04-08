@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import {
   useActivities,
   useUserActivityLogs,
@@ -71,6 +72,13 @@ export default function ActivityLog() {
   const claimPromoMutation = useClaimPromoCode();
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoCode, setPromoCode] = useState("");
+  const { data: promoClaimCount = 0 } = useQuery({
+    queryKey: ["promo_claim_count"],
+    queryFn: async () => {
+      const { count } = await supabase.from("promo_codes").select("*", { count: "exact", head: true }).eq("is_used", true);
+      return count ?? 0;
+    },
+  });
 
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [codeInput, setCodeInput] = useState("");
@@ -478,7 +486,9 @@ export default function ActivityLog() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-foreground">The Stolen Breath</p>
-                <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span></p>
+                <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span>
+                  {promoClaimCount > 0 && <span className="text-pink-400"> · {promoClaimCount} claimed</span>}
+                </p>
                 <div className="flex gap-2">
                   <Button size="sm" className="bg-pink-600 hover:bg-pink-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.com/thestolenbreath", "_blank")}>
                     <BookOpen className="w-3 h-3 mr-1" /> Get Book
