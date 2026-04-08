@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useUserProfile, isUserOnline } from "@/hooks/useSupabase";
+import { useUserProfile, isUserOnline, useCommunityStats, getDreamerLevel } from "@/hooks/useSupabase";
 import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award, Eye, EyeOff, Copy, Check } from "lucide-react";
 
 const achievementIcons: Record<string, string> = {
@@ -58,6 +58,9 @@ interface UserProfileModalProps {
 
 export default function UserProfileModal({ userId, onClose, onTransfer }: UserProfileModalProps) {
   const { data: profile, isLoading } = useUserProfile(userId);
+  const { data: communityStats = [] } = useCommunityStats();
+  const userEngagement = communityStats.find((u: any) => u.id === userId);
+  const userLevel = userEngagement ? getDreamerLevel(userEngagement.engagement) : null;
 
   if (!userId) return null;
 
@@ -106,8 +109,17 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                   {profile.username && <p className="text-sm text-muted-foreground">@{profile.username}</p>}
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">{profile.status}</Badge>
+                    {userLevel && <Badge variant="outline" className="text-[10px]">Lv.{userLevel.level} {userLevel.title}</Badge>}
                     {isUserOnline(profile.last_active) && <span className="text-[10px] text-emerald-400">Online</span>}
                   </div>
+                  {userLevel && (
+                    <div className="mt-1.5">
+                      <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${userLevel.progress}%` }} />
+                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-0.5">{userLevel.currentXP} / {userLevel.nextXP} XP</p>
+                    </div>
+                  )}
                 </div>
                 <Button size="icon" variant="ghost" className="self-start" onClick={onClose}>
                   <X className="w-4 h-4" />

@@ -13,7 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -37,6 +37,9 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const { data: achievements } = useAchievements();
   const { data: unlockedIds } = useUserAchievements();
   const checkAchievements = useCheckAchievements();
+  const { data: communityStats = [] } = useCommunityStats();
+  const myEngagement = communityStats.find((u: any) => u.id === dbUser?.id);
+  const myLevel = myEngagement ? getDreamerLevel(myEngagement.engagement) : null;
   const { data: referralCount } = useUserReferralCount();
   const { data: referredBy } = useReferredBy();
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
@@ -136,6 +139,17 @@ export default function Profile({ onTabChange }: ProfileProps) {
                   </Badge>
                 )}
               </div>
+              {myLevel && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Lv.{myLevel.level} {myLevel.title}</Badge>
+                  </div>
+                  <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full bg-primary rounded-full" style={{ width: `${myLevel.progress}%` }} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{myLevel.currentXP} / {myLevel.nextXP} XP</p>
+                </div>
+              )}
             </div>
             {onTabChange && (
               <Button size="icon" variant="outline" className="self-start h-9 w-9 border-border shrink-0" aria-label="Settings" onClick={() => onTabChange("settings")}>

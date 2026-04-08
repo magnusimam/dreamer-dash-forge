@@ -91,6 +91,46 @@ const Index = () => {
     broadcastBirthdays();
   }, [dbUser?.is_admin]);
 
+  // Auto-calculate Weekly MVP (runs once per week when admin opens app)
+  useEffect(() => {
+    if (!dbUser?.is_admin) return;
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - dayOfWeek);
+    const weekStartStr = weekStart.toISOString().split("T")[0];
+    const mvpKey = `mvp_calculated_${weekStartStr}`;
+    if (localStorage.getItem(mvpKey)) return;
+
+    const calculateMVP = async () => {
+      // Check if MVP already exists for this week
+      const { data: existing } = await supabase.from("weekly_mvps").select("id").eq("week_start", weekStartStr).maybeSingle();
+      if (existing) { localStorage.setItem(mvpKey, "done"); return; }
+
+      // Get all users' engagement
+      const { data: users } = await supabase.from("users").select("id").eq("is_admin", false);
+      if (!users || users.length === 0) return;
+
+      let topUser = null;
+      let topPoints = 0;
+      for (const u of users) {
+        const { count: mc } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("status", "approved");
+        const { count: ac } = await supabase.from("activity_logs").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+        const { count: rc } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+        const { count: cc } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+        const points = ((mc ?? 0) * 3) + ((ac ?? 0) * 2) + (rc ?? 0) + (cc ?? 0);
+        if (points > topPoints) { topPoints = points; topUser = u.id; }
+      }
+
+      if (topUser) {
+        await supabase.from("weekly_mvps").insert({ user_id: topUser, week_start: weekStartStr, engagement_points: topPoints });
+      }
+      localStorage.setItem(mvpKey, "done");
+    };
+
+    calculateMVP();
+  }, [dbUser?.is_admin]);
+
   const handleTabChange = (tab: string) => {
     scrollPositions.current[activeTab] = window.scrollY;
     setActiveTab(tab);
