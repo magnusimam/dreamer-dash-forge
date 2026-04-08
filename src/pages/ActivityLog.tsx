@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Confetti } from "@/components/Confetti";
 import { Card } from "@/components/ui/card";
@@ -35,7 +35,9 @@ import { hapticNotification } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 import { uploadImage } from "@/lib/storage";
 import { useUser } from "@/contexts/UserContext";
-import { notifyDailyCheckin } from "@/lib/notifications";
+import { notifyDailyCheckin, notifyUser } from "@/lib/notifications";
+import { supabase } from "@/lib/supabase";
+import { Search, User } from "lucide-react";
 import { SkeletonList } from "@/components/SkeletonCard";
 
 const categoryColors: Record<string, string> = {
@@ -68,7 +70,41 @@ export default function ActivityLog() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [selectedMission, setSelectedMission] = useState<any | null>(null);
   const [missionCodeInput, setMissionCodeInput] = useState("");
-  const [missionNote, setMissionNote] = useState("");
+  const [giftSearchInput, setGiftSearchInput] = useState("");
+  const [giftSuggestions, setGiftSuggestions] = useState<any[]>([]);
+  const [selectedGiftUser, setSelectedGiftUser] = useState<any | null>(null);
+  const [showGiftDropdown, setShowGiftDropdown] = useState(false);
+  const giftDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close gift dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (giftDropdownRef.current && !giftDropdownRef.current.contains(e.target as Node)) {
+        setShowGiftDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Debounced gift user search
+  useEffect(() => {
+    if (selectedGiftUser) return;
+    const trimmed = giftSearchInput.trim().replace(/^@/, "");
+    if (trimmed.length < 2) { setGiftSuggestions([]); setShowGiftDropdown(false); return; }
+    const timer = setTimeout(async () => {
+      const escaped = trimmed.replace(/%/g, "\\%").replace(/_/g, "\\_");
+      const { data } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, telegram_id")
+        .or(`username.ilike.%${escaped}%,first_name.ilike.%${escaped}%`)
+        .neq("id", dbUser?.id || "")
+        .limit(8);
+      setGiftSuggestions(data || []);
+      setShowGiftDropdown(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [giftSearchInput, selectedGiftUser, dbUser?.id]);
 
   const handleDailyCheckIn = async () => {
     if (alreadyCheckedIn) return;
@@ -312,18 +348,68 @@ export default function ActivityLog() {
               <p className="text-sm font-medium text-foreground mb-1">{selectedMission.title}</p>
               <p className="text-xs text-muted-foreground mb-4">{selectedMission.description}</p>
               <Input placeholder="Enter completion code" value={missionCodeInput} onChange={(e) => setMissionCodeInput(e.target.value.toUpperCase())} className="mb-3 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
-              <Input placeholder="Who did you gift? (e.g. John Doe)" value={missionNote} onChange={(e) => setMissionNote(e.target.value)} className="mb-4 bg-secondary border-border" />
+
+              {/* Gift recipient search */}
+              <div ref={giftDropdownRef} className="relative mb-4">
+                <p className="text-xs text-muted-foreground mb-1">Who did you gift?</p>
+                {selectedGiftUser ? (
+                  <div className="flex items-center gap-2 bg-secondary border border-emerald-500/30 rounded-md px-3 py-2">
+                    <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                      <User className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {selectedGiftUser.first_name}{selectedGiftUser.last_name ? ` ${selectedGiftUser.last_name}` : ""}
+                      </p>
+                      {selectedGiftUser.username && <p className="text-[10px] text-muted-foreground">@{selectedGiftUser.username}</p>}
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => { setSelectedGiftUser(null); setGiftSearchInput(""); }}>
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                      <Input placeholder="Search by name or username..." value={giftSearchInput} onChange={(e) => setGiftSearchInput(e.target.value)} onFocus={() => { if (giftSuggestions.length > 0) setShowGiftDropdown(true); }} className="pl-9 bg-secondary border-border text-sm" />
+                    </div>
+                    {showGiftDropdown && giftSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+                        {giftSuggestions.map((u: any) => (
+                          <button key={u.id} type="button" className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary/80 text-left" onClick={() => { setSelectedGiftUser(u); setGiftSearchInput(""); setShowGiftDropdown(false); }}>
+                            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <User className="w-3.5 h-3.5 text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-foreground truncate">{u.first_name}{u.last_name ? ` ${u.last_name}` : ""}</p>
+                              <p className="text-[10px] text-muted-foreground">{u.username ? `@${u.username}` : "No username"}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
               <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionCodeInput.trim() || completeMissionMutation.isPending}
                 onClick={async () => {
                   try {
-                    const result = await completeMissionMutation.mutateAsync({ missionId: selectedMission.id, code: missionCodeInput.trim(), note: missionNote.trim() || undefined });
+                    const giftName = selectedGiftUser ? [selectedGiftUser.first_name, selectedGiftUser.last_name].filter(Boolean).join(" ") : undefined;
+                    const result = await completeMissionMutation.mutateAsync({ missionId: selectedMission.id, code: missionCodeInput.trim(), note: giftName });
                     if (result?.success) {
                       hapticNotification("success");
                       setShowConfetti(true);
                       toast({ title: "Mission Complete!", description: `+${result.reward} DR for "${result.mission}"` });
+                      // Notify the gifted user
+                      if (selectedGiftUser?.telegram_id) {
+                        const senderName = [dbUser?.first_name, dbUser?.last_name].filter(Boolean).join(" ");
+                        notifyUser(selectedGiftUser.telegram_id, `🎁 <b>You've been gifted!</b>\n\n<b>${senderName}</b> just gifted you ₦1,000 as part of the Dreamers Mission!\n\nOpen the app to say thank you! 🎉`);
+                      }
                       setSelectedMission(null);
                       setMissionCodeInput("");
-                      setMissionNote("");
+                      setSelectedGiftUser(null);
+                      setGiftSearchInput("");
                     } else {
                       hapticNotification("error");
                       toast({ title: "Failed", description: result?.error || "Invalid code", variant: "destructive" });
