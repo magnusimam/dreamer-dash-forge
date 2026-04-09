@@ -634,11 +634,15 @@ export default function ActivityLog() {
                           +{activity.reward} DR
                         </span>
                       </span>
-                      {activity.max_participants && (
+                      {activity.max_participants ? (
                         <span className="flex items-center gap-1">
                           {activity.participant_count}/{activity.max_participants} claimed
                         </span>
-                      )}
+                      ) : activity.participant_count > 0 ? (
+                        <span className="flex items-center gap-1">
+                          {activity.participant_count} claimed
+                        </span>
+                      ) : null}
                     </div>
 
                     {isLogged ? (
