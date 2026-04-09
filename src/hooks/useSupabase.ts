@@ -494,10 +494,13 @@ export function useUserActivityLogs() {
       if (!dbUser) return [];
       const { data, error } = await supabase
         .from("activity_logs")
-        .select("activity_id")
+        .select("activity_id, proof_status")
         .eq("user_id", dbUser.id);
       if (error) throw error;
-      return data.map((log) => log.activity_id);
+      // Only count approved or not_required as "logged"
+      return data
+        .filter((log) => log.proof_status === "approved" || log.proof_status === "not_required")
+        .map((log) => log.activity_id);
     },
     enabled: !!dbUser,
   });
