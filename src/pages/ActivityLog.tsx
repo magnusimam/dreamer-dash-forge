@@ -156,6 +156,8 @@ export default function ActivityLog() {
     if (!selectedActivity) return;
     setCodeSubmitted(true);
     const trimmed = codeInput.trim().toUpperCase();
+    // For proof-only activities (no code required), use the activity's own code
+    const codeToSend = selectedActivity.code_required === false ? selectedActivity.code : trimmed;
 
     if (selectedActivity.code_required !== false && !trimmed) return;
 
@@ -177,7 +179,7 @@ export default function ActivityLog() {
     }
 
     try {
-      const result = await logActivityMutation.mutateAsync({ code: trimmed, proofUrl });
+      const result = await logActivityMutation.mutateAsync({ code: codeToSend, proofUrl });
       if (result?.success) {
         hapticNotification("success");
         if (result?.pending_approval) {
