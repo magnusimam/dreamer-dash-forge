@@ -441,6 +441,10 @@ export default function ActivityLog() {
               <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!missionProofFile || !selectedGiftUser || submitMissionProofMutation.isPending || missionUploading}
                 onClick={async () => {
                   if (!missionProofFile || !dbUser) return;
+                  if (missionProofFile.size > 5 * 1024 * 1024) {
+                    toast({ title: "File too large", description: "Max 5MB. Try a smaller image.", variant: "destructive" });
+                    return;
+                  }
                   setMissionUploading(true);
                   try {
                     const proofUrl = await uploadImage("mission-proofs", missionProofFile, dbUser.id);

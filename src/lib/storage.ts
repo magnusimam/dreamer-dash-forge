@@ -2,7 +2,7 @@ const CLOUD_NAME = "dckgjhlsq";
 const UPLOAD_PRESET = "dreamer_dash";
 
 export async function uploadImage(
-  folder: "hackathon-covers" | "activity-proofs",
+  folder: string,
   file: File,
   userId: string
 ): Promise<string> {
@@ -12,14 +12,19 @@ export async function uploadImage(
   formData.append("folder", `dreamer-dash/${folder}`);
   formData.append("public_id", `${userId}_${Date.now()}`);
 
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    { method: "POST", body: formData }
-  );
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+      { method: "POST", body: formData }
+    );
+  } catch (e) {
+    throw new Error("Network error — check your internet connection and try again");
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || "Image upload failed");
+    throw new Error(err?.error?.message || "Image upload failed — please try again");
   }
 
   const data = await res.json();
