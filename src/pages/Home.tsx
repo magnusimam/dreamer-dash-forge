@@ -7,11 +7,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowRight, Share2, Copy, Check,
-  Flame, Sparkles, TrendingUp, Loader2, MapPin, Shield, BookOpen, Gift, X, Cake, Coins,
+  Flame, Sparkles, TrendingUp, Loader2, MapPin, Shield, BookOpen, Gift, X, Cake, Coins, GraduationCap, Send,
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats, useTransferDR } from "@/hooks/useSupabase";
 import UserProfileModal from "@/components/UserProfileModal";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
@@ -19,7 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { hapticNotification } from "@/lib/telegram";
-import { notifyDailyCheckin } from "@/lib/notifications";
+import { notifyDailyCheckin, notifyUser } from "@/lib/notifications";
+import { supabase } from "@/lib/supabase";
 import { Confetti } from "@/components/Confetti";
 import { supabase } from "@/lib/supabase";
 
@@ -56,6 +57,20 @@ export default function Home({ onTabChange }: HomeProps) {
   const { data: todaysBirthdays = [] } = useTodaysBirthdays();
   const { data: featuredDreamer } = useFeaturedDreamer();
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
+  const transferMutation = useTransferDR();
+  const [showConvoGift, setShowConvoGift] = useState(false);
+  const [convoGiftAmount, setConvoGiftAmount] = useState("");
+  const [convoGiftRecipient, setConvoGiftRecipient] = useState<string | null>(null);
+  const [showConvoBanner, setShowConvoBanner] = useState(() => {
+    const dismissed = localStorage.getItem("convo_banner_dismissed_20260410");
+    return !dismissed;
+  });
+
+  // Convocation celebrants — update names/usernames here
+  const convoCelebrants = [
+    { name: "Etura", username: "etura" },
+    { name: "Fega", username: "fega" },
+  ];
   const queryClient = useQueryClient();
   const { data: stateRankings = [] } = useStateRankings();
   const topState = stateRankings[0] || null;
@@ -195,6 +210,96 @@ export default function Home({ onTabChange }: HomeProps) {
           </Card>
         </motion.div>
       )}
+
+      {/* Convocation Celebration Banner */}
+      {showConvoBanner && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mb-4">
+          <Card className="border-purple-500/30 bg-gradient-to-r from-purple-500/15 to-pink-500/15 p-4 relative overflow-hidden">
+            <Button size="icon" variant="ghost" className="absolute top-2 right-2 h-6 w-6" onClick={() => { setShowConvoBanner(false); localStorage.setItem("convo_banner_dismissed_20260410", "true"); }}>
+              <X className="w-3 h-3" />
+            </Button>
+            <div className="text-center mb-3">
+              <GraduationCap className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+              <h3 className="text-lg font-bold text-foreground">Congratulations!</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Today is <span className="text-purple-400 font-semibold">{convoCelebrants.map(c => c.name).join(" & ")}</span>'s Convocation!
+              </p>
+              <p className="text-xs text-muted-foreground">Celebrate them with some Dreamers Coins!</p>
+            </div>
+            <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" onClick={() => setShowConvoGift(true)}>
+              <Gift className="w-4 h-4 mr-2" /> Gift DR to Celebrate
+            </Button>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Convocation Gift Modal */}
+      <AnimatePresence>
+        {showConvoGift && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setShowConvoGift(false)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
+              <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground text-lg flex items-center gap-2"><GraduationCap className="w-5 h-5 text-purple-400" /> Gift a Graduate</h3>
+                <Button size="icon" variant="ghost" onClick={() => setShowConvoGift(false)}><X className="w-4 h-4" /></Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground mb-4">Who would you like to gift?</p>
+              <div className="flex gap-2 mb-4">
+                {convoCelebrants.map((c) => (
+                  <Button key={c.username} variant={convoGiftRecipient === c.username ? "default" : "outline"} className={`flex-1 ${convoGiftRecipient === c.username ? "bg-purple-600 text-white" : "border-purple-500/30 text-purple-400"}`} onClick={() => setConvoGiftRecipient(c.username)}>
+                    <GraduationCap className="w-3.5 h-3.5 mr-1.5" /> {c.name}
+                  </Button>
+                ))}
+              </div>
+
+              <p className="text-xs text-muted-foreground mb-2">How much DR?</p>
+              <div className="flex gap-2 mb-3">
+                {[10, 25, 50, 100].map((val) => (
+                  <Button key={val} size="sm" variant="outline" className={`flex-1 ${convoGiftAmount === String(val) ? "border-primary bg-primary/10 text-primary" : "border-border"}`} onClick={() => setConvoGiftAmount(String(val))}>
+                    {val}
+                  </Button>
+                ))}
+              </div>
+              <Input type="number" placeholder="Or enter custom amount" value={convoGiftAmount} onChange={(e) => setConvoGiftAmount(e.target.value)} className="mb-4 bg-secondary border-border text-center text-lg font-semibold" />
+
+              <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white" disabled={!convoGiftRecipient || !convoGiftAmount || parseInt(convoGiftAmount) < 5 || transferMutation.isPending}
+                onClick={async () => {
+                  try {
+                    const result = await transferMutation.mutateAsync({
+                      recipientUsername: convoGiftRecipient!,
+                      amount: parseInt(convoGiftAmount),
+                      note: "Happy Convocation!",
+                    });
+                    if (result?.success) {
+                      hapticNotification("success");
+                      setShowConfetti(true);
+                      toast({ title: "Gift Sent!", description: `${result.amount} DR sent to ${result.recipient}. Happy Convocation!` });
+                      // Notify recipient
+                      const { data: recipient } = await supabase.from("users").select("telegram_id").ilike("username", convoGiftRecipient!).maybeSingle();
+                      if (recipient?.telegram_id) {
+                        const senderName = [dbUser?.first_name, dbUser?.last_name].filter(Boolean).join(" ");
+                        notifyUser(recipient.telegram_id, `🎓🎉 <b>Convocation Gift!</b>\n\n<b>${senderName}</b> just sent you <b>${result.amount} DR</b> to celebrate your Convocation!\n\nCongratulations! 🎊`);
+                      }
+                      setShowConvoGift(false);
+                      setConvoGiftAmount("");
+                      setConvoGiftRecipient(null);
+                    } else {
+                      hapticNotification("error");
+                      toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                    }
+                  } catch (err: any) {
+                    hapticNotification("error");
+                    toast({ title: "Error", description: err?.message || "Transfer failed", variant: "destructive" });
+                  }
+                }}>
+                {transferMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                Send {convoGiftAmount || "0"} DR
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Quick Check-in Banner */}
       {!alreadyCheckedIn && (
