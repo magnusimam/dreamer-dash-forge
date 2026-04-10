@@ -68,8 +68,8 @@ export default function Home({ onTabChange }: HomeProps) {
 
   // Convocation celebrants — update names/usernames here
   const convoCelebrants = [
-    { name: "Etura", username: "etura" },
-    { name: "Fega", username: "fega" },
+    { name: "Etura", username: "Etura01" },
+    { name: "Fega", username: "Ale_xa31" },
   ];
   const queryClient = useQueryClient();
   const { data: stateRankings = [] } = useStateRankings();
