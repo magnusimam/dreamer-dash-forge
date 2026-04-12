@@ -178,26 +178,26 @@ export default function Home({ onTabChange }: HomeProps) {
       {/* Inactivity Warning */}
       {daysSinceCheckin !== null && daysSinceCheckin >= 5 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-          <Card className={`p-3 ${daysSinceCheckin >= 30 ? "border-destructive/50 bg-destructive/10" : daysSinceCheckin >= 10 ? "border-red-500/30 bg-red-500/10" : "border-orange-500/30 bg-orange-500/10"}`}>
+          <Card className={`p-3 ${daysSinceCheckin >= 30 ? "border-destructive/50 bg-destructive/10" : daysSinceCheckin >= 14 ? "border-red-500/30 bg-red-500/10" : "border-orange-500/30 bg-orange-500/10"}`}>
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${daysSinceCheckin >= 30 ? "bg-destructive/20" : daysSinceCheckin >= 10 ? "bg-red-500/20" : "bg-orange-500/20"}`}>
-                <span className="text-lg">{daysSinceCheckin >= 30 ? "🚨" : daysSinceCheckin >= 10 ? "⚠️" : "⏰"}</span>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${daysSinceCheckin >= 30 ? "bg-destructive/20" : daysSinceCheckin >= 14 ? "bg-red-500/20" : "bg-orange-500/20"}`}>
+                <span className="text-lg">{daysSinceCheckin >= 30 ? "🚨" : daysSinceCheckin >= 14 ? "⚠️" : "⏰"}</span>
               </div>
               <div className="flex-1">
                 {daysSinceCheckin >= 30 ? (
                   <>
-                    <p className="text-sm font-semibold text-destructive">Account at Risk!</p>
-                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days inactive. -200 DR penalty applied. Your account may be flagged for deletion.</p>
+                    <p className="text-sm font-semibold text-destructive">Entire Balance Wiped!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days inactive. Your entire DR balance has been deducted and distributed to active Dreamers in your state.</p>
                   </>
-                ) : daysSinceCheckin >= 10 ? (
+                ) : daysSinceCheckin >= 14 ? (
                   <>
-                    <p className="text-sm font-semibold text-red-400">Inactivity Penalty!</p>
-                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. -200 DR deducted. Check in now to stop losing DR!</p>
+                    <p className="text-sm font-semibold text-red-400">-500 DR Penalty!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. 500 DR deducted and given to top active Dreamers in your state. Check in now!</p>
                   </>
                 ) : daysSinceCheckin >= 7 ? (
                   <>
-                    <p className="text-sm font-semibold text-orange-400">Inactivity Warning!</p>
-                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. -50 DR deducted. Check in daily to keep your DR safe!</p>
+                    <p className="text-sm font-semibold text-orange-400">-100 DR Penalty!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. 100 DR deducted and given to active Dreamers. Check in daily!</p>
                   </>
                 ) : (
                   <>
