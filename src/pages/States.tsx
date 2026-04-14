@@ -15,7 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useStateRankings, useStates, useJoinState, useStateMembers } from "@/hooks/useSupabase";
+import { useStateRankings, useStates, useJoinState, useLeaveState, useStateMembers } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Users, Trophy, Loader2, X, Award, Coins } from "lucide-react";
@@ -28,6 +28,7 @@ export default function States() {
   const { data: rankings = [], isLoading } = useStateRankings();
   const { data: states = [] } = useStates();
   const joinMutation = useJoinState();
+  const leaveMutation = useLeaveState();
   const { dbUser } = useUser();
   const { toast } = useToast();
   const [confirmState, setConfirmState] = useState<{ id: string; name: string } | null>(null);
@@ -70,7 +71,7 @@ export default function States() {
       {hasJoined && myState && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card className="gradient-card border-primary/30 p-4 mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                   <span className="text-primary font-bold">#{myState.rank}</span>
@@ -87,6 +88,25 @@ export default function States() {
                 </p>
               </div>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 h-8 text-xs"
+              disabled={leaveMutation.isPending}
+              onClick={async () => {
+                try {
+                  const result = await leaveMutation.mutateAsync();
+                  if (result?.success) {
+                    toast({ title: "Left state", description: "You can now join another state" });
+                  }
+                } catch (err: any) {
+                  toast({ title: "Error", description: err?.message, variant: "destructive" });
+                }
+              }}
+            >
+              {leaveMutation.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+              Leave State
+            </Button>
           </Card>
         </motion.div>
       )}

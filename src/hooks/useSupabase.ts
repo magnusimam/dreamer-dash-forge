@@ -2174,6 +2174,28 @@ export function useJoinState() {
     onSuccess: () => {
       refreshUser();
       queryClient.invalidateQueries({ queryKey: ["state_rankings"] });
+      queryClient.invalidateQueries({ queryKey: ["state_members"] });
+    },
+  });
+}
+
+export function useLeaveState() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("leave_state", {
+        p_user_id: dbUser.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["state_rankings"] });
+      queryClient.invalidateQueries({ queryKey: ["state_members"] });
     },
   });
 }
