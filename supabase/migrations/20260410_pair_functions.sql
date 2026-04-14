@@ -29,12 +29,11 @@ BEGIN
   -- Mark last week's pairs as ended
   UPDATE public.dream_pairs SET status = 'ended' WHERE status = 'active' AND week_end < v_week_start;
 
-  -- Get all users eligible (non-admin, checked in within last 14 days)
+  -- Get ALL non-admin users (random order) — intentionally mixes active with inactive
+  -- so active users can help inactive ones catch up
   SELECT ARRAY_AGG(id ORDER BY random()) INTO v_unpaired_users
   FROM public.users
-  WHERE is_admin = FALSE
-    AND last_check_in IS NOT NULL
-    AND last_check_in >= v_today - INTERVAL '14 days';
+  WHERE is_admin = FALSE;
 
   IF v_unpaired_users IS NULL THEN
     RETURN jsonb_build_object('success', true, 'pairs_created', 0);
