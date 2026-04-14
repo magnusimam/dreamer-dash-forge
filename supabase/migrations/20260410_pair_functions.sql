@@ -29,11 +29,9 @@ BEGIN
   -- Mark last week's pairs as ended
   UPDATE public.dream_pairs SET status = 'ended' WHERE status = 'active' AND week_end < v_week_start;
 
-  -- Get ALL non-admin users (random order) — intentionally mixes active with inactive
-  -- so active users can help inactive ones catch up
+  -- Include ALL users (admins and non-admins) so everyone can participate
   SELECT ARRAY_AGG(id ORDER BY random()) INTO v_unpaired_users
-  FROM public.users
-  WHERE is_admin = FALSE;
+  FROM public.users;
 
   IF v_unpaired_users IS NULL THEN
     RETURN jsonb_build_object('success', true, 'pairs_created', 0);
