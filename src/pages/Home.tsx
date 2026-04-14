@@ -13,6 +13,7 @@ import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
 import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats, useTransferDR } from "@/hooks/useSupabase";
 import UserProfileModal from "@/components/UserProfileModal";
+import DreamPairCard from "@/components/DreamPairCard";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
@@ -332,6 +333,9 @@ export default function Home({ onTabChange }: HomeProps) {
           </Card>
         </motion.div>
       )}
+
+      {/* Dream Pair Card */}
+      <DreamPairCard onViewProfile={setViewProfileUserId} />
 
       {/* Streak Insurance */}
       {streak >= 2 && !alreadyCheckedIn && !dbUser?.streak_protected_until && (

@@ -61,6 +61,155 @@ export function getDreamerLevel(engagementPoints: number): { level: number; curr
 }
 
 // ============================================================
+// DREAM PAIRS
+// ============================================================
+
+export function useMyPair() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["my_pair", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return null;
+      const { data } = await supabase
+        .from("dream_pairs")
+        .select("*")
+        .or(`user1_id.eq.${dbUser.id},user2_id.eq.${dbUser.id}`)
+        .eq("status", "active")
+        .order("week_start", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!data) return null;
+      const partnerId = data.user1_id === dbUser.id ? data.user2_id : data.user1_id;
+      const { data: partner } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, photo_url, last_active, streak, status")
+        .eq("id", partnerId)
+        .maybeSingle();
+      return {
+        ...data,
+        partner,
+        i_am_user1: data.user1_id === dbUser.id,
+        my_checked_for_partner: data.user1_id === dbUser.id ? data.user1_checked_for_2 : data.user2_checked_for_1,
+        i_rated: data.user1_id === dbUser.id ? data.rating_from_1 !== null : data.rating_from_2 !== null,
+      };
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useIsInQueue() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["pair_queue", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return false;
+      const { data } = await supabase.from("pair_queue").select("user_id").eq("user_id", dbUser.id).maybeSingle();
+      return !!data;
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useJoinPairQueue() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("join_pair_queue", { p_user_id: dbUser.id });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my_pair"] });
+      queryClient.invalidateQueries({ queryKey: ["pair_queue"] });
+    },
+  });
+}
+
+export function useRatePair() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ pairId, rating, comment }: { pairId: string; rating: number; comment?: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("rate_pair", {
+        p_user_id: dbUser.id,
+        p_pair_id: pairId,
+        p_rating: rating,
+        p_comment: comment || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my_pair"] });
+    },
+  });
+}
+
+export function useKeepPair() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pairId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("keep_pair", {
+        p_user_id: dbUser.id,
+        p_pair_id: pairId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["my_pair"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useCheckinForPair() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pairId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("checkin_for_pair", {
+        p_user_id: dbUser.id,
+        p_pair_id: pairId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my_pair"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+    },
+  });
+}
+
+export function useUserPairRating(userId: string | null) {
+  return useQuery({
+    queryKey: ["pair_rating", userId],
+    queryFn: async () => {
+      if (!userId) return { avg: 0, count: 0 };
+      const { data: pair1 } = await supabase.from("dream_pairs").select("rating_from_2").eq("user1_id", userId).not("rating_from_2", "is", null);
+      const { data: pair2 } = await supabase.from("dream_pairs").select("rating_from_1").eq("user2_id", userId).not("rating_from_1", "is", null);
+      const ratings = [
+        ...(pair1 || []).map((p: any) => p.rating_from_2),
+        ...(pair2 || []).map((p: any) => p.rating_from_1),
+      ];
+      if (ratings.length === 0) return { avg: 0, count: 0 };
+      const avg = ratings.reduce((s, r) => s + r, 0) / ratings.length;
+      return { avg: Math.round(avg * 10) / 10, count: ratings.length };
+    },
+    enabled: !!userId,
+    staleTime: 60000,
+  });
+}
+
+// ============================================================
 // COMMUNITY DASHBOARD
 // ============================================================
 
