@@ -133,6 +133,27 @@ const Index = () => {
     calculateMVP();
   }, [dbUser?.is_admin]);
 
+  // Auto-pair dreamers (runs once per week when any admin opens app)
+  useEffect(() => {
+    if (!dbUser?.is_admin) return;
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    const weekStartStr = weekStart.toISOString().split("T")[0];
+    const pairKey = `pairs_created_${weekStartStr}`;
+    if (localStorage.getItem(pairKey)) return;
+    const runPairing = async () => {
+      try {
+        const { data } = await supabase.rpc("auto_pair_dreamers");
+        if (data?.success) {
+          localStorage.setItem(pairKey, "done");
+        }
+      } catch {}
+    };
+    runPairing();
+  }, [dbUser?.is_admin]);
+
   const handleTabChange = (tab: string) => {
     scrollPositions.current[activeTab] = window.scrollY;
     setActiveTab(tab);
