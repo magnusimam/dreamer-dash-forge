@@ -20,6 +20,8 @@ import {
   useCreateHackathon,
   useUpdateHackathon,
   useDeleteHackathon,
+  useHackathonRegistrants,
+  useSetHackathonWinner,
   useRedemptionRequests,
   useProcessRedemption,
   useAllUsers,
@@ -150,6 +152,52 @@ function MissionParticipantsList({ missionId }: { missionId: string }) {
   );
 }
 
+function HackathonWinnerModal({ hackathon, onClose, onPickWinner, isPending }: { hackathon: any; onClose: () => void; onPickWinner: (winnerId: string, winnerName: string, telegramId: number) => void; isPending: boolean }) {
+  const { data: registrants = [], isLoading } = useHackathonRegistrants(hackathon.id);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={onClose}>
+      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground text-lg">Declare Winner</h3>
+          <Button size="icon" variant="ghost" onClick={onClose}><X className="w-4 h-4" /></Button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">Pick a winner for <span className="text-foreground font-medium">{hackathon.title}</span>. The winner gets {hackathon.prize_pool} DR + 10 XP.</p>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        ) : registrants.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No registrants for this hackathon</p>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {registrants.map((u: any) => (
+              <button key={u.id} type="button" className={`w-full flex items-center gap-3 p-3 rounded-lg border transition ${selected === u.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/30"}`} onClick={() => setSelected(u.id)}>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-foreground">{u.first_name}{u.last_name ? ` ${u.last_name}` : ""}</p>
+                  {u.username && <p className="text-xs text-muted-foreground">@{u.username}</p>}
+                </div>
+                {selected === u.id && <CheckCircle className="w-5 h-5 text-primary" />}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!selected || isPending}
+          onClick={() => {
+            const winner = registrants.find((r: any) => r.id === selected);
+            if (winner) {
+              onPickWinner(winner.id, winner.first_name, (winner as any).telegram_id);
+            }
+          }}>
+          {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trophy className="w-4 h-4 mr-2" />}
+          Declare Winner
+        </Button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function ActivityParticipantsList({ activityId }: { activityId: string }) {
   const { data: participants = [], isLoading } = useActivityParticipants(activityId);
   if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
@@ -220,6 +268,8 @@ export default function Admin() {
   const createHackathonMutation = useCreateHackathon();
   const updateHackathonMutation = useUpdateHackathon();
   const deleteHackathonMutation = useDeleteHackathon();
+  const setHackathonWinnerMutation = useSetHackathonWinner();
+  const [winnerHackathon, setWinnerHackathon] = useState<any | null>(null);
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
   const deleteUserMutation = useDeleteUser();
@@ -1109,12 +1159,21 @@ export default function Admin() {
                           </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
                         <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{new Date(hack.start_date).toLocaleDateString()} – {new Date(hack.end_date).toLocaleDateString()}</span>
                         <span className="flex items-center gap-1"><Coins className="w-3 h-3 text-primary" />{hack.entry_fee} DR</span>
                         {hack.max_teams && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{hack.registered_count}/{hack.max_teams}</span>}
                         <span className="flex items-center gap-1"><Trophy className="w-3 h-3 text-primary" />{hack.prize_pool} DR</span>
                       </div>
+                      {hack.winner_id ? (
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 text-xs text-primary flex items-center gap-1">
+                          <Trophy className="w-3 h-3" /> Winner declared
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" className="w-full border-primary/30 text-primary h-7 text-xs" onClick={() => setWinnerHackathon(hack)}>
+                          <Trophy className="w-3 h-3 mr-1" /> Declare Winner
+                        </Button>
+                      )}
                     </Card>
                   ))}
                 </div>
@@ -1979,6 +2038,33 @@ export default function Admin() {
               </Button>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========== DECLARE WINNER MODAL ========== */}
+      <AnimatePresence>
+        {winnerHackathon && (
+          <HackathonWinnerModal
+            hackathon={winnerHackathon}
+            onClose={() => setWinnerHackathon(null)}
+            onPickWinner={async (winnerId: string, winnerName: string, telegramId: number) => {
+              try {
+                const result = await setHackathonWinnerMutation.mutateAsync({ hackathonId: winnerHackathon.id, winnerId });
+                if (result?.success) {
+                  toast({ title: "Winner Declared!", description: `${result.winner} won ${result.prize} DR` });
+                  if (result.winner_telegram_id) {
+                    notifyUser(result.winner_telegram_id, `🏆 <b>You won the Hackathon!</b>\n\nCongratulations! You've been declared the winner of <b>${winnerHackathon.title}</b>.\n\n+${result.prize} DR has been added to your balance! 🎉`);
+                  }
+                  setWinnerHackathon(null);
+                } else {
+                  toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                }
+              } catch (err: any) {
+                toast({ title: "Error", description: err?.message, variant: "destructive" });
+              }
+            }}
+            isPending={setHackathonWinnerMutation.isPending}
+          />
         )}
       </AnimatePresence>
 
