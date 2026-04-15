@@ -102,7 +102,7 @@ export function useClaimLevelReward() {
 }
 
 export function getLevelReward(level: number): number {
-  return Math.min(200 * Math.pow(3, level - 1), 50000);
+  return Math.min(200 * Math.pow(3, level - 1), 10000);
 }
 
 // ============================================================

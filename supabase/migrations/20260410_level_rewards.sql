@@ -59,8 +59,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Not enough XP for level ' || p_level);
   END IF;
 
-  -- Calculate reward: 200 * 3^(level-1), capped at 50000
-  v_reward := LEAST(200 * POWER(3, p_level - 1)::INTEGER, 50000);
+  -- Calculate reward: 200 * 3^(level-1), capped at 10000
+  v_reward := LEAST(200 * POWER(3, p_level - 1)::INTEGER, 10000);
 
   -- Check treasury
   IF (SELECT treasury_balance FROM public.token_supply WHERE id = 1) < v_reward THEN
