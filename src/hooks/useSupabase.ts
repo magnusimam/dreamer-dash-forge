@@ -345,6 +345,7 @@ export function useCommunityStats() {
         transfers: Number(u.transfers),
         redeems: Number(u.redeems),
         hackathons: Number(u.hackathons),
+        hackathon_wins: Number(u.hackathon_wins || 0),
         engagement: Number(u.engagement),
       }));
     },
@@ -2067,6 +2068,48 @@ export function useDeleteHackathon() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+    },
+  });
+}
+
+export function useHackathonRegistrants(hackathonId: string | null) {
+  return useQuery({
+    queryKey: ["hackathon_registrants", hackathonId],
+    queryFn: async () => {
+      if (!hackathonId) return [];
+      const { data } = await supabase
+        .from("hackathon_registrations")
+        .select("user_id")
+        .eq("hackathon_id", hackathonId);
+      if (!data || data.length === 0) return [];
+      const userIds = data.map((r: any) => r.user_id);
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, photo_url")
+        .in("id", userIds);
+      return users || [];
+    },
+    enabled: !!hackathonId,
+  });
+}
+
+export function useSetHackathonWinner() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ hackathonId, winnerId }: { hackathonId: string; winnerId: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("set_hackathon_winner", {
+        p_admin_id: dbUser.id,
+        p_hackathon_id: hackathonId,
+        p_winner_id: winnerId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+      queryClient.invalidateQueries({ queryKey: ["community_stats"] });
     },
   });
 }
