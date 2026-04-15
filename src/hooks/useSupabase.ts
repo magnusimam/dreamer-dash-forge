@@ -61,6 +61,51 @@ export function getDreamerLevel(engagementPoints: number): { level: number; curr
 }
 
 // ============================================================
+// LEVEL REWARDS
+// ============================================================
+
+export function useLevelRewardsClaimed() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["level_rewards_claimed", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [] as number[];
+      const { data } = await supabase
+        .from("level_rewards_claimed")
+        .select("level")
+        .eq("user_id", dbUser.id);
+      return (data || []).map((r: any) => r.level);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useClaimLevelReward() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (level: number) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_level_reward", {
+        p_user_id: dbUser.id,
+        p_level: level,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["level_rewards_claimed"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function getLevelReward(level: number): number {
+  return Math.min(200 * Math.pow(3, level - 1), 50000);
+}
+
+// ============================================================
 // DREAM PAIRS
 // ============================================================
 

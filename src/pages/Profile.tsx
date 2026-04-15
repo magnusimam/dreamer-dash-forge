@@ -7,13 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   Settings, BarChart3, Award, TrendingUp, Shield, Coins, Trophy, Copy,
   Star, Rocket, Crown, Gem, Flame, Users, Megaphone, Baby, CheckCircle,
-  X, Lock,
+  X, Lock, Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel, useLevelRewardsClaimed, useClaimLevelReward, getLevelReward } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -42,6 +42,10 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const myLevel = myEngagement ? getDreamerLevel(myEngagement.engagement) : null;
   const { data: referralCount } = useUserReferralCount();
   const { data: referredBy } = useReferredBy();
+  const { data: claimedLevels = [] } = useLevelRewardsClaimed();
+  const claimLevelMutation = useClaimLevelReward();
+  // Levels user has reached but not claimed
+  const unclaimedLevels = myLevel ? Array.from({ length: myLevel.level }, (_, i) => i + 1).filter((l) => !claimedLevels.includes(l)) : [];
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
 
   useEffect(() => {
@@ -251,6 +255,47 @@ export default function Profile({ onTabChange }: ProfileProps) {
               <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </Card>
+        </motion.div>
+      )}
+
+      {/* Level Rewards */}
+      {unclaimedLevels.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.27 }} className="mb-6">
+          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-400" /> Level Rewards
+          </h3>
+          <div className="space-y-2">
+            {unclaimedLevels.map((lvl) => (
+              <Card key={lvl} className="gradient-card border-yellow-500/20 bg-yellow-500/5 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Level {lvl} Unlocked!</p>
+                    <p className="text-xs text-muted-foreground">Claim +{getLevelReward(lvl).toLocaleString()} DR reward</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                    disabled={claimLevelMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        const result = await claimLevelMutation.mutateAsync(lvl);
+                        if (result?.success) {
+                          toast({ title: "Level Claimed!", description: `+${result.reward} DR for reaching Level ${result.level}!` });
+                        } else {
+                          toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                        }
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err?.message, variant: "destructive" });
+                      }
+                    }}
+                  >
+                    {claimLevelMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3 mr-1" />}
+                    Claim
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </motion.div>
       )}
 
