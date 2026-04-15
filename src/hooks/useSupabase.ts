@@ -82,12 +82,31 @@ export function useMyPair() {
       const partnerId = data.user1_id === dbUser.id ? data.user2_id : data.user1_id;
       const { data: partner } = await supabase
         .from("users")
-        .select("id, first_name, last_name, username, photo_url, last_active, streak, status")
+        .select("id, first_name, last_name, username, photo_url, last_active, streak, status, last_check_in")
         .eq("id", partnerId)
         .maybeSingle();
+
+      // Check if partner has checked in today
+      const today = new Date().toISOString().split("T")[0];
+      const { data: todayCheckin } = await supabase
+        .from("daily_checkins")
+        .select("id")
+        .eq("user_id", partnerId)
+        .eq("check_in_date", today)
+        .maybeSingle();
+
+      // Get partner's activity count this week
+      const { count: weekActivityCount } = await supabase
+        .from("activity_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", partnerId)
+        .gte("logged_at", data.week_start);
+
       return {
         ...data,
         partner,
+        partner_checked_in_today: !!todayCheckin,
+        partner_activities_this_week: weekActivityCount ?? 0,
         i_am_user1: data.user1_id === dbUser.id,
         my_checked_for_partner: data.user1_id === dbUser.id ? data.user1_checked_for_2 : data.user2_checked_for_1,
         i_rated: data.user1_id === dbUser.id ? data.rating_from_1 !== null : data.rating_from_2 !== null,

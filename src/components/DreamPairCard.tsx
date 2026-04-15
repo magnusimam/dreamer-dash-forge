@@ -123,7 +123,15 @@ export default function DreamPairCard({ onViewProfile }: Props) {
             <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-card ${isUserOnline(partner?.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
           </div>
           <div className="flex-1 text-left">
-            <p className="text-sm font-semibold text-foreground">{partner?.first_name} {partner?.last_name || ""}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-foreground">{partner?.first_name} {partner?.last_name || ""}</p>
+              {myPair.partner_checked_in_today ? (
+                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px]">✓ Checked in today</Badge>
+              ) : (
+                <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px]">Not checked in</Badge>
+              )}
+            </div>
+            <p className="text-[10px] text-muted-foreground">{myPair.partner_activities_this_week} activities this week</p>
             {partner?.username && <p className="text-[10px] text-muted-foreground">@{partner.username}</p>}
             <p className="text-[10px] text-muted-foreground">{partner?.streak || 0} day streak · {partner?.status}</p>
           </div>
@@ -138,7 +146,8 @@ export default function DreamPairCard({ onViewProfile }: Props) {
             <Button size="sm" variant="outline" className="border-pink-500/30 text-pink-400" onClick={handlePoke}>
               <Bell className="w-3.5 h-3.5 mr-1.5" /> Poke
             </Button>
-            <Button size="sm" variant="outline" className="border-emerald-500/30 text-emerald-400" disabled={myPair.my_checked_for_partner || checkinForPartnerMutation.isPending}
+            <Button size="sm" variant="outline" className={myPair.partner_checked_in_today ? "border-emerald-500/30 text-emerald-400 cursor-not-allowed" : "border-emerald-500/30 text-emerald-400"}
+              disabled={myPair.partner_checked_in_today || myPair.my_checked_for_partner || checkinForPartnerMutation.isPending}
               onClick={async () => {
                 try {
                   const result = await checkinForPartnerMutation.mutateAsync(myPair.id);
@@ -155,8 +164,8 @@ export default function DreamPairCard({ onViewProfile }: Props) {
                   toast({ title: "Error", description: err?.message, variant: "destructive" });
                 }
               }}>
-              {checkinForPartnerMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : myPair.my_checked_for_partner ? <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5" />}
-              {myPair.my_checked_for_partner ? "Done" : "Check-in"}
+              {checkinForPartnerMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5 mr-1.5" />}
+              {myPair.partner_checked_in_today ? "Checked in" : myPair.my_checked_for_partner ? "Done" : "Check in"}
             </Button>
           </div>
         )}
