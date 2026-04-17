@@ -140,7 +140,7 @@ export function useCreateMagicBox() {
   const { dbUser } = useUser();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (box: { title: string; description?: string; entry_fee: number; prize_dr: number; prize_xp: number; max_entries?: number; allowed_usernames?: string[]; expires_at?: string }) => {
+    mutationFn: async (box: { title: string; description?: string; entry_fee: number; prize_dr: number; prize_xp: number; prize_custom?: string; max_entries?: number; allowed_usernames?: string[]; expires_at?: string; reveal_at?: string }) => {
       const { data, error } = await supabase
         .from("magic_boxes")
         .insert({ ...box, created_by: dbUser?.id })

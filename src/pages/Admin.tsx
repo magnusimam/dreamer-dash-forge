@@ -282,6 +282,7 @@ export default function Admin() {
   const [mbPrizeDr, setMbPrizeDr] = useState("");
   const [mbPrizeXp, setMbPrizeXp] = useState("0");
   const [mbMaxEntries, setMbMaxEntries] = useState("");
+  const [mbPrizeCustom, setMbPrizeCustom] = useState("");
   const [mbRevealAt, setMbRevealAt] = useState("");
   const [mbAllowedUsers, setMbAllowedUsers] = useState("");
   const processRedemptionMutation = useProcessRedemption();
@@ -1127,6 +1128,7 @@ export default function Admin() {
                   <div><label className="text-xs text-muted-foreground mb-1 block">Prize XP (optional)</label><Input type="number" placeholder="0" value={mbPrizeXp} onChange={(e) => setMbPrizeXp(e.target.value)} className="bg-secondary border-border" /></div>
                   <div><label className="text-xs text-muted-foreground mb-1 block">Max Entries (optional)</label><Input type="number" placeholder="Unlimited" value={mbMaxEntries} onChange={(e) => setMbMaxEntries(e.target.value)} className="bg-secondary border-border" /></div>
                 </div>
+                <Input placeholder="Custom prize (optional — e.g. ₦5,000 Airtime, Free Book)" value={mbPrizeCustom} onChange={(e) => setMbPrizeCustom(e.target.value)} className="bg-secondary border-border" />
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Reveal Time (when boxes open for everyone)</label>
                   <Input type="datetime-local" value={mbRevealAt} onChange={(e) => setMbRevealAt(e.target.value)} className="bg-secondary border-border" />
@@ -1135,7 +1137,7 @@ export default function Admin() {
                   <label className="text-xs text-muted-foreground mb-1 block">Allowed Usernames (optional — comma separated, leave empty for all)</label>
                   <Input placeholder="e.g. john, fariat, etura" value={mbAllowedUsers} onChange={(e) => setMbAllowedUsers(e.target.value)} className="bg-secondary border-border" />
                 </div>
-                <Button className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-semibold" disabled={!mbTitle || !mbFee || !mbPrizeDr || !mbRevealAt || createMagicBoxMutation.isPending}
+                <Button className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-semibold" disabled={!mbTitle || !mbFee || !mbRevealAt || (!mbPrizeDr && !mbPrizeCustom) || createMagicBoxMutation.isPending}
                   onClick={async () => {
                     try {
                       const usernames = mbAllowedUsers.trim() ? mbAllowedUsers.split(",").map((u: string) => u.trim().replace(/^@/, "")).filter(Boolean) : undefined;
@@ -1143,14 +1145,15 @@ export default function Admin() {
                         title: mbTitle,
                         description: mbDesc || undefined,
                         entry_fee: parseInt(mbFee),
-                        prize_dr: parseInt(mbPrizeDr),
+                        prize_dr: parseInt(mbPrizeDr) || 0,
                         prize_xp: parseInt(mbPrizeXp) || 0,
+                        prize_custom: mbPrizeCustom || undefined,
                         max_entries: mbMaxEntries ? parseInt(mbMaxEntries) : undefined,
                         reveal_at: new Date(mbRevealAt).toISOString(),
                         allowed_usernames: usernames,
                       });
                       toast({ title: "Magic Box Created!", description: mbTitle });
-                      setMbTitle(""); setMbDesc(""); setMbFee(""); setMbPrizeDr(""); setMbPrizeXp("0"); setMbMaxEntries(""); setMbRevealAt(""); setMbAllowedUsers("");
+                      setMbTitle(""); setMbDesc(""); setMbFee(""); setMbPrizeDr(""); setMbPrizeXp("0"); setMbPrizeCustom(""); setMbMaxEntries(""); setMbRevealAt(""); setMbAllowedUsers("");
                     } catch (err: any) {
                       toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
                     }
