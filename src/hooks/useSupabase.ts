@@ -61,6 +61,114 @@ export function getDreamerLevel(engagementPoints: number): { level: number; curr
 }
 
 // ============================================================
+// MAGIC BOXES
+// ============================================================
+
+export function useMagicBoxes() {
+  return useQuery({
+    queryKey: ["magic_boxes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("magic_boxes")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      // Get entry counts
+      const ids = (data || []).map((b: any) => b.id);
+      const { data: entries } = ids.length > 0 ? await supabase.from("magic_box_entries").select("box_id").in("box_id", ids) : { data: [] };
+      const counts: Record<string, number> = {};
+      (entries || []).forEach((e: any) => { counts[e.box_id] = (counts[e.box_id] || 0) + 1; });
+      return (data || []).map((b: any) => ({ ...b, entry_count: counts[b.id] || 0 }));
+    },
+  });
+}
+
+export function useUserBoxEntries() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["user_box_entries", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return {};
+      const { data } = await supabase.from("magic_box_entries").select("box_id, claimed").eq("user_id", dbUser.id);
+      const map: Record<string, boolean> = {};
+      (data || []).forEach((e: any) => { map[e.box_id] = e.claimed; });
+      return map;
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useOpenMagicBox() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (boxId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("open_magic_box", { p_user_id: dbUser.id, p_box_id: boxId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["magic_boxes"] });
+      queryClient.invalidateQueries({ queryKey: ["user_box_entries"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useClaimMagicBox() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (boxId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_magic_box", { p_user_id: dbUser.id, p_box_id: boxId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["user_box_entries"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useCreateMagicBox() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (box: { title: string; description?: string; entry_fee: number; prize_dr: number; prize_xp: number; max_entries?: number; allowed_usernames?: string[]; expires_at?: string }) => {
+      const { data, error } = await supabase
+        .from("magic_boxes")
+        .insert({ ...box, created_by: dbUser?.id })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["magic_boxes"] });
+    },
+  });
+}
+
+export function useAllMagicBoxesAdmin() {
+  return useQuery({
+    queryKey: ["admin_magic_boxes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("magic_boxes")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+// ============================================================
 // LEVEL REWARDS
 // ============================================================
 
