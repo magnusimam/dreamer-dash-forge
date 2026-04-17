@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.magic_boxes (
   entry_fee INTEGER NOT NULL DEFAULT 100,
   prize_dr INTEGER NOT NULL DEFAULT 0,
   prize_xp INTEGER NOT NULL DEFAULT 0,
+  prize_custom TEXT, -- e.g. "₦5,000 Airtime", "Free Book", "1GB Data"
   max_entries INTEGER,
   allowed_usernames TEXT[], -- NULL = open to all, array = whitelist
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'ended')),

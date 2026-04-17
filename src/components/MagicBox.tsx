@@ -95,7 +95,11 @@ export default function MagicBox({ box, entered, claimed }: MagicBoxProps) {
         hapticNotification("success");
         setShowConfetti(true);
         setPhase("claimed");
-        toast({ title: "Prize Claimed!", description: `${result.prize_dr > 0 ? `+${result.prize_dr} DR` : ""}${result.prize_xp > 0 ? ` +${result.prize_xp} XP` : ""}` });
+        const parts = [];
+        if (result.prize_dr > 0) parts.push(`+${result.prize_dr} DR`);
+        if (result.prize_xp > 0) parts.push(`+${result.prize_xp} XP`);
+        if (box.prize_custom) parts.push(box.prize_custom);
+        toast({ title: "Prize Claimed!", description: parts.join(" · ") || "Congratulations!" });
       } else {
         setPhase("reveal");
         toast({ title: "Failed", description: result?.error, variant: "destructive" });
@@ -150,11 +154,12 @@ export default function MagicBox({ box, entered, claimed }: MagicBoxProps) {
               <motion.div
                 animate={{ scale: [1, 1.05, 1], boxShadow: ["0 0 20px rgba(234,179,8,0.3)", "0 0 50px rgba(234,179,8,0.6)", "0 0 20px rgba(234,179,8,0.3)"] }}
                 transition={{ repeat: Infinity, duration: 2 }}
-                className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 flex flex-col items-center justify-center shadow-2xl border-2 border-yellow-300"
+                className="w-28 min-h-[7rem] mx-auto rounded-2xl bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 flex flex-col items-center justify-center shadow-2xl border-2 border-yellow-300 px-3 py-3"
               >
                 {box.prize_dr > 0 && <p className="text-2xl font-black text-white drop-shadow-lg">{box.prize_dr.toLocaleString()}</p>}
                 {box.prize_dr > 0 && <p className="text-[10px] font-bold text-yellow-100">DR</p>}
                 {box.prize_xp > 0 && <p className="text-lg font-black text-white drop-shadow-lg">+{box.prize_xp} XP</p>}
+                {box.prize_custom && <p className="text-sm font-bold text-white drop-shadow-lg text-center leading-tight mt-1">{box.prize_custom}</p>}
               </motion.div>
               <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-xs text-yellow-400 mt-2 font-medium">
                 Tap to claim your prize!
