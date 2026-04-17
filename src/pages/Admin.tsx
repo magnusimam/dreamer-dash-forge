@@ -245,6 +245,8 @@ export default function Admin() {
   const { data: promoCodes = [] } = useAllPromoCodes();
   const { data: allMissions = [] } = useAllMissionsAdmin();
   const { data: pendingMissionSubs = [] } = usePendingMissionSubmissions();
+  const { data: adminMagicBoxes = [] } = useAllMagicBoxesAdmin();
+  const createMagicBoxMutation = useCreateMagicBox();
   const approveMissionMutation = useApproveMissionSubmission();
   const rejectMissionMutation = useRejectMissionSubmission();
 
@@ -272,6 +274,16 @@ export default function Admin() {
   const deleteHackathonMutation = useDeleteHackathon();
   const setHackathonWinnerMutation = useSetHackathonWinner();
   const [winnerHackathon, setWinnerHackathon] = useState<any | null>(null);
+
+  // Magic Box form
+  const [mbTitle, setMbTitle] = useState("");
+  const [mbDesc, setMbDesc] = useState("");
+  const [mbFee, setMbFee] = useState("");
+  const [mbPrizeDr, setMbPrizeDr] = useState("");
+  const [mbPrizeXp, setMbPrizeXp] = useState("0");
+  const [mbMaxEntries, setMbMaxEntries] = useState("");
+  const [mbRevealAt, setMbRevealAt] = useState("");
+  const [mbAllowedUsers, setMbAllowedUsers] = useState("");
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
   const deleteUserMutation = useDeleteUser();
@@ -750,6 +762,7 @@ export default function Admin() {
           <TabsList className="inline-flex w-auto min-w-full gap-1">
             <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="magicbox" className="text-xs px-3">Magic Box</TabsTrigger>}
             <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>
             <TabsTrigger value="redemptions" className="relative text-xs px-3">
               Redeem
@@ -1087,6 +1100,85 @@ export default function Admin() {
                       </Button>
                       {viewingMissionParticipants === m.id && (
                         <MissionParticipantsList missionId={m.id} />
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== MAGIC BOX TAB ========== */}
+        <TabsContent value="magicbox">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <span className="text-lg">🎁</span> Create Magic Box
+              </h3>
+              <div className="space-y-3">
+                <Input placeholder="Box title (e.g. Weekly Mystery Box)" value={mbTitle} onChange={(e) => setMbTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
+                <Textarea placeholder="Description (optional)" value={mbDesc} onChange={(e) => setMbDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Entry Fee (DR)</label><Input type="number" placeholder="e.g. 100" value={mbFee} onChange={(e) => setMbFee(e.target.value)} className="bg-secondary border-border" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Prize (DR)</label><Input type="number" placeholder="e.g. 500" value={mbPrizeDr} onChange={(e) => setMbPrizeDr(e.target.value)} className="bg-secondary border-border" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Prize XP (optional)</label><Input type="number" placeholder="0" value={mbPrizeXp} onChange={(e) => setMbPrizeXp(e.target.value)} className="bg-secondary border-border" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Max Entries (optional)</label><Input type="number" placeholder="Unlimited" value={mbMaxEntries} onChange={(e) => setMbMaxEntries(e.target.value)} className="bg-secondary border-border" /></div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Reveal Time (when boxes open for everyone)</label>
+                  <Input type="datetime-local" value={mbRevealAt} onChange={(e) => setMbRevealAt(e.target.value)} className="bg-secondary border-border" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Allowed Usernames (optional — comma separated, leave empty for all)</label>
+                  <Input placeholder="e.g. john, fariat, etura" value={mbAllowedUsers} onChange={(e) => setMbAllowedUsers(e.target.value)} className="bg-secondary border-border" />
+                </div>
+                <Button className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-semibold" disabled={!mbTitle || !mbFee || !mbPrizeDr || !mbRevealAt || createMagicBoxMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      const usernames = mbAllowedUsers.trim() ? mbAllowedUsers.split(",").map((u: string) => u.trim().replace(/^@/, "")).filter(Boolean) : undefined;
+                      await createMagicBoxMutation.mutateAsync({
+                        title: mbTitle,
+                        description: mbDesc || undefined,
+                        entry_fee: parseInt(mbFee),
+                        prize_dr: parseInt(mbPrizeDr),
+                        prize_xp: parseInt(mbPrizeXp) || 0,
+                        max_entries: mbMaxEntries ? parseInt(mbMaxEntries) : undefined,
+                        reveal_at: new Date(mbRevealAt).toISOString(),
+                        allowed_usernames: usernames,
+                      });
+                      toast({ title: "Magic Box Created!", description: mbTitle });
+                      setMbTitle(""); setMbDesc(""); setMbFee(""); setMbPrizeDr(""); setMbPrizeXp("0"); setMbMaxEntries(""); setMbRevealAt(""); setMbAllowedUsers("");
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                    }
+                  }}>
+                  {createMagicBoxMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  Create Magic Box
+                </Button>
+              </div>
+            </Card>
+
+            {adminMagicBoxes.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Magic Boxes ({adminMagicBoxes.length})</h3>
+                <div className="space-y-3">
+                  {adminMagicBoxes.map((b: any) => (
+                    <Card key={b.id} className={`gradient-card border-border/50 p-4 ${b.status === "ended" ? "opacity-60" : ""}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-foreground">{b.title}</h4>
+                        <Badge className={b.status === "active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>{b.status}</Badge>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>Fee: {b.entry_fee} DR</span>
+                        <span>Prize: {b.prize_dr} DR{b.prize_xp > 0 ? ` + ${b.prize_xp} XP` : ""}</span>
+                        {b.reveal_at && <span>Reveals: {new Date(b.reveal_at).toLocaleString()}</span>}
+                        {b.max_entries && <span>Max: {b.max_entries}</span>}
+                      </div>
+                      {b.allowed_usernames && b.allowed_usernames.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">Whitelist: {b.allowed_usernames.join(", ")}</p>
                       )}
                     </Card>
                   ))}
