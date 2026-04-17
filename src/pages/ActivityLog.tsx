@@ -564,7 +564,7 @@ export default function ActivityLog() {
               <MagicBoxComponent
                 key={box.id}
                 box={box}
-                opened={box.id in myBoxEntries}
+                entered={box.id in myBoxEntries}
                 claimed={myBoxEntries[box.id] === true}
               />
             ))}
