@@ -22,6 +22,8 @@ import {
   useDeleteHackathon,
   useHackathonRegistrants,
   useSetHackathonWinner,
+  useCreateMagicBox,
+  useAllMagicBoxesAdmin,
   useRedemptionRequests,
   useProcessRedemption,
   useAllUsers,

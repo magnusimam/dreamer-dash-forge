@@ -20,7 +20,10 @@ import {
   useSubmitMissionProof,
   useCompleteMission,
   useClaimPromoCode,
+  useMagicBoxes,
+  useUserBoxEntries,
 } from "@/hooks/useSupabase";
+import MagicBoxComponent from "@/components/MagicBox";
 import {
   CalendarDays,
   KeyRound,
@@ -51,6 +54,7 @@ const categoryColors: Record<string, string> = {
   event: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   outreach: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   promo: "bg-pink-500/20 text-pink-400 border-pink-500/30",
+  task: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
 };
 
 export default function ActivityLog() {
@@ -70,6 +74,8 @@ export default function ActivityLog() {
   const completeMissionMutation = useCompleteMission();
   const submitMissionProofMutation = useSubmitMissionProof();
   const claimPromoMutation = useClaimPromoCode();
+  const { data: magicBoxes = [] } = useMagicBoxes();
+  const { data: myBoxEntries = {} } = useUserBoxEntries();
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const { data: promoClaimCount = 0 } = useQuery({
@@ -547,6 +553,25 @@ export default function ActivityLog() {
         )}
       </AnimatePresence>
 
+      {/* Magic Boxes */}
+      {(categoryFilter === "all" || categoryFilter === "task") && magicBoxes.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <span className="text-2xl">🎁</span> Magic Boxes
+          </h2>
+          <div className="space-y-3">
+            {magicBoxes.map((box: any) => (
+              <MagicBoxComponent
+                key={box.id}
+                box={box}
+                opened={box.id in myBoxEntries}
+                claimed={myBoxEntries[box.id] === true}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Activities */}
       <h2 className="text-lg font-semibold text-foreground mb-3">
         Community Activities
@@ -555,7 +580,7 @@ export default function ActivityLog() {
       {/* Category filter chips */}
       <div className="mb-4 overflow-x-auto scrollbar-hide">
         <div className="flex gap-2 pb-2">
-          {["all", "meeting", "workshop", "event", "outreach", "promo"].map((cat) => (
+          {["all", "meeting", "workshop", "event", "outreach", "promo", "task"].map((cat) => (
             <Button
               key={cat}
               size="sm"
