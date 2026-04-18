@@ -1100,6 +1100,8 @@ export function useAllHackathonsAdmin() {
     },
   });
 }
+
+export function useRaffleEntries(raffleId: string | null) {
   return useQuery({
     queryKey: ["raffle_entries", raffleId],
     queryFn: async () => {
