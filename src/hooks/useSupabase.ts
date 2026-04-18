@@ -213,6 +213,28 @@ export function useAllMagicBoxesAdmin() {
   });
 }
 
+export function useMagicBoxParticipants(boxId: string | null) {
+  return useQuery({
+    queryKey: ["magic_box_participants", boxId],
+    queryFn: async () => {
+      if (!boxId) return [];
+      const { data, error } = await supabase
+        .from("magic_box_entries")
+        .select("*")
+        .eq("box_id", boxId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+      const userIds = data.map((e: any) => e.user_id);
+      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username").in("id", userIds);
+      const userMap: Record<string, any> = {};
+      (users || []).forEach((u: any) => { userMap[u.id] = u; });
+      return data.map((e: any) => ({ ...e, user: userMap[e.user_id] }));
+    },
+    enabled: !!boxId,
+  });
+}
+
 // ============================================================
 // LEVEL REWARDS
 // ============================================================
