@@ -30,6 +30,7 @@ import {
   useArchiveMagicBox,
   useAllRafflesAdmin,
   useAllHackathonsAdmin,
+  useMagicBoxParticipants,
   useRedemptionRequests,
   useProcessRedemption,
   useAllUsers,
@@ -123,6 +124,37 @@ function RaffleEntriesList({ raffleId }: { raffleId: string }) {
         </div>
       ))}
       <p className="text-[10px] text-muted-foreground">{entries.length} total entries</p>
+    </div>
+  );
+}
+
+function MagicBoxParticipantsList({ boxId }: { boxId: string }) {
+  const { data: participants = [], isLoading } = useMagicBoxParticipants(boxId);
+  if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
+  if (participants.length === 0) return <p className="text-xs text-muted-foreground mt-2">No one has entered yet</p>;
+  return (
+    <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-yellow-500/20">
+      {participants.map((p: any) => (
+        <div key={p.id} className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-foreground">
+              {[p.user?.first_name, p.user?.last_name].filter(Boolean).join(" ")}
+            </p>
+            {p.user?.username && <p className="text-[10px] text-muted-foreground">@{p.user.username}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-muted-foreground/60">
+              {new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </p>
+            {p.claimed ? (
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">Claimed</span>
+            ) : (
+              <span className="text-[10px] bg-primary/20 text-primary border border-primary/30 rounded px-1.5 py-0.5">Entered</span>
+            )}
+          </div>
+        </div>
+      ))}
+      <p className="text-[10px] text-muted-foreground">{participants.length} entered · {participants.filter((p: any) => p.claimed).length} claimed</p>
     </div>
   );
 }
@@ -294,6 +326,7 @@ export default function Admin() {
   const [mbUserSearch, setMbUserSearch] = useState("");
   const [mbUserSuggestions, setMbUserSuggestions] = useState<any[]>([]);
   const [mbShowSuggestions, setMbShowSuggestions] = useState(false);
+  const [viewingBoxParticipants, setViewingBoxParticipants] = useState<string | null>(null);
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
   const deleteUserMutation = useDeleteUser();
@@ -1258,6 +1291,12 @@ export default function Admin() {
                       </div>
                       {b.allowed_usernames && b.allowed_usernames.length > 0 && (
                         <p className="text-[10px] text-muted-foreground mt-1">Whitelist: {b.allowed_usernames.join(", ")}</p>
+                      )}
+                      <Button size="sm" variant="outline" className="mt-2 w-full border-border text-xs" onClick={() => setViewingBoxParticipants(viewingBoxParticipants === b.id ? null : b.id)}>
+                        <Users className="w-3 h-3 mr-1" /> {viewingBoxParticipants === b.id ? "Hide" : "View"} Participants
+                      </Button>
+                      {viewingBoxParticipants === b.id && (
+                        <MagicBoxParticipantsList boxId={b.id} />
                       )}
                     </Card>
                   ))}
