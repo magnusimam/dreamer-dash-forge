@@ -191,8 +191,8 @@ export default function Community() {
           ) : (
             <div className="space-y-2">
               {giftWall.map((item: any) => {
-                const iconMap: Record<string, any> = { mission: Target, promo: BookOpen, transfer: Send };
-                const colorMap: Record<string, string> = { mission: "text-pink-400 bg-pink-500/20", promo: "text-purple-400 bg-purple-500/20", transfer: "text-blue-400 bg-blue-500/20" };
+                const iconMap: Record<string, any> = { mission: Target, promo: BookOpen, transfer: Send, magicbox: Gift };
+                const colorMap: Record<string, string> = { mission: "text-pink-400 bg-pink-500/20", promo: "text-purple-400 bg-purple-500/20", transfer: "text-blue-400 bg-blue-500/20", magicbox: "text-yellow-400 bg-yellow-500/20" };
                 const Icon = iconMap[item.type] || Gift;
                 const color = colorMap[item.type] || "text-primary bg-primary/20";
 

@@ -456,30 +456,36 @@ export function useGiftWall() {
   return useQuery({
     queryKey: ["gift_wall"],
     queryFn: async () => {
-      // Fetch all 3 sources in parallel
-      const [missionRes, promoRes, transferRes] = await Promise.all([
+      // Fetch all 4 sources in parallel
+      const [missionRes, promoRes, transferRes, magicBoxRes] = await Promise.all([
         supabase.from("mission_completions").select("*").eq("status", "approved").not("proof_url", "is", null).order("completed_at", { ascending: false }).limit(20),
         supabase.from("promo_codes").select("*").eq("is_used", true).order("claimed_at", { ascending: false }).limit(15),
         supabase.from("transactions").select("*").eq("type", "transfer_out").order("created_at", { ascending: false }).limit(15),
+        supabase.from("magic_box_entries").select("*").eq("claimed", true).order("claimed_at", { ascending: false }).limit(15),
       ]);
 
-      // Collect all unique user IDs and mission IDs
+      // Collect all unique user IDs and mission/box IDs
       const userIds = new Set<string>();
       const missionIds = new Set<string>();
+      const boxIds = new Set<string>();
       (missionRes.data || []).forEach((g: any) => { userIds.add(g.user_id); missionIds.add(g.mission_id); });
       (promoRes.data || []).forEach((p: any) => { if (p.claimed_by) userIds.add(p.claimed_by); });
       (transferRes.data || []).forEach((t: any) => { userIds.add(t.user_id); });
+      (magicBoxRes.data || []).forEach((b: any) => { userIds.add(b.user_id); boxIds.add(b.box_id); });
 
-      // Batch fetch users and missions
-      const [usersRes, missionsRes] = await Promise.all([
+      // Batch fetch users, missions, and boxes
+      const [usersRes, missionsRes, boxesRes] = await Promise.all([
         userIds.size > 0 ? supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", [...userIds]) : { data: [] },
         missionIds.size > 0 ? supabase.from("missions").select("id, title").in("id", [...missionIds]) : { data: [] },
+        boxIds.size > 0 ? supabase.from("magic_boxes").select("id, title, prize_dr, prize_xp, prize_custom").in("id", [...boxIds]) : { data: [] },
       ]);
 
       const userMap: Record<string, any> = {};
       (usersRes.data || []).forEach((u: any) => { userMap[u.id] = u; });
       const missionMap: Record<string, any> = {};
       (missionsRes.data || []).forEach((m: any) => { missionMap[m.id] = m; });
+      const boxMap: Record<string, any> = {};
+      (boxesRes.data || []).forEach((b: any) => { boxMap[b.id] = b; });
 
       // Build feed
       const feed: any[] = [];
@@ -492,6 +498,11 @@ export function useGiftWall() {
       });
       (transferRes.data || []).forEach((t: any) => {
         feed.push({ type: "transfer", user: userMap[t.user_id], title: t.description, amount: Math.abs(t.amount), date: t.created_at, id: "t-" + t.id, user_id: t.user_id });
+      });
+      (magicBoxRes.data || []).forEach((b: any) => {
+        const box = boxMap[b.box_id];
+        const prizeText = [box?.prize_dr ? `${box.prize_dr} DR` : null, box?.prize_xp ? `${box.prize_xp} XP` : null, box?.prize_custom].filter(Boolean).join(" + ");
+        feed.push({ type: "magicbox", user: userMap[b.user_id], title: `opened ${box?.title || "Magic Box"} — won ${prizeText}`, date: b.claimed_at || b.created_at, id: "mb-" + b.id, user_id: b.user_id });
       });
 
       feed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
