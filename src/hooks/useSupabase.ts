@@ -61,6 +61,51 @@ export function getDreamerLevel(engagementPoints: number): { level: number; curr
 }
 
 // ============================================================
+// STREAK BONUSES
+// ============================================================
+
+export function getStreakReward(milestone: number): number {
+  return 500 + ((milestone / 30) - 1) * 1000;
+}
+
+export function useStreakBonusesClaimed() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["streak_bonuses", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [] as number[];
+      const { data } = await supabase
+        .from("streak_bonuses_claimed")
+        .select("streak_milestone")
+        .eq("user_id", dbUser.id);
+      return (data || []).map((r: any) => r.streak_milestone);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useClaimStreakBonus() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (milestone: number) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_streak_bonus", {
+        p_user_id: dbUser.id,
+        p_milestone: milestone,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["streak_bonuses"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+// ============================================================
 // MAGIC BOXES
 // ============================================================
 
