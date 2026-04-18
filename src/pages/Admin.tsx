@@ -879,7 +879,7 @@ export default function Admin() {
                     <Card key={act.id} className={`gradient-card border-border/50 p-4 ${!act.is_active ? "opacity-60" : ""}`}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium text-foreground">{act.title}</h4>
                             {!act.is_active ? (
                               <Badge className="bg-muted text-muted-foreground text-[10px]">Archived</Badge>
@@ -888,6 +888,7 @@ export default function Admin() {
                             ) : (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Active</Badge>
                             )}
+                            <Badge variant="secondary" className="text-xs">{act.category}</Badge>
                           </div>
                           {act.description && <p className="text-xs text-muted-foreground mt-1">{act.description}</p>}
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
@@ -896,37 +897,37 @@ export default function Admin() {
                             {act.max_participants && <span className="flex items-center gap-1"><Users className="w-3 h-3" />Max {act.max_participants}</span>}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="secondary" className="text-xs">{act.category}</Badge>
-                          {act.is_active && (
-                            <>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
-                                <Pencil className="w-3 h-3" />
-                              </Button>
-                              {act.status === "ended" ? (
-                                <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "active" }); toast({ title: "Activity Reopened" }); }}>
-                                  Reopen
-                                </Button>
-                              ) : (
-                                <Button size="sm" variant="outline" className="h-7 text-xs border-red-500/30 text-red-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "ended" }); toast({ title: "Activity Ended" }); }}>
-                                  End
-                                </Button>
-                              )}
-                            </>
-                          )}
-                          {act.is_active ? (
-                            <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived" }); }}>
-                              Archive
-                            </Button>
-                          ) : (
-                            <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => {
-                              const { error } = await supabase.from("activities").update({ is_active: true }).eq("id", act.id);
-                              if (!error) { queryClient.invalidateQueries({ queryKey: ["admin_activities"] }); queryClient.invalidateQueries({ queryKey: ["activities"] }); toast({ title: "Activity Unarchived" }); }
-                            }}>
-                              Unarchive
-                            </Button>
-                          )}
-                        </div>
+                      </div>
+
+                      {/* Action buttons — always visible on separate row */}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {act.is_active && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {act.is_active && act.status === "ended" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "active" }); toast({ title: "Activity Reopened" }); }}>
+                            Reopen
+                          </Button>
+                        )}
+                        {act.is_active && act.status !== "ended" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-red-500/30 text-red-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "ended" }); toast({ title: "Activity Ended" }); }}>
+                            End
+                          </Button>
+                        )}
+                        {act.is_active ? (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived" }); }}>
+                            Archive
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => {
+                            const { error } = await supabase.from("activities").update({ is_active: true }).eq("id", act.id);
+                            if (!error) { queryClient.invalidateQueries({ queryKey: ["admin_activities"] }); queryClient.invalidateQueries({ queryKey: ["activities"] }); toast({ title: "Activity Unarchived" }); }
+                          }}>
+                            Unarchive
+                          </Button>
+                        )}
                       </div>
                       {act.code_required !== false ? (
                         <div className="flex items-center gap-2 mt-3 p-2 bg-secondary rounded-lg">
