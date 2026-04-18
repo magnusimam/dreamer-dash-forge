@@ -1069,7 +1069,37 @@ export function useRaffles() {
   });
 }
 
-export function useRaffleEntries(raffleId: string | null) {
+export function useAllRafflesAdmin() {
+  return useQuery({
+    queryKey: ["admin_raffles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("raffles").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      const raffleIds = (data || []).map((r: any) => r.id);
+      const winnerIds = (data || []).filter((r: any) => r.winner_id).map((r: any) => r.winner_id);
+      const [entriesRes, winnersRes] = await Promise.all([
+        raffleIds.length > 0 ? supabase.from("raffle_entries").select("raffle_id").in("raffle_id", raffleIds) : { data: [] },
+        winnerIds.length > 0 ? supabase.from("users").select("id, first_name, username").in("id", winnerIds) : { data: [] },
+      ]);
+      const entryCounts: Record<string, number> = {};
+      (entriesRes.data || []).forEach((e: any) => { entryCounts[e.raffle_id] = (entryCounts[e.raffle_id] || 0) + 1; });
+      const winnerMap: Record<string, any> = {};
+      (winnersRes.data || []).forEach((w: any) => { winnerMap[w.id] = w; });
+      return (data || []).map((r: any) => ({ ...r, winner: r.winner_id ? winnerMap[r.winner_id] || null : null, entry_count: entryCounts[r.id] || 0 }));
+    },
+  });
+}
+
+export function useAllHackathonsAdmin() {
+  return useQuery({
+    queryKey: ["admin_hackathons"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hackathons").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
   return useQuery({
     queryKey: ["raffle_entries", raffleId],
     queryFn: async () => {
@@ -1172,6 +1202,50 @@ export function useDeleteRaffle() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["raffles"] });
     },
+  });
+}
+
+export function useUnarchiveRaffle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (raffleId: string) => {
+      const { error } = await supabase.from("raffles").update({ is_active: true }).eq("id", raffleId);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["raffles"] }); },
+  });
+}
+
+export function useArchiveHackathon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hackathons").update({ is_active: false }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hackathons"] }); },
+  });
+}
+
+export function useUnarchiveHackathon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hackathons").update({ is_active: true }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hackathons"] }); },
+  });
+}
+
+export function useArchiveMagicBox() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("magic_boxes").update({ status: "ended" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["magic_boxes"] }); queryClient.invalidateQueries({ queryKey: ["admin_magic_boxes"] }); },
   });
 }
 
