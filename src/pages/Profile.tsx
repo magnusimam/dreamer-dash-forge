@@ -13,7 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel, useLevelRewardsClaimed, useClaimLevelReward, getLevelReward } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel, useLevelRewardsClaimed, useClaimLevelReward, getLevelReward, useStreakBonusesClaimed, useClaimStreakBonus, getStreakReward } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -44,6 +44,16 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const { data: referredBy } = useReferredBy();
   const { data: claimedLevels = [] } = useLevelRewardsClaimed();
   const claimLevelMutation = useClaimLevelReward();
+  const { data: claimedStreakBonuses = [] } = useStreakBonusesClaimed();
+  const claimStreakMutation = useClaimStreakBonus();
+  // Streak milestones user has reached but not claimed
+  const unclaimedStreakMilestones = (() => {
+    const milestones: number[] = [];
+    for (let m = 30; m <= streak; m += 30) {
+      if (!claimedStreakBonuses.includes(m)) milestones.push(m);
+    }
+    return milestones;
+  })();
   // Levels user has reached but not claimed
   const unclaimedLevels = myLevel ? Array.from({ length: myLevel.level }, (_, i) => i + 1).filter((l) => !claimedLevels.includes(l)) : [];
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
@@ -290,6 +300,47 @@ export default function Profile({ onTabChange }: ProfileProps) {
                     }}
                   >
                     {claimLevelMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3 mr-1" />}
+                    Claim
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Streak Bonuses */}
+      {unclaimedStreakMilestones.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }} className="mb-6">
+          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Flame className="w-5 h-5 text-orange-400" /> Streak Bonuses
+          </h3>
+          <div className="space-y-2">
+            {unclaimedStreakMilestones.map((m) => (
+              <Card key={m} className="gradient-card border-orange-500/20 bg-orange-500/5 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{m}-Day Streak!</p>
+                    <p className="text-xs text-muted-foreground">Claim +{getStreakReward(m).toLocaleString()} DR reward</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={claimStreakMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        const result = await claimStreakMutation.mutateAsync(m);
+                        if (result?.success) {
+                          toast({ title: "Streak Bonus Claimed!", description: `+${result.reward} DR for ${result.milestone}-day streak!` });
+                        } else {
+                          toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                        }
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err?.message, variant: "destructive" });
+                      }
+                    }}
+                  >
+                    {claimStreakMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Flame className="w-3 h-3 mr-1" />}
                     Claim
                   </Button>
                 </div>
