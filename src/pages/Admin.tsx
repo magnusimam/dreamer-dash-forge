@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -284,7 +284,10 @@ export default function Admin() {
   const [mbMaxEntries, setMbMaxEntries] = useState("");
   const [mbPrizeCustom, setMbPrizeCustom] = useState("");
   const [mbRevealAt, setMbRevealAt] = useState("");
-  const [mbAllowedUsers, setMbAllowedUsers] = useState("");
+  const [mbAllowedUsers, setMbAllowedUsers] = useState<{ username: string; name: string }[]>([]);
+  const [mbUserSearch, setMbUserSearch] = useState("");
+  const [mbUserSuggestions, setMbUserSuggestions] = useState<any[]>([]);
+  const [mbShowSuggestions, setMbShowSuggestions] = useState(false);
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
   const deleteUserMutation = useDeleteUser();
@@ -458,6 +461,24 @@ export default function Admin() {
     setBroadcastImgUrl("");
     toast({ title: `Broadcast sent to ${sent} users` });
   };
+
+  // Magic Box user search
+  useEffect(() => {
+    const trimmed = mbUserSearch.trim().replace(/^@/, "");
+    if (trimmed.length < 2) { setMbUserSuggestions([]); setMbShowSuggestions(false); return; }
+    const timer = setTimeout(async () => {
+      const escaped = trimmed.replace(/%/g, "\\%").replace(/_/g, "\\_");
+      const { data } = await supabase
+        .from("users")
+        .select("first_name, last_name, username")
+        .or(`username.ilike.%${escaped}%,first_name.ilike.%${escaped}%`)
+        .limit(8);
+      const existing = mbAllowedUsers.map((u) => u.username.toLowerCase());
+      setMbUserSuggestions((data || []).filter((u: any) => u.username && !existing.includes(u.username.toLowerCase())));
+      setMbShowSuggestions(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [mbUserSearch, mbAllowedUsers]);
 
   const broadcastNewActivity = (title: string, reward: number) => {
     for (const u of allUsers) {
@@ -1133,14 +1154,42 @@ export default function Admin() {
                   <label className="text-xs text-muted-foreground mb-1 block">Reveal Time (when boxes open for everyone)</label>
                   <Input type="datetime-local" value={mbRevealAt} onChange={(e) => setMbRevealAt(e.target.value)} className="bg-secondary border-border" />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Allowed Usernames (optional — comma separated, leave empty for all)</label>
-                  <Input placeholder="e.g. john, fariat, etura" value={mbAllowedUsers} onChange={(e) => setMbAllowedUsers(e.target.value)} className="bg-secondary border-border" />
+                <div className="relative">
+                  <label className="text-xs text-muted-foreground mb-1 block">Allowed Users (optional — leave empty for everyone)</label>
+                  {mbAllowedUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {mbAllowedUsers.map((u) => (
+                        <span key={u.username} className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2.5 py-0.5 text-xs">
+                          @{u.username}
+                          <button type="button" className="hover:text-white" onClick={() => setMbAllowedUsers(mbAllowedUsers.filter((x) => x.username !== u.username))}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <Input placeholder="Search user to add..." value={mbUserSearch} onChange={(e) => setMbUserSearch(e.target.value)} onFocus={() => { if (mbUserSuggestions.length > 0) setMbShowSuggestions(true); }} className="bg-secondary border-border" />
+                  {mbShowSuggestions && mbUserSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+                      {mbUserSuggestions.map((u: any) => (
+                        <button key={u.username} type="button" className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary/80 text-left" onClick={() => {
+                          setMbAllowedUsers([...mbAllowedUsers, { username: u.username, name: u.first_name }]);
+                          setMbUserSearch("");
+                          setMbShowSuggestions(false);
+                        }}>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground">{u.first_name}{u.last_name ? ` ${u.last_name}` : ""}</p>
+                            <p className="text-[10px] text-muted-foreground">@{u.username}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <Button className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-semibold" disabled={!mbTitle || !mbFee || !mbRevealAt || (!mbPrizeDr && !mbPrizeCustom) || createMagicBoxMutation.isPending}
                   onClick={async () => {
                     try {
-                      const usernames = mbAllowedUsers.trim() ? mbAllowedUsers.split(",").map((u: string) => u.trim().replace(/^@/, "")).filter(Boolean) : undefined;
+                      const usernames = mbAllowedUsers.length > 0 ? mbAllowedUsers.map((u) => u.username) : undefined;
                       await createMagicBoxMutation.mutateAsync({
                         title: mbTitle,
                         description: mbDesc || undefined,
@@ -1153,7 +1202,7 @@ export default function Admin() {
                         allowed_usernames: usernames,
                       });
                       toast({ title: "Magic Box Created!", description: mbTitle });
-                      setMbTitle(""); setMbDesc(""); setMbFee(""); setMbPrizeDr(""); setMbPrizeXp("0"); setMbPrizeCustom(""); setMbMaxEntries(""); setMbRevealAt(""); setMbAllowedUsers("");
+                      setMbTitle(""); setMbDesc(""); setMbFee(""); setMbPrizeDr(""); setMbPrizeXp("0"); setMbPrizeCustom(""); setMbMaxEntries(""); setMbRevealAt(""); setMbAllowedUsers([]); setMbUserSearch("");
                     } catch (err: any) {
                       toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
                     }
