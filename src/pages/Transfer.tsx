@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
 import { useTransferDR, isUserOnline } from "@/hooks/useSupabase";
+import { useQuery } from "@tanstack/react-query";
 import { hapticNotification } from "@/lib/telegram";
 import { supabase } from "@/lib/supabase";
 import { notifyTransferReceived } from "@/lib/notifications";
@@ -120,6 +121,19 @@ export default function Transfer() {
   };
 
   const balance = dbUser?.balance ?? 0;
+  const status = dbUser?.status ?? "Bronze";
+  const dailyLimit = status === "Diamond" ? Infinity : status === "Gold" ? 20 : status === "Silver" ? 10 : 5;
+  const { data: todayTransfers = 0 } = useQuery({
+    queryKey: ["today_transfers", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return 0;
+      const today = new Date().toISOString().split("T")[0];
+      const { count } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("user_id", dbUser.id).eq("type", "transfer_out").gte("created_at", today);
+      return count ?? 0;
+    },
+    enabled: !!dbUser,
+  });
+  const transfersRemaining = dailyLimit === Infinity ? Infinity : dailyLimit - todayTransfers;
   const parsedAmount = parseInt(amount) || 0;
 
   const handleReview = () => {
@@ -192,6 +206,15 @@ export default function Transfer() {
               Available: {balance.toLocaleString()} DR
             </span>
           </div>
+          <p className="text-xs text-muted-foreground text-center mt-1">
+            {transfersRemaining === Infinity ? (
+              "Unlimited transfers (Diamond)"
+            ) : transfersRemaining > 0 ? (
+              `${transfersRemaining} transfer${transfersRemaining !== 1 ? "s" : ""} remaining today (${status})`
+            ) : (
+              <span className="text-destructive">Daily limit reached ({dailyLimit}/day for {status})</span>
+            )}
+          </p>
         </Card>
       </motion.div>
 
