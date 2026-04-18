@@ -24,6 +24,12 @@ import {
   useSetHackathonWinner,
   useCreateMagicBox,
   useAllMagicBoxesAdmin,
+  useUnarchiveRaffle,
+  useArchiveHackathon,
+  useUnarchiveHackathon,
+  useArchiveMagicBox,
+  useAllRafflesAdmin,
+  useAllHackathonsAdmin,
   useRedemptionRequests,
   useProcessRedemption,
   useAllUsers,
@@ -232,7 +238,7 @@ export default function Admin() {
 
   // Data hooks
   const { data: activities = [] } = useAllActivitiesAdmin();
-  const { data: hackathons = [] } = useHackathons();
+  const { data: hackathons = [] } = useAllHackathonsAdmin();
   const { data: redemptions = [] } = useRedemptionRequests();
   const { data: allUsers = [] } = useAllUsers();
 
@@ -241,7 +247,7 @@ export default function Admin() {
   const { data: allStates = [] } = useStates();
   const { data: stateRankings = [] } = useStateRankings();
   const { data: allReferrals = [] } = useAllReferrals();
-  const { data: raffles = [] } = useRaffles();
+  const { data: raffles = [] } = useAllRafflesAdmin();
   const { data: promoCodes = [] } = useAllPromoCodes();
   const { data: allMissions = [] } = useAllMissionsAdmin();
   const { data: pendingMissionSubs = [] } = usePendingMissionSubmissions();
@@ -299,6 +305,10 @@ export default function Admin() {
   const deleteStateMutation = useDeleteState();
   const createRaffleMutation = useCreateRaffle();
   const deleteRaffleMutation = useDeleteRaffle();
+  const unarchiveRaffleMutation = useUnarchiveRaffle();
+  const archiveHackathonMutation = useArchiveHackathon();
+  const unarchiveHackathonMutation = useUnarchiveHackathon();
+  const archiveMagicBoxMutation = useArchiveMagicBox();
   const drawWinnerMutation = useDrawRaffleWinner();
   const createPromoCodeMutation = useCreatePromoCode();
   const generatePromoCodesMutation = useGeneratePromoCodes();
@@ -1221,11 +1231,18 @@ export default function Admin() {
                     <Card key={b.id} className={`gradient-card border-border/50 p-4 ${b.status === "ended" ? "opacity-60" : ""}`}>
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium text-foreground">{b.title}</h4>
-                        <Badge className={b.status === "active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>{b.status}</Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge className={b.status === "active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>{b.status === "active" ? "Active" : "Ended"}</Badge>
+                          {b.status === "active" && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await archiveMagicBoxMutation.mutateAsync(b.id); toast({ title: "Magic Box Ended" }); }}>
+                              End
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>Fee: {b.entry_fee} DR</span>
-                        <span>Prize: {b.prize_dr} DR{b.prize_xp > 0 ? ` + ${b.prize_xp} XP` : ""}</span>
+                        <span>Prize: {b.prize_dr > 0 ? `${b.prize_dr} DR` : ""}{b.prize_xp > 0 ? ` ${b.prize_xp} XP` : ""}{b.prize_custom ? ` ${b.prize_custom}` : ""}</span>
                         {b.reveal_at && <span>Reveals: {new Date(b.reveal_at).toLocaleString()}</span>}
                         {b.max_entries && <span>Max: {b.max_entries}</span>}
                       </div>
@@ -1286,7 +1303,7 @@ export default function Admin() {
                 <h3 className="font-semibold text-foreground mb-3">All Hackathons ({hackathons.length})</h3>
                 <div className="space-y-3">
                   {hackathons.map((hack: any) => (
-                    <Card key={hack.id} className="gradient-card border-border/50 p-4">
+                    <Card key={hack.id} className={`gradient-card border-border/50 p-4 ${!hack.is_active ? "opacity-60" : ""}`}>
                       {hack.cover_image_url && (
                         <img src={hack.cover_image_url} alt="" className="w-full h-32 object-cover rounded-lg mb-3" />
                       )}
@@ -1296,13 +1313,22 @@ export default function Admin() {
                           {hack.description && <p className="text-xs text-muted-foreground mt-1">{hack.description}</p>}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-xs">{hack.status}</Badge>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditHackathon(hack)}>
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => handleDeleteHackathon(hack.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          <Badge variant="outline" className={!hack.is_active ? "text-xs bg-muted text-muted-foreground" : "text-xs"}>{!hack.is_active ? "Archived" : hack.status}</Badge>
+                          {hack.is_active && (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditHackathon(hack)}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await archiveHackathonMutation.mutateAsync(hack.id); toast({ title: "Hackathon Archived" }); }}>
+                                Archive
+                              </Button>
+                            </>
+                          )}
+                          {!hack.is_active && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await unarchiveHackathonMutation.mutateAsync(hack.id); toast({ title: "Hackathon Unarchived" }); }}>
+                              Unarchive
+                            </Button>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
@@ -1490,20 +1516,21 @@ export default function Admin() {
                     const isEnded = r.status === "ended";
                     const winner = r.winner as any;
                     return (
-                      <Card key={r.id} className="gradient-card border-border/50 p-4">
+                      <Card key={r.id} className={`gradient-card border-border/50 p-4 ${!r.is_active ? "opacity-60" : ""}`}>
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <h4 className="font-medium text-foreground">{r.title}</h4>
                             {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
                           </div>
                           <div className="flex items-center gap-1">
-                            <Badge variant="outline" className={isEnded ? "text-xs bg-muted" : "text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}>{isEnded ? "Ended" : "Active"}</Badge>
-                            {!isEnded && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={async () => {
-                                await deleteRaffleMutation.mutateAsync(r.id);
-                                toast({ title: "Raffle deleted" });
-                              }}>
-                                <Trash2 className="w-3 h-3" />
+                            <Badge variant="outline" className={!r.is_active ? "text-xs bg-muted text-muted-foreground" : isEnded ? "text-xs bg-muted" : "text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}>{!r.is_active ? "Archived" : isEnded ? "Ended" : "Active"}</Badge>
+                            {r.is_active ? (
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await deleteRaffleMutation.mutateAsync(r.id); toast({ title: "Raffle Archived" }); }}>
+                                Archive
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await unarchiveRaffleMutation.mutateAsync(r.id); toast({ title: "Raffle Unarchived" }); }}>
+                                Unarchive
                               </Button>
                             )}
                           </div>
