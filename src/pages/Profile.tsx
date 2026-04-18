@@ -46,6 +46,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const claimLevelMutation = useClaimLevelReward();
   const { data: claimedStreakBonuses = [] } = useStreakBonusesClaimed();
   const claimStreakMutation = useClaimStreakBonus();
+  const streak = dbUser?.streak ?? 0;
   // Streak milestones user has reached but not claimed
   const unclaimedStreakMilestones = (() => {
     const milestones: number[] = [];
@@ -74,7 +75,6 @@ export default function Profile({ onTabChange }: ProfileProps) {
 
   const balance = dbUser?.balance ?? 0;
   const totalEarned = dbUser?.total_earned ?? 0;
-  const streak = dbUser?.streak ?? 0;
   const status = dbUser?.status ?? "Bronze";
   const isAdmin = dbUser?.is_admin ?? false;
   const memberSince = dbUser?.created_at
