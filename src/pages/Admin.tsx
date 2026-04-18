@@ -908,14 +908,23 @@ export default function Admin() {
                                   Reopen
                                 </Button>
                               ) : (
-                                <Button size="sm" variant="outline" className="h-7 text-xs border-red-500/30 text-red-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "ended" }); toast({ title: "Activity Ended", description: "Shows as ended for users" }); }}>
+                                <Button size="sm" variant="outline" className="h-7 text-xs border-red-500/30 text-red-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "ended" }); toast({ title: "Activity Ended" }); }}>
                                   End
                                 </Button>
                               )}
-                              <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived", description: "Hidden from users but data preserved" }); }}>
-                                Archive
-                              </Button>
                             </>
+                          )}
+                          {act.is_active ? (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived" }); }}>
+                              Archive
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => {
+                              const { error } = await supabase.from("activities").update({ is_active: true }).eq("id", act.id);
+                              if (!error) { queryClient.invalidateQueries({ queryKey: ["admin_activities"] }); queryClient.invalidateQueries({ queryKey: ["activities"] }); toast({ title: "Activity Unarchived" }); }
+                            }}>
+                              Unarchive
+                            </Button>
                           )}
                         </div>
                       </div>
