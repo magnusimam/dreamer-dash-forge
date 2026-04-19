@@ -237,7 +237,7 @@ export default function Community() {
             </div>
           )}
         </>
-      ) : (
+      ) : activeTab === "stats" ? (
         <>
           {/* Top 3 Most Engaged */}
           {topEngaged.length > 0 && (
@@ -313,7 +313,7 @@ export default function Community() {
             })}
           </div>
         </>
-      )}
+      ) : null}
 
       {activeTab === "givers" && (
         <>
