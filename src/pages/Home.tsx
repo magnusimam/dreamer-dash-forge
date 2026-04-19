@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats, useTransferDR } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats, useTransferDR, useRestoreStreak, getStreakRestoreCost } from "@/hooks/useSupabase";
 import UserProfileModal from "@/components/UserProfileModal";
 import DreamPairCard from "@/components/DreamPairCard";
 import { useTelegram } from "@/contexts/TelegramContext";
@@ -59,6 +59,7 @@ export default function Home({ onTabChange }: HomeProps) {
   const { data: featuredDreamer } = useFeaturedDreamer();
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
   const transferMutation = useTransferDR();
+  const restoreStreakMutation = useRestoreStreak();
   const [showConvoGift, setShowConvoGift] = useState(false);
   const [convoGiftAmount, setConvoGiftAmount] = useState("");
   const [convoGiftRecipient, setConvoGiftRecipient] = useState<string | null>(null);
@@ -175,6 +176,53 @@ export default function Home({ onTabChange }: HomeProps) {
           )}
         </div>
       </motion.div>
+
+      {/* Streak Restore Banner */}
+      {streak > 0 && daysSinceCheckin !== null && daysSinceCheckin > 1 && daysSinceCheckin <= 3 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
+          <Card className="border-red-500/30 bg-red-500/10 p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center shrink-0">
+                <Flame className="w-5 h-5 text-red-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-400">Streak Lost!</p>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Your {streak}-day streak broke. Restore it for <span className="text-primary font-semibold">{getStreakRestoreCost(streak).toLocaleString()} DR</span> before it's too late!
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-red-500 hover:bg-red-600 text-white h-8 text-xs"
+                    disabled={restoreStreakMutation.isPending || balance < getStreakRestoreCost(streak)}
+                    onClick={async () => {
+                      try {
+                        const result = await restoreStreakMutation.mutateAsync();
+                        if (result?.success) {
+                          hapticNotification("success");
+                          toast({ title: "Streak Restored!", description: `Your ${result.streak}-day streak is back! Cost: ${result.cost} DR. Check in now!` });
+                        } else {
+                          hapticNotification("error");
+                          toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                        }
+                      } catch (err: any) {
+                        hapticNotification("error");
+                        toast({ title: "Error", description: err?.message, variant: "destructive" });
+                      }
+                    }}
+                  >
+                    {restoreStreakMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Flame className="w-3 h-3 mr-1" />}
+                    Restore for {getStreakRestoreCost(streak).toLocaleString()} DR
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground self-center">
+                    {daysSinceCheckin <= 2 ? "24h left" : "Expires soon!"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Inactivity Warning */}
       {daysSinceCheckin !== null && daysSinceCheckin >= 5 && (
