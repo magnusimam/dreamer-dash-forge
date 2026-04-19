@@ -506,6 +506,10 @@ export function useMyPair() {
         i_rated: data.user1_id === dbUser.id ? data.rating_from_1 !== null : data.rating_from_2 !== null,
         rating_i_received: data.user1_id === dbUser.id ? data.rating_from_2 : data.rating_from_1,
         partner_rated_me: data.user1_id === dbUser.id ? data.rating_from_2 !== null : data.rating_from_1 !== null,
+        extension_requested_by: data.extension_requested_by,
+        extension_status: data.extension_status,
+        i_requested_extension: data.extension_requested_by === dbUser.id,
+        partner_requested_extension: data.extension_requested_by !== null && data.extension_requested_by !== dbUser.id,
       };
     },
     enabled: !!dbUser,
@@ -563,24 +567,45 @@ export function useRatePair() {
   });
 }
 
-export function useKeepPair() {
+export function useRequestPairExtension() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pairId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("request_pair_extension", { p_user_id: dbUser.id, p_pair_id: pairId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my_pair"] }); },
+  });
+}
+
+export function useAcceptPairExtension() {
   const { dbUser, refreshUser } = useUser();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (pairId: string) => {
       if (!dbUser) throw new Error("Not logged in");
-      const { data, error } = await supabase.rpc("keep_pair", {
-        p_user_id: dbUser.id,
-        p_pair_id: pairId,
-      });
+      const { data, error } = await supabase.rpc("accept_pair_extension", { p_user_id: dbUser.id, p_pair_id: pairId });
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      refreshUser();
-      queryClient.invalidateQueries({ queryKey: ["my_pair"] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    onSuccess: () => { refreshUser(); queryClient.invalidateQueries({ queryKey: ["my_pair"] }); queryClient.invalidateQueries({ queryKey: ["transactions"] }); },
+  });
+}
+
+export function useDenyPairExtension() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pairId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("deny_pair_extension", { p_user_id: dbUser.id, p_pair_id: pairId });
+      if (error) throw error;
+      return data;
     },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my_pair"] }); },
   });
 }
 
