@@ -13,7 +13,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel, useLevelRewardsClaimed, useClaimLevelReward, getLevelReward, useStreakBonusesClaimed, useClaimStreakBonus, getStreakReward } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel, useLevelRewardsClaimed, useClaimLevelReward, getLevelReward, useStreakBonusesClaimed, useClaimStreakBonus, getStreakReward, useUserPairRating } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -42,6 +42,7 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const myLevel = myEngagement ? getDreamerLevel(myEngagement.engagement) : null;
   const { data: referralCount } = useUserReferralCount();
   const { data: referredBy } = useReferredBy();
+  const { data: myPairRating } = useUserPairRating(dbUser?.id || null);
   const { data: claimedLevels = [] } = useLevelRewardsClaimed();
   const claimLevelMutation = useClaimLevelReward();
   const { data: claimedStreakBonuses = [] } = useStreakBonusesClaimed();
@@ -162,6 +163,16 @@ export default function Profile({ onTabChange }: ProfileProps) {
                     <div className="h-full bg-primary rounded-full" style={{ width: `${myLevel.progress}%` }} />
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{myLevel.currentXP} / {myLevel.nextXP} XP</p>
+                </div>
+              )}
+              {myPairRating && myPairRating.count > 0 && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star key={n} className={`w-3 h-3 ${n <= Math.round(myPairRating.avg) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{myPairRating.avg}/5 ({myPairRating.count})</span>
                 </div>
               )}
             </div>

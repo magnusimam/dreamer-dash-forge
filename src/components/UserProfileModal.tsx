@@ -4,8 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useUserProfile, isUserOnline, useCommunityStats, getDreamerLevel } from "@/hooks/useSupabase";
-import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { useUserProfile, isUserOnline, useCommunityStats, getDreamerLevel, useUserPairRating } from "@/hooks/useSupabase";
+import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award, Eye, EyeOff, Copy, Check, Star } from "lucide-react";
 
 const achievementIcons: Record<string, string> = {
   star: "⭐", rocket: "🚀", crown: "👑", gem: "💎", flame: "🔥", heart: "❤️", shield: "🛡️",
@@ -61,6 +61,7 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
   const { data: communityStats = [] } = useCommunityStats();
   const userEngagement = communityStats.find((u: any) => u.id === userId);
   const userLevel = userEngagement ? getDreamerLevel(userEngagement.engagement) : null;
+  const { data: pairRating } = useUserPairRating(userId);
 
   if (!userId) return null;
 
@@ -164,6 +165,23 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                   <Coins className="w-3 h-3 text-primary" /> Total earned: {profile.total_earned.toLocaleString()} DR
                 </div>
               </div>
+
+              {/* Pair Rating */}
+              {pairRating && pairRating.count > 0 && (
+                <div className="mb-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-medium text-foreground">Pair Rating</p>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star key={n} className={`w-3 h-3 ${n <= Math.round(pairRating.avg) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{pairRating.avg}/5 ({pairRating.count} review{pairRating.count !== 1 ? "s" : ""})</p>
+                  </div>
+                </div>
+              )}
 
               {/* Bank Details */}
               {profile.bank_name && profile.account_number && (

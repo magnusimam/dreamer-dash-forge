@@ -359,6 +359,8 @@ export function useMyPair() {
         i_am_user1: data.user1_id === dbUser.id,
         my_checked_for_partner: data.user1_id === dbUser.id ? data.user1_checked_for_2 : data.user2_checked_for_1,
         i_rated: data.user1_id === dbUser.id ? data.rating_from_1 !== null : data.rating_from_2 !== null,
+        rating_i_received: data.user1_id === dbUser.id ? data.rating_from_2 : data.rating_from_1,
+        partner_rated_me: data.user1_id === dbUser.id ? data.rating_from_2 !== null : data.rating_from_1 !== null,
       };
     },
     enabled: !!dbUser,
