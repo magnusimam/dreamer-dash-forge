@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useUserProfile, isUserOnline, useCommunityStats, getDreamerLevel, useUserPairRating } from "@/hooks/useSupabase";
+import { useUserProfile, isUserOnline, formatLastSeen, useCommunityStats, getDreamerLevel, useUserPairRating } from "@/hooks/useSupabase";
 import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award, Eye, EyeOff, Copy, Check, Star } from "lucide-react";
 
 const achievementIcons: Record<string, string> = {
@@ -111,7 +111,11 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                   <div className="flex items-center gap-2 mt-1">
                     <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">{profile.status}</Badge>
                     {userLevel && <Badge variant="outline" className="text-[10px]">Lv.{userLevel.level} {userLevel.title}</Badge>}
-                    {isUserOnline(profile.last_active) && <span className="text-[10px] text-emerald-400">Online</span>}
+                    {isUserOnline(profile.last_active) ? (
+                      <span className="text-[10px] text-emerald-400">Online</span>
+                    ) : profile.last_active ? (
+                      <span className="text-[10px] text-muted-foreground">Last seen {formatLastSeen(profile.last_active)}</span>
+                    ) : null}
                   </div>
                   {userLevel && (
                     <div className="mt-1.5">
