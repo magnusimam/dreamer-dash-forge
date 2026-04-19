@@ -108,15 +108,17 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                     {[profile.first_name, profile.last_name].filter(Boolean).join(" ")}
                   </h3>
                   {profile.username && <p className="text-sm text-muted-foreground">@{profile.username}</p>}
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">{profile.status}</Badge>
                     {userLevel && <Badge variant="outline" className="text-[10px]">Lv.{userLevel.level} {userLevel.title}</Badge>}
-                    {isUserOnline(profile.last_active) ? (
-                      <span className="text-[10px] text-emerald-400">Online</span>
-                    ) : profile.last_active ? (
-                      <span className="text-[10px] text-muted-foreground">Last seen {formatLastSeen(profile.last_active)}</span>
-                    ) : null}
                   </div>
+                  <p className="text-[10px] mt-1">
+                    {isUserOnline(profile.last_active) ? (
+                      <span className="text-emerald-400">● Online</span>
+                    ) : profile.last_active ? (
+                      <span className="text-muted-foreground">Last seen {formatLastSeen(profile.last_active)}</span>
+                    ) : null}
+                  </p>
                   {userLevel && (
                     <div className="mt-1.5">
                       <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">

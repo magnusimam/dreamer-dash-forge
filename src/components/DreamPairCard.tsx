@@ -135,10 +135,10 @@ export default function DreamPairCard({ onViewProfile }: Props) {
             </div>
             <p className="text-[10px] text-muted-foreground">{myPair.partner_activities_this_week} activities this week</p>
             {partner?.username && <p className="text-[10px] text-muted-foreground">@{partner.username}</p>}
-            <p className="text-[10px] text-muted-foreground">
-              {partner?.streak || 0} day streak · {partner?.status}
-              {!isUserOnline(partner?.last_active) && partner?.last_active && ` · ${formatLastSeen(partner.last_active)}`}
-            </p>
+            <p className="text-[10px] text-muted-foreground">{partner?.streak || 0} day streak · {partner?.status}</p>
+            {!isUserOnline(partner?.last_active) && partner?.last_active && (
+              <p className="text-[10px] text-muted-foreground/60">Last seen {formatLastSeen(partner.last_active)}</p>
+            )}
           </div>
         </button>
 
