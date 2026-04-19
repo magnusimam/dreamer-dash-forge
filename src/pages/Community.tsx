@@ -102,11 +102,11 @@ export default function Community() {
                 <p className="text-xs text-muted-foreground">{mvpData.current.engagement_points} engagement pts</p>
               </div>
             </div>
-            {mvpData.history.length > 1 && (
+            {mvpData.history.length > 0 && (
               <div className="mt-3 pt-2 border-t border-border/30">
                 <p className="text-[10px] text-muted-foreground mb-1">Hall of Fame</p>
                 <div className="flex gap-2">
-                  {mvpData.history.slice(1).map((m: any) => (
+                  {mvpData.history.map((m: any) => (
                     <button key={m.id} className="relative" onClick={() => setViewProfileUserId(m.user_id)}>
                       <Avatar className="w-7 h-7">
                         <AvatarImage src={m.user?.photo_url} />
