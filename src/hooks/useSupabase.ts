@@ -36,6 +36,29 @@ export function isUserOnline(lastActive: string | null): boolean {
   return new Date(lastActive).getTime() > fiveMinutesAgo;
 }
 
+export function formatLastSeen(lastActive: string | null): string {
+  if (!lastActive) return "never";
+  const now = Date.now();
+  const last = new Date(lastActive).getTime();
+  const diff = now - last;
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) {
+    const time = new Date(lastActive).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return `today at ${time}`;
+  }
+  if (days === 1) {
+    const time = new Date(lastActive).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return `yesterday at ${time}`;
+  }
+  if (days < 7) return `${days}d ago`;
+  return new Date(lastActive).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 // ============================================================
 // LEVEL SYSTEM
 // ============================================================

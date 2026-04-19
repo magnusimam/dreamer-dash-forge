@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useMyPair, useIsInQueue, useJoinPairQueue, useRatePair, useRequestPairExtension, useAcceptPairExtension, useDenyPairExtension, useCheckinForPair, isUserOnline } from "@/hooks/useSupabase";
+import { useMyPair, useIsInQueue, useJoinPairQueue, useRatePair, useRequestPairExtension, useAcceptPairExtension, useDenyPairExtension, useCheckinForPair, isUserOnline, formatLastSeen } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { Heart, Star, X, Loader2, CheckCircle, UserPlus, Bell, Clock } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
@@ -135,7 +135,10 @@ export default function DreamPairCard({ onViewProfile }: Props) {
             </div>
             <p className="text-[10px] text-muted-foreground">{myPair.partner_activities_this_week} activities this week</p>
             {partner?.username && <p className="text-[10px] text-muted-foreground">@{partner.username}</p>}
-            <p className="text-[10px] text-muted-foreground">{partner?.streak || 0} day streak · {partner?.status}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {partner?.streak || 0} day streak · {partner?.status}
+              {!isUserOnline(partner?.last_active) && partner?.last_active && ` · ${formatLastSeen(partner.last_active)}`}
+            </p>
           </div>
         </button>
 
