@@ -553,24 +553,19 @@ export function useWeeklyMVP() {
 
       const current = allMvps[0];
 
-      // Build history: only add a user when a DIFFERENT user replaced them
+      // History: all past MVPs whose user_id differs from current, deduplicated
+      const seenUsers = new Set<string>();
       const history: any[] = [];
-      let lastUserId = current.user_id;
       for (let i = 1; i < allMvps.length; i++) {
         const mvp = allMvps[i];
-        // This person was MVP before the current streak — they're in history
-        if (mvp.user_id !== lastUserId) {
-          // Only add if not already in history
-          if (!history.find((h) => h.user_id === mvp.user_id)) {
-            history.push(mvp);
-          }
-          lastUserId = mvp.user_id;
+        if (mvp.user_id !== current.user_id && !seenUsers.has(mvp.user_id)) {
+          seenUsers.add(mvp.user_id);
+          history.push(mvp);
         }
       }
 
       // Batch fetch users
-      const allUserIds = [current.user_id, ...history.map((m: any) => m.user_id)];
-      const uniqueIds = [...new Set(allUserIds)];
+      const uniqueIds = [...new Set([current.user_id, ...history.map((m: any) => m.user_id)])];
       const { data: users } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", uniqueIds);
       const userMap: Record<string, any> = {};
       (users || []).forEach((u: any) => { userMap[u.id] = u; });
