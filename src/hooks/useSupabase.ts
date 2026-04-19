@@ -543,36 +543,34 @@ export function useWeeklyMVP() {
   return useQuery({
     queryKey: ["weekly_mvp"],
     queryFn: async () => {
-      // Get current week's MVP
-      const { data: current } = await supabase
+      // Get all MVPs ordered by most recent
+      const { data: allMvps } = await supabase
         .from("weekly_mvps")
         .select("*")
         .order("week_start", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(10);
 
-      // Get past MVPs for hall of fame
-      const { data: pastMvps } = await supabase
-        .from("weekly_mvps")
-        .select("*")
-        .order("week_start", { ascending: false })
-        .limit(5);
+      if (!allMvps || allMvps.length === 0) return { current: null, history: [] };
 
-      // Fetch user details
-      const withUsers = await Promise.all(
-        (pastMvps || []).map(async (m: any) => {
-          const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", m.user_id).maybeSingle();
-          return { ...m, user };
-        })
-      );
+      const current = allMvps[0];
+      // Past = exclude current, deduplicate by user_id
+      const seenUsers = new Set<string>([current.user_id]);
+      const pastUnique = allMvps.slice(1).filter((m: any) => {
+        if (seenUsers.has(m.user_id)) return false;
+        seenUsers.add(m.user_id);
+        return true;
+      }).slice(0, 4);
 
-      let currentUser = null;
-      if (current) {
-        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", current.user_id).maybeSingle();
-        currentUser = { ...current, user };
-      }
+      // Batch fetch all user IDs
+      const allUserIds = [current.user_id, ...pastUnique.map((m: any) => m.user_id)];
+      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", allUserIds);
+      const userMap: Record<string, any> = {};
+      (users || []).forEach((u: any) => { userMap[u.id] = u; });
 
-      return { current: currentUser, history: withUsers };
+      return {
+        current: { ...current, user: userMap[current.user_id] },
+        history: pastUnique.map((m: any) => ({ ...m, user: userMap[m.user_id] })),
+      };
     },
   });
 }
