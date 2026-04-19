@@ -105,6 +105,35 @@ export function useClaimStreakBonus() {
   });
 }
 
+export function useRestoreStreak() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("restore_streak", {
+        p_user_id: dbUser.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["checkin_today"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function getStreakRestoreCost(streak: number): number {
+  if (streak >= 90) return 5000;
+  if (streak >= 61) return 2000;
+  if (streak >= 31) return 1000;
+  if (streak >= 15) return 500;
+  if (streak >= 8) return 250;
+  return 100;
+}
+
 // ============================================================
 // MAGIC BOXES
 // ============================================================
