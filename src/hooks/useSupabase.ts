@@ -798,6 +798,11 @@ export function useCommunityMilestones() {
       const { count: totalTransfers } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("type", "transfer_out");
       const { count: totalMissions } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("status", "approved");
       const { count: totalRaffles } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true });
+      const { count: totalContributions } = await supabase.from("support_contributions").select("*", { count: "exact", head: true }).eq("status", "approved");
+
+      // Get total Naira contributed
+      const { data: contribData } = await supabase.from("support_contributions").select("amount").eq("status", "approved");
+      const totalNaira = (contribData || []).reduce((sum: number, c: any) => sum + c.amount, 0);
 
       return {
         users: { current: totalUsers ?? 0, target: Math.ceil((totalUsers ?? 0) / 50) * 50 || 50 },
@@ -806,6 +811,8 @@ export function useCommunityMilestones() {
         transfers: { current: totalTransfers ?? 0, target: Math.ceil((totalTransfers ?? 0) / 100) * 100 || 100 },
         missions: { current: totalMissions ?? 0, target: Math.ceil((totalMissions ?? 0) / 50) * 50 || 50 },
         raffles: { current: totalRaffles ?? 0, target: Math.ceil((totalRaffles ?? 0) / 100) * 100 || 100 },
+        contributions: { current: totalContributions ?? 0, target: Math.ceil((totalContributions ?? 0) / 50) * 50 || 50 },
+        naira_raised: { current: totalNaira, target: Math.ceil(totalNaira / 100000) * 100000 || 100000 },
       };
     },
   });

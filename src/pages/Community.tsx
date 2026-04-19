@@ -139,6 +139,8 @@ export default function Community() {
               <MilestoneBar label="Transfers" current={milestones.transfers.current} target={milestones.transfers.target} icon={Send} />
               <MilestoneBar label="Missions" current={milestones.missions.current} target={milestones.missions.target} icon={Target} />
               <MilestoneBar label="Raffle Entries" current={milestones.raffles.current} target={milestones.raffles.target} icon={Ticket} />
+              <MilestoneBar label="Contributions" current={milestones.contributions.current} target={milestones.contributions.target} icon={Heart} />
+              <MilestoneBar label="Naira Raised" current={milestones.naira_raised.current} target={milestones.naira_raised.target} icon={Heart} />
             </div>
           </Card>
         </motion.div>
