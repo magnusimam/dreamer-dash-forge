@@ -31,6 +31,11 @@ import {
   useAllRafflesAdmin,
   useAllHackathonsAdmin,
   useMagicBoxParticipants,
+  useCreateSupportCampaign,
+  useAllSupportCampaignsAdmin,
+  usePendingContributions,
+  useApproveContribution,
+  useRejectContribution,
   useRedemptionRequests,
   useProcessRedemption,
   useAllUsers,
@@ -100,6 +105,7 @@ import {
   Sparkles,
   Target,
   Lock,
+  Heart,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -284,6 +290,11 @@ export default function Admin() {
   const { data: allMissions = [] } = useAllMissionsAdmin();
   const { data: pendingMissionSubs = [] } = usePendingMissionSubmissions();
   const { data: adminMagicBoxes = [] } = useAllMagicBoxesAdmin();
+  const { data: adminSupportCampaigns = [] } = useAllSupportCampaignsAdmin();
+  const { data: pendingContributions = [] } = usePendingContributions();
+  const createSupportCampaignMutation = useCreateSupportCampaign();
+  const approveContributionMutation = useApproveContribution();
+  const rejectContributionMutation = useRejectContribution();
   const createMagicBoxMutation = useCreateMagicBox();
   const approveMissionMutation = useApproveMissionSubmission();
   const rejectMissionMutation = useRejectMissionSubmission();
@@ -327,6 +338,17 @@ export default function Admin() {
   const [mbUserSuggestions, setMbUserSuggestions] = useState<any[]>([]);
   const [mbShowSuggestions, setMbShowSuggestions] = useState(false);
   const [viewingBoxParticipants, setViewingBoxParticipants] = useState<string | null>(null);
+
+  // Support campaign form
+  const [scTitle, setScTitle] = useState("");
+  const [scDesc, setScDesc] = useState("");
+  const [scBeneficiary, setScBeneficiary] = useState("");
+  const [scTarget, setScTarget] = useState("");
+  const [scBankName, setScBankName] = useState("");
+  const [scAccNum, setScAccNum] = useState("");
+  const [scAccName, setScAccName] = useState("");
+  const [scDrReward, setScDrReward] = useState("50");
+  const [scXpReward, setScXpReward] = useState("1");
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
   const deleteUserMutation = useDeleteUser();
@@ -828,6 +850,7 @@ export default function Admin() {
             <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="magicbox" className="text-xs px-3">Magic Box</TabsTrigger>}
+            <TabsTrigger value="support" className="text-xs px-3">Support</TabsTrigger>
             <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>
             <TabsTrigger value="redemptions" className="relative text-xs px-3">
               Redeem
@@ -1298,6 +1321,117 @@ export default function Admin() {
                       {viewingBoxParticipants === b.id && (
                         <MagicBoxParticipantsList boxId={b.id} />
                       )}
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== SUPPORT TAB ========== */}
+        <TabsContent value="support">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* Create Campaign */}
+            <Card className="gradient-card border-border/50 p-5 mb-4">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Heart className="w-4 h-4 text-green-400" /> Create Support Campaign
+              </h3>
+              <div className="space-y-3">
+                <Input placeholder="Campaign title" value={scTitle} onChange={(e) => setScTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
+                <Textarea placeholder="Description" value={scDesc} onChange={(e) => setScDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
+                <Input placeholder="Beneficiary name" value={scBeneficiary} onChange={(e) => setScBeneficiary(e.target.value)} className="bg-secondary border-border" />
+                <Input type="number" placeholder="Target amount in Naira (e.g. 150000)" value={scTarget} onChange={(e) => setScTarget(e.target.value)} className="bg-secondary border-border" />
+                <div className="grid grid-cols-3 gap-2">
+                  <Input placeholder="Bank name" value={scBankName} onChange={(e) => setScBankName(e.target.value)} className="bg-secondary border-border text-xs" />
+                  <Input placeholder="Account #" value={scAccNum} onChange={(e) => setScAccNum(e.target.value)} className="bg-secondary border-border text-xs" />
+                  <Input placeholder="Account name" value={scAccName} onChange={(e) => setScAccName(e.target.value)} className="bg-secondary border-border text-xs" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-muted-foreground mb-1 block">DR per ₦1,000</label><Input type="number" value={scDrReward} onChange={(e) => setScDrReward(e.target.value)} className="bg-secondary border-border" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">XP per ₦1,000</label><Input type="number" value={scXpReward} onChange={(e) => setScXpReward(e.target.value)} className="bg-secondary border-border" /></div>
+                </div>
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={!scTitle || !scBeneficiary || !scTarget || createSupportCampaignMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      await createSupportCampaignMutation.mutateAsync({
+                        title: scTitle, description: scDesc || undefined, beneficiary_name: scBeneficiary,
+                        target_amount: parseInt(scTarget), bank_name: scBankName || undefined,
+                        account_number: scAccNum || undefined, account_name: scAccName || undefined,
+                        dr_reward_per_1000: parseInt(scDrReward) || 50, xp_reward_per_1000: parseInt(scXpReward) || 1,
+                      });
+                      toast({ title: "Campaign Created!", description: scTitle });
+                      setScTitle(""); setScDesc(""); setScBeneficiary(""); setScTarget(""); setScBankName(""); setScAccNum(""); setScAccName("");
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message, variant: "destructive" });
+                    }
+                  }}>
+                  {createSupportCampaignMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Heart className="w-4 h-4 mr-2" />}
+                  Create Campaign
+                </Button>
+              </div>
+            </Card>
+
+            {/* Pending Contributions */}
+            {pendingContributions.length > 0 && (
+              <Card className="border-orange-500/20 bg-orange-500/5 p-5 mb-4">
+                <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-400" /> Pending Contributions ({pendingContributions.length})
+                </h3>
+                <div className="space-y-3">
+                  {pendingContributions.map((c: any) => (
+                    <div key={c.id} className="bg-secondary/50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-foreground">{c.user?.first_name} {c.user?.last_name || ""}</p>
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">₦{c.amount.toLocaleString()}</Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mb-2">{c.campaign?.title}</p>
+                      {c.proof_url && (
+                        <img src={c.proof_url} alt="Proof" className="w-full h-32 object-cover rounded-lg border border-border mb-2 cursor-pointer" onClick={() => window.open(c.proof_url, "_blank")} />
+                      )}
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={approveContributionMutation.isPending}
+                          onClick={async () => {
+                            const result = await approveContributionMutation.mutateAsync(c.id);
+                            if (result?.success) {
+                              toast({ title: "Approved!", description: `+${result.dr_reward} DR + ${result.xp_reward} XP` });
+                              if (c.user?.telegram_id) {
+                                notifyUser(c.user.telegram_id, `✅ <b>Contribution Approved!</b>\n\nYour ₦${c.amount.toLocaleString()} contribution to <b>${result.campaign}</b> has been verified.\n\n+${result.dr_reward} DR + ${result.xp_reward} XP earned! 🎉`);
+                              }
+                            }
+                          }}>
+                          <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 border-destructive/30 text-destructive" disabled={rejectContributionMutation.isPending}
+                          onClick={async () => {
+                            await rejectContributionMutation.mutateAsync(c.id);
+                            toast({ title: "Rejected" });
+                            if (c.user?.telegram_id) {
+                              notifyUser(c.user.telegram_id, `❌ <b>Contribution Rejected</b>\n\nYour contribution proof was not accepted. Please resubmit.`);
+                            }
+                          }}>
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Campaign List */}
+            {adminSupportCampaigns.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Campaigns ({adminSupportCampaigns.length})</h3>
+                <div className="space-y-3">
+                  {adminSupportCampaigns.map((c: any) => (
+                    <Card key={c.id} className={`gradient-card border-border/50 p-4 ${!c.is_active ? "opacity-60" : ""}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-medium text-foreground">{c.title}</h4>
+                        <Badge className={c.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>{c.is_active ? "Active" : "Archived"}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">For: {c.beneficiary_name} · Target: ₦{c.target_amount.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{c.dr_reward_per_1000} DR + {c.xp_reward_per_1000} XP per ₦1,000</p>
                     </Card>
                   ))}
                 </div>
