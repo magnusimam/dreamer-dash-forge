@@ -137,6 +137,21 @@ export default function DreamPairCard({ onViewProfile }: Props) {
           </div>
         </button>
 
+        {/* Show rating received from partner */}
+        {myPair.partner_rated_me && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-foreground font-medium">{partner?.first_name} rated you:</span>
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} className={`w-3.5 h-3.5 ${n <= (myPair.rating_i_received || 0) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                ))}
+              </div>
+            </div>
+            <span className="text-xs text-primary font-medium">+{(myPair.rating_i_received || 0) * 10} DR</span>
+          </div>
+        )}
+
         {weekEndedForRating ? (
           <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => setShowRating(true)}>
             <Star className="w-4 h-4 mr-2" /> Rate Your Partner
