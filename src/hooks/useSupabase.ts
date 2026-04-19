@@ -48,11 +48,11 @@ export function formatLastSeen(lastActive: string | null): string {
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   if (hours < 24) {
-    const time = new Date(lastActive).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    const time = new Date(lastActive).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
     return `today at ${time}`;
   }
   if (days === 1) {
-    const time = new Date(lastActive).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    const time = new Date(lastActive).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
     return `yesterday at ${time}`;
   }
   if (days < 7) return `${days}d ago`;
