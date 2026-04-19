@@ -174,14 +174,14 @@ export default function Community() {
       )}
 
       {/* Toggle */}
-      <div className="flex gap-2 mb-4">
-        <Button size="sm" variant={activeTab === "gifts" ? "default" : "outline"} className={activeTab === "gifts" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setActiveTab("gifts")}>
-          <Gift className="w-3.5 h-3.5 mr-1.5" /> Activity Feed
+      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide -mx-4 px-4">
+        <Button size="sm" variant={activeTab === "gifts" ? "default" : "outline"} className={`${activeTab === "gifts" ? "bg-primary text-primary-foreground" : "border-border"} shrink-0`} onClick={() => setActiveTab("gifts")}>
+          <Gift className="w-3.5 h-3.5 mr-1.5" /> Feed
         </Button>
-        <Button size="sm" variant={activeTab === "stats" ? "default" : "outline"} className={activeTab === "stats" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setActiveTab("stats")}>
+        <Button size="sm" variant={activeTab === "stats" ? "default" : "outline"} className={`${activeTab === "stats" ? "bg-primary text-primary-foreground" : "border-border"} shrink-0`} onClick={() => setActiveTab("stats")}>
           <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Engagement
         </Button>
-        <Button size="sm" variant={activeTab === "givers" ? "default" : "outline"} className={activeTab === "givers" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setActiveTab("givers")}>
+        <Button size="sm" variant={activeTab === "givers" ? "default" : "outline"} className={`${activeTab === "givers" ? "bg-primary text-primary-foreground" : "border-border"} shrink-0`} onClick={() => setActiveTab("givers")}>
           <Heart className="w-3.5 h-3.5 mr-1.5" /> Givers
         </Button>
       </div>
@@ -317,11 +317,11 @@ export default function Community() {
 
       {activeTab === "givers" && (
         <>
-          {contributionLB.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No contributions yet. Be the first to support a Dreamer!</p>
-          ) : (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Heart className="w-4 h-4 text-green-400" /> Top Givers</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Heart className="w-4 h-4 text-green-400" /> Community Support</h3>
+
+          {/* Users who have contributed — ranked by amount */}
+          {contributionLB.length > 0 && (
+            <div className="space-y-2 mb-4">
               {contributionLB.map((entry: any, i: number) => (
                 <Card key={entry.user_id} className={`border-border/50 p-3 ${i === 0 ? "border-green-500/30 bg-green-500/5" : "gradient-card"}`}>
                   <div className="flex items-center gap-3">
@@ -338,6 +338,32 @@ export default function Community() {
                       <p className="text-[10px] text-muted-foreground">{entry.count} contribution{entry.count !== 1 ? "s" : ""}</p>
                     </div>
                     <p className="text-sm font-bold text-green-400">₦{entry.amount.toLocaleString()}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* All other users who haven't contributed */}
+          {communityStats.filter((u: any) => !contributionLB.find((c: any) => c.user_id === u.id)).length > 0 && (
+            <div className="space-y-2">
+              {contributionLB.length > 0 && <p className="text-xs text-muted-foreground mb-2">Not yet contributed</p>}
+              {communityStats.filter((u: any) => !contributionLB.find((c: any) => c.user_id === u.id)).map((u: any) => (
+                <Card key={u.id} className="gradient-card border-border/50 p-3 opacity-60">
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 text-center text-xs font-bold text-muted-foreground">—</span>
+                    <button className="relative shrink-0" onClick={() => setViewProfileUserId(u.id)}>
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={u.photo_url} />
+                        <AvatarFallback className="text-xs">{[u.first_name?.[0], u.last_name?.[0]].filter(Boolean).join("")}</AvatarFallback>
+                      </Avatar>
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${isUserOnline(u.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{[u.first_name, u.last_name].filter(Boolean).join(" ")}</p>
+                      <p className="text-[10px] text-muted-foreground">0 contributions</p>
+                    </div>
+                    <p className="text-sm font-bold text-muted-foreground">₦0</p>
                   </div>
                 </Card>
               ))}
