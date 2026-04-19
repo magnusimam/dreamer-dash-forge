@@ -4,10 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useGiftWall, useCommunityStats, useCommunityMilestones, useWeeklyMVP, useLiveTicker, isUserOnline, getDreamerLevel } from "@/hooks/useSupabase";
+import { useGiftWall, useCommunityStats, useCommunityMilestones, useWeeklyMVP, useLiveTicker, isUserOnline, getDreamerLevel, useContributionLeaderboard } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import UserProfileModal from "@/components/UserProfileModal";
-import { Gift, Trophy, Target, Ticket, ClipboardList, Flame, Loader2, Crown, TrendingUp, CheckCircle, Send, BookOpen, Rocket, Users, Zap } from "lucide-react";
+import { Gift, Trophy, Target, Ticket, ClipboardList, Flame, Loader2, Crown, TrendingUp, CheckCircle, Send, BookOpen, Rocket, Users, Zap, Heart } from "lucide-react";
 
 function LiveTicker({ items }: { items: { text: string; id: string }[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -68,8 +68,9 @@ export default function Community() {
   const { data: milestones } = useCommunityMilestones();
   const { data: mvpData } = useWeeklyMVP();
   const { data: tickerItems = [] } = useLiveTicker();
+  const { data: contributionLB = [] } = useContributionLeaderboard();
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"gifts" | "stats">("gifts");
+  const [activeTab, setActiveTab] = useState<"gifts" | "stats" | "givers">("gifts");
 
   const isLoading = giftsLoading || statsLoading;
   const topEngaged = communityStats.slice(0, 3);
@@ -179,6 +180,9 @@ export default function Community() {
         </Button>
         <Button size="sm" variant={activeTab === "stats" ? "default" : "outline"} className={activeTab === "stats" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setActiveTab("stats")}>
           <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Engagement
+        </Button>
+        <Button size="sm" variant={activeTab === "givers" ? "default" : "outline"} className={activeTab === "givers" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setActiveTab("givers")}>
+          <Heart className="w-3.5 h-3.5 mr-1.5" /> Givers
         </Button>
       </div>
 
@@ -308,6 +312,37 @@ export default function Community() {
               );
             })}
           </div>
+        </>
+      )}
+
+      {activeTab === "givers" && (
+        <>
+          {contributionLB.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No contributions yet. Be the first to support a Dreamer!</p>
+          ) : (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Heart className="w-4 h-4 text-green-400" /> Top Givers</h3>
+              {contributionLB.map((entry: any, i: number) => (
+                <Card key={entry.user_id} className={`border-border/50 p-3 ${i === 0 ? "border-green-500/30 bg-green-500/5" : "gradient-card"}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 text-center text-xs font-bold text-muted-foreground">#{i + 1}</span>
+                    <button className="relative shrink-0" onClick={() => setViewProfileUserId(entry.user_id)}>
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={entry.user?.photo_url} />
+                        <AvatarFallback className="text-xs">{[entry.user?.first_name?.[0], entry.user?.last_name?.[0]].filter(Boolean).join("")}</AvatarFallback>
+                      </Avatar>
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${isUserOnline(entry.user?.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{[entry.user?.first_name, entry.user?.last_name].filter(Boolean).join(" ")}</p>
+                      <p className="text-[10px] text-muted-foreground">{entry.count} contribution{entry.count !== 1 ? "s" : ""}</p>
+                    </div>
+                    <p className="text-sm font-bold text-green-400">₦{entry.amount.toLocaleString()}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </>
       )}
 

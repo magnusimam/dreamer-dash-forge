@@ -22,6 +22,8 @@ import {
   useClaimPromoCode,
   useMagicBoxes,
   useUserBoxEntries,
+  useSupportCampaigns,
+  useSubmitContribution,
 } from "@/hooks/useSupabase";
 import MagicBoxComponent from "@/components/MagicBox";
 import {
@@ -38,6 +40,8 @@ import {
   Target,
   BookOpen,
   Gift,
+  Heart,
+  Copy,
 } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
@@ -55,6 +59,7 @@ const categoryColors: Record<string, string> = {
   outreach: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   promo: "bg-pink-500/20 text-pink-400 border-pink-500/30",
   task: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  support: "bg-green-500/20 text-green-400 border-green-500/30",
 };
 
 export default function ActivityLog() {
@@ -76,6 +81,12 @@ export default function ActivityLog() {
   const claimPromoMutation = useClaimPromoCode();
   const { data: magicBoxes = [] } = useMagicBoxes();
   const { data: myBoxEntries = {} } = useUserBoxEntries();
+  const { data: supportCampaigns = [] } = useSupportCampaigns();
+  const submitContributionMutation = useSubmitContribution();
+  const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
+  const [contribAmount, setContribAmount] = useState("");
+  const [contribProofFile, setContribProofFile] = useState<File | null>(null);
+  const [contribUploading, setContribUploading] = useState(false);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const { data: promoClaimCount = 0 } = useQuery({
@@ -553,6 +564,114 @@ export default function ActivityLog() {
         )}
       </AnimatePresence>
 
+      {/* Community Support */}
+      {(categoryFilter === "all" || categoryFilter === "support") && supportCampaigns.filter((c: any) => c.status === "active").length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Heart className="w-5 h-5 text-green-400" /> Community Support
+          </h2>
+          <div className="space-y-3">
+            {supportCampaigns.filter((c: any) => c.status === "active").map((campaign: any) => {
+              const progress = Math.min((campaign.total_raised / campaign.target_amount) * 100, 100);
+              return (
+                <Card key={campaign.id} className="gradient-card border-green-500/20 p-4">
+                  <h3 className="font-semibold text-foreground text-sm mb-1">{campaign.title}</h3>
+                  {campaign.description && <p className="text-xs text-muted-foreground mb-2">{campaign.description}</p>}
+
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-muted-foreground">₦{campaign.total_raised.toLocaleString()} raised</span>
+                      <span className="text-foreground font-medium">₦{campaign.target_amount.toLocaleString()} goal</span>
+                    </div>
+                    <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">{campaign.contributor_count} contributor{campaign.contributor_count !== 1 ? "s" : ""}</p>
+                  </div>
+
+                  {campaign.bank_name && (
+                    <div className="bg-secondary/50 rounded-lg p-2 mb-3 text-xs">
+                      <p className="text-foreground font-medium">{campaign.account_name}</p>
+                      <p className="text-muted-foreground">{campaign.bank_name} — {campaign.account_number}</p>
+                      <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px] text-primary" onClick={() => { navigator.clipboard.writeText(`${campaign.account_number}`); toast({ title: "Copied!" }); }}>
+                        <Copy className="w-2.5 h-2.5 mr-0.5" /> Copy
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-3">
+                    <span>Earn {campaign.dr_reward_per_1000} DR per ₦1,000</span>
+                    <span>+{campaign.xp_reward_per_1000} XP per ₦1,000</span>
+                  </div>
+
+                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => { setSelectedCampaign(campaign); setContribAmount(""); setContribProofFile(null); }}>
+                    <Heart className="w-4 h-4 mr-2" /> Log Contribution
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Contribution Modal */}
+      <AnimatePresence>
+        {selectedCampaign && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setSelectedCampaign(null)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground text-lg">Log Contribution</h3>
+                <Button size="icon" variant="ghost" onClick={() => setSelectedCampaign(null)}><X className="w-4 h-4" /></Button>
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">{selectedCampaign.title}</p>
+              <p className="text-xs text-muted-foreground mb-4">Enter the amount you sent and upload proof of transfer</p>
+
+              <Input type="number" placeholder="Amount in Naira (e.g. 5000)" value={contribAmount} onChange={(e) => setContribAmount(e.target.value)} className="mb-3 bg-secondary border-border text-lg font-semibold" />
+
+              {parseInt(contribAmount) > 0 && (
+                <p className="text-xs text-emerald-400 mb-3">
+                  You'll earn: +{Math.max(Math.floor(parseInt(contribAmount) / 1000 * selectedCampaign.dr_reward_per_1000), selectedCampaign.dr_reward_per_1000)} DR + {Math.max(Math.floor(parseInt(contribAmount) / 1000 * selectedCampaign.xp_reward_per_1000), selectedCampaign.xp_reward_per_1000)} XP
+                </p>
+              )}
+
+              <p className="text-xs text-muted-foreground mb-2">Upload proof (screenshot of transfer)</p>
+              <label className="flex items-center justify-center gap-2 w-full h-16 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 mb-4">
+                {contribProofFile ? (
+                  <span className="text-sm text-primary font-medium">{contribProofFile.name}</span>
+                ) : (
+                  <><Camera className="w-5 h-5 text-muted-foreground" /><span className="text-sm text-muted-foreground">Tap to select</span></>
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => setContribProofFile(e.target.files?.[0] || null)} />
+              </label>
+
+              <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={!contribAmount || parseInt(contribAmount) <= 0 || !contribProofFile || submitContributionMutation.isPending || contribUploading}
+                onClick={async () => {
+                  if (!contribProofFile || !dbUser) return;
+                  setContribUploading(true);
+                  try {
+                    const proofUrl = await uploadImage("support-proofs", contribProofFile, dbUser.id);
+                    const result = await submitContributionMutation.mutateAsync({ campaignId: selectedCampaign.id, amount: parseInt(contribAmount), proofUrl });
+                    if (result?.success) {
+                      hapticNotification("success");
+                      toast({ title: "Contribution Submitted!", description: `₦${parseInt(contribAmount).toLocaleString()} for ${result.campaign}. Pending admin review.` });
+                      setSelectedCampaign(null);
+                    } else {
+                      toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                    }
+                  } catch (err: any) {
+                    toast({ title: "Error", description: err?.message, variant: "destructive" });
+                  } finally {
+                    setContribUploading(false);
+                  }
+                }}>
+                {contribUploading || submitContributionMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Heart className="w-4 h-4 mr-2" />}
+                Submit for Review
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Magic Boxes */}
       {(categoryFilter === "all" || categoryFilter === "task") && magicBoxes.length > 0 && (
         <div className="mb-6">
@@ -580,7 +699,7 @@ export default function ActivityLog() {
       {/* Category filter chips */}
       <div className="mb-4 overflow-x-auto scrollbar-hide">
         <div className="flex gap-2 pb-2">
-          {["all", "meeting", "workshop", "event", "outreach", "promo", "task"].map((cat) => (
+          {["all", "meeting", "workshop", "event", "outreach", "promo", "task", "support"].map((cat) => (
             <Button
               key={cat}
               size="sm"
