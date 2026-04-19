@@ -127,64 +127,88 @@ export default function Profile({ onTabChange }: ProfileProps) {
         transition={{ delay: 0.1 }}
       >
         <Card className="gradient-card border-border/50 p-6 mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative">
-              <Avatar className="w-16 h-16">
+          {/* Settings button */}
+          {onTabChange && (
+            <div className="flex justify-end mb-2">
+              <Button size="icon" variant="outline" className="h-8 w-8 border-border" aria-label="Settings" onClick={() => onTabChange("settings")}>
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Avatar + Name — centered */}
+          <div className="flex flex-col items-center text-center mb-4">
+            <div className="relative mb-3">
+              <Avatar className="w-20 h-20">
                 <AvatarImage src={user?.photoUrl} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card bg-emerald-400" />
+              <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-card bg-emerald-400" />
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
-              {user?.username && (
-                <p className="text-sm text-muted-foreground">@{user.username}</p>
-              )}
-              <p className="text-muted-foreground">Member since {memberSince}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge className={tierColors[status] || tierColors.Bronze}>
-                  <Award className="w-3 h-3 mr-1" />
-                  {status}
+            <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
+            {user?.username && (
+              <p className="text-sm text-muted-foreground">@{user.username}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">Member since {memberSince}</p>
+
+            {/* Badges */}
+            <div className="flex items-center gap-2 mt-3 flex-wrap justify-center">
+              <Badge className={tierColors[status] || tierColors.Bronze}>
+                <Award className="w-3 h-3 mr-1" />
+                {status}
+              </Badge>
+              {streak > 0 && (
+                <Badge variant="outline">
+                  {streak} day streak 🔥
                 </Badge>
-                {streak > 0 && (
-                  <Badge variant="outline">
-                    {streak} day streak 🔥
-                  </Badge>
-                )}
-              </div>
-              {myLevel && (
-                <div className="mt-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Lv.{myLevel.level} {myLevel.title}</Badge>
-                  </div>
-                  <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: `${myLevel.progress}%` }} />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{myLevel.currentXP} / {myLevel.nextXP} XP</p>
-                </div>
               )}
               {myPairRating && myPairRating.count > 0 && (
-                <div className="flex items-center gap-1.5 mt-1">
+                <Badge variant="outline" className="gap-1">
                   <div className="flex items-center gap-0.5">
                     {[1, 2, 3, 4, 5].map((n) => (
-                      <Star key={n} className={`w-3 h-3 ${n <= Math.round(myPairRating.avg) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                      <Star key={n} className={`w-2.5 h-2.5 ${n <= Math.round(myPairRating.avg) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
                     ))}
                   </div>
-                  <span className="text-[10px] text-muted-foreground">{myPairRating.avg}/5 ({myPairRating.count})</span>
-                </div>
+                  <span className="text-[10px]">{myPairRating.avg}</span>
+                </Badge>
               )}
             </div>
-            {onTabChange && (
-              <Button size="icon" variant="outline" className="self-start h-9 w-9 border-border shrink-0" aria-label="Settings" onClick={() => onTabChange("settings")}>
-                <Settings className="w-4 h-4" />
-              </Button>
-            )}
           </div>
 
+          {/* Level Progress */}
+          {myLevel && (
+            <div className="bg-secondary/50 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Lv.{myLevel.level} {myLevel.title}</Badge>
+                <span className="text-[10px] text-muted-foreground">{myLevel.currentXP} / {myLevel.nextXP} XP</span>
+              </div>
+              <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${myLevel.progress}%` }} />
+              </div>
+            </div>
+          )}
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-secondary/50 rounded-lg p-2.5 text-center">
+              <p className="text-lg font-bold text-primary">{balance.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">Balance</p>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-2.5 text-center">
+              <p className="text-lg font-bold text-foreground">{totalEarned.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">Total Earned</p>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-2.5 text-center">
+              <p className="text-lg font-bold text-foreground">{referralCount ?? 0}</p>
+              <p className="text-[10px] text-muted-foreground">Referrals</p>
+            </div>
+          </div>
+
+          {/* Referral Code */}
           {dbUser?.referral_code && (
-            <div className="mt-4 pt-4 border-t border-border/50">
+            <div className="pt-3 border-t border-border/50">
               <p className="text-xs text-muted-foreground mb-1">Your Referral Code</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 bg-secondary/50 rounded px-3 py-1.5 text-sm font-mono text-foreground">
@@ -218,44 +242,6 @@ export default function Profile({ onTabChange }: ProfileProps) {
             </div>
           )}
 
-        </Card>
-      </motion.div>
-
-      {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-3 gap-3 mb-6"
-      >
-        <Card className="gradient-card border-border/50 p-4">
-          <div className="text-center">
-            <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">
-              {totalEarned.toLocaleString()}
-            </p>
-            <p className="text-xs text-muted-foreground">Total Earned</p>
-          </div>
-        </Card>
-
-        <Card className="gradient-card border-border/50 p-4">
-          <div className="text-center">
-            <Coins className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">
-              {balance.toLocaleString()}
-            </p>
-            <p className="text-xs text-muted-foreground">Balance</p>
-          </div>
-        </Card>
-
-        <Card className="gradient-card border-border/50 p-4">
-          <div className="text-center">
-            <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">
-              {referralCount ?? 0}
-            </p>
-            <p className="text-xs text-muted-foreground">Referrals</p>
-          </div>
         </Card>
       </motion.div>
 
