@@ -543,33 +543,41 @@ export function useWeeklyMVP() {
   return useQuery({
     queryKey: ["weekly_mvp"],
     queryFn: async () => {
-      // Get all MVPs ordered by most recent
       const { data: allMvps } = await supabase
         .from("weekly_mvps")
         .select("*")
         .order("week_start", { ascending: false })
-        .limit(10);
+        .limit(20);
 
       if (!allMvps || allMvps.length === 0) return { current: null, history: [] };
 
       const current = allMvps[0];
-      // Past = exclude current, deduplicate by user_id
-      const seenUsers = new Set<string>([current.user_id]);
-      const pastUnique = allMvps.slice(1).filter((m: any) => {
-        if (seenUsers.has(m.user_id)) return false;
-        seenUsers.add(m.user_id);
-        return true;
-      }).slice(0, 4);
 
-      // Batch fetch all user IDs
-      const allUserIds = [current.user_id, ...pastUnique.map((m: any) => m.user_id)];
-      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", allUserIds);
+      // Build history: only add a user when a DIFFERENT user replaced them
+      const history: any[] = [];
+      let lastUserId = current.user_id;
+      for (let i = 1; i < allMvps.length; i++) {
+        const mvp = allMvps[i];
+        // This person was MVP before the current streak — they're in history
+        if (mvp.user_id !== lastUserId) {
+          // Only add if not already in history
+          if (!history.find((h) => h.user_id === mvp.user_id)) {
+            history.push(mvp);
+          }
+          lastUserId = mvp.user_id;
+        }
+      }
+
+      // Batch fetch users
+      const allUserIds = [current.user_id, ...history.map((m: any) => m.user_id)];
+      const uniqueIds = [...new Set(allUserIds)];
+      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", uniqueIds);
       const userMap: Record<string, any> = {};
       (users || []).forEach((u: any) => { userMap[u.id] = u; });
 
       return {
         current: { ...current, user: userMap[current.user_id] },
-        history: pastUnique.map((m: any) => ({ ...m, user: userMap[m.user_id] })),
+        history: history.slice(0, 5).map((m: any) => ({ ...m, user: userMap[m.user_id] })),
       };
     },
   });
