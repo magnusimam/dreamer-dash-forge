@@ -89,9 +89,16 @@ export default function Home({ onTabChange }: HomeProps) {
     : "DR";
 
   // Inactivity warning
-  const daysSinceCheckin = dbUser?.last_check_in
-    ? Math.floor((Date.now() - new Date(dbUser.last_check_in).getTime()) / 86400000)
-    : null;
+  // Calculate days since last check-in using calendar days (not hours)
+  const daysSinceCheckin = (() => {
+    if (!dbUser?.last_check_in) return null;
+    const lastDate = new Date(dbUser.last_check_in);
+    const today = new Date();
+    // Set both to midnight for clean day comparison
+    const lastMidnight = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return Math.floor((todayMidnight.getTime() - lastMidnight.getTime()) / 86400000);
+  })();
 
   // Progress nudge
   const tierThresholds = [
@@ -178,7 +185,7 @@ export default function Home({ onTabChange }: HomeProps) {
       </motion.div>
 
       {/* Streak Restore Banner */}
-      {streak > 0 && daysSinceCheckin !== null && daysSinceCheckin > 1 && daysSinceCheckin <= 3 && (
+      {streak > 0 && daysSinceCheckin !== null && daysSinceCheckin >= 2 && daysSinceCheckin <= 4 && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
           <Card className="border-red-500/30 bg-red-500/10 p-4">
             <div className="flex items-start gap-3">

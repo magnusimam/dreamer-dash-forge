@@ -26,8 +26,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Your streak is not broken');
   END IF;
 
-  -- Only available within 48 hours (2 days) of losing streak
-  IF v_days_since_checkin > 3 THEN
+  -- Only available within 48 hours of losing streak (3 calendar days buffer)
+  IF v_days_since_checkin > 4 THEN
     RETURN jsonb_build_object('success', false, 'error', 'Too late to restore. Streak can only be restored within 48 hours of losing it.');
   END IF;
 
