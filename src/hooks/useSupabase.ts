@@ -209,20 +209,46 @@ export function useContributionLeaderboard() {
   return useQuery({
     queryKey: ["contribution_leaderboard"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("support_contributions").select("user_id, amount").eq("status", "approved");
-      if (error) throw error;
-      const totals: Record<string, { amount: number; count: number }> = {};
-      (data || []).forEach((c: any) => {
-        if (!totals[c.user_id]) totals[c.user_id] = { amount: 0, count: 0 };
+      // Get direct support contributions
+      const { data: contribs } = await supabase.from("support_contributions").select("user_id, amount").eq("status", "approved");
+
+      // Get promo claims (each = ₦2,500 spent on The Stolen Breath)
+      const PROMO_NAIRA_VALUE = 2500;
+      const { data: promos } = await supabase.from("promo_codes").select("claimed_by").eq("is_used", true).not("claimed_by", "is", null);
+
+      // Merge both into one leaderboard
+      const totals: Record<string, { amount: number; count: number; support_amount: number; promo_amount: number; support_count: number; promo_count: number }> = {};
+
+      (contribs || []).forEach((c: any) => {
+        if (!totals[c.user_id]) totals[c.user_id] = { amount: 0, count: 0, support_amount: 0, promo_amount: 0, support_count: 0, promo_count: 0 };
         totals[c.user_id].amount += c.amount;
         totals[c.user_id].count += 1;
+        totals[c.user_id].support_amount += c.amount;
+        totals[c.user_id].support_count += 1;
       });
-      const userIds = Object.keys(totals);
-      if (userIds.length === 0) return [];
-      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", userIds);
-      const userMap: Record<string, any> = {};
-      (users || []).forEach((u: any) => { userMap[u.id] = u; });
-      return userIds.map((uid) => ({ ...totals[uid], user: userMap[uid], user_id: uid })).sort((a, b) => b.amount - a.amount);
+
+      (promos || []).forEach((p: any) => {
+        if (!totals[p.claimed_by]) totals[p.claimed_by] = { amount: 0, count: 0, support_amount: 0, promo_amount: 0, support_count: 0, promo_count: 0 };
+        totals[p.claimed_by].amount += PROMO_NAIRA_VALUE;
+        totals[p.claimed_by].count += 1;
+        totals[p.claimed_by].promo_amount += PROMO_NAIRA_VALUE;
+        totals[p.claimed_by].promo_count += 1;
+      });
+
+      // Fetch all users (including those with zero contributions)
+      const { data: allUsers } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active");
+      const result = (allUsers || []).map((u: any) => ({
+        user: u,
+        user_id: u.id,
+        amount: totals[u.id]?.amount || 0,
+        count: totals[u.id]?.count || 0,
+        support_amount: totals[u.id]?.support_amount || 0,
+        promo_amount: totals[u.id]?.promo_amount || 0,
+        support_count: totals[u.id]?.support_count || 0,
+        promo_count: totals[u.id]?.promo_count || 0,
+      }));
+
+      return result.sort((a, b) => b.amount - a.amount);
     },
     staleTime: 30000,
   });

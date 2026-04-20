@@ -321,13 +321,13 @@ export default function Community() {
         <>
           <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Heart className="w-4 h-4 text-green-400" /> Community Support</h3>
 
-          {/* Users who have contributed — ranked by amount */}
-          {contributionLB.length > 0 && (
-            <div className="space-y-2 mb-4">
-              {contributionLB.map((entry: any, i: number) => (
-                <Card key={entry.user_id} className={`border-border/50 p-3 ${i === 0 ? "border-green-500/30 bg-green-500/5" : "gradient-card"}`}>
+          <div className="space-y-2">
+            {contributionLB.map((entry: any, i: number) => {
+              const hasContributed = entry.amount > 0;
+              return (
+                <Card key={entry.user_id} className={`border-border/50 p-3 ${!hasContributed ? "opacity-50" : i === 0 && hasContributed ? "border-green-500/30 bg-green-500/5" : "gradient-card"}`}>
                   <div className="flex items-center gap-3">
-                    <span className="w-6 text-center text-xs font-bold text-muted-foreground">#{i + 1}</span>
+                    <span className="w-6 text-center text-xs font-bold text-muted-foreground">{hasContributed ? `#${i + 1}` : "—"}</span>
                     <button className="relative shrink-0" onClick={() => setViewProfileUserId(entry.user_id)}>
                       <Avatar className="w-9 h-9">
                         <AvatarImage src={entry.user?.photo_url} />
@@ -337,40 +337,22 @@ export default function Community() {
                     </button>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{[entry.user?.first_name, entry.user?.last_name].filter(Boolean).join(" ")}</p>
-                      <p className="text-[10px] text-muted-foreground">{entry.count} contribution{entry.count !== 1 ? "s" : ""}</p>
+                      {hasContributed ? (
+                        <p className="text-[10px] text-muted-foreground">
+                          {entry.support_count > 0 && `${entry.support_count} support`}
+                          {entry.support_count > 0 && entry.promo_count > 0 && " · "}
+                          {entry.promo_count > 0 && `${entry.promo_count} promo`}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">No contributions yet</p>
+                      )}
                     </div>
-                    <p className="text-sm font-bold text-green-400">₦{entry.amount.toLocaleString()}</p>
+                    <p className={`text-sm font-bold ${hasContributed ? "text-green-400" : "text-muted-foreground"}`}>₦{entry.amount.toLocaleString()}</p>
                   </div>
                 </Card>
-              ))}
-            </div>
-          )}
-
-          {/* All other users who haven't contributed */}
-          {communityStats.filter((u: any) => !contributionLB.find((c: any) => c.user_id === u.id)).length > 0 && (
-            <div className="space-y-2">
-              {contributionLB.length > 0 && <p className="text-xs text-muted-foreground mb-2">Not yet contributed</p>}
-              {communityStats.filter((u: any) => !contributionLB.find((c: any) => c.user_id === u.id)).map((u: any) => (
-                <Card key={u.id} className="gradient-card border-border/50 p-3 opacity-60">
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 text-center text-xs font-bold text-muted-foreground">—</span>
-                    <button className="relative shrink-0" onClick={() => setViewProfileUserId(u.id)}>
-                      <Avatar className="w-9 h-9">
-                        <AvatarImage src={u.photo_url} />
-                        <AvatarFallback className="text-xs">{[u.first_name?.[0], u.last_name?.[0]].filter(Boolean).join("")}</AvatarFallback>
-                      </Avatar>
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${isUserOnline(u.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{[u.first_name, u.last_name].filter(Boolean).join(" ")}</p>
-                      <p className="text-[10px] text-muted-foreground">0 contributions</p>
-                    </div>
-                    <p className="text-sm font-bold text-muted-foreground">₦0</p>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </>
       )}
 
