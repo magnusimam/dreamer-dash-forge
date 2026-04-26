@@ -211,13 +211,18 @@ export default function Home({ onTabChange }: HomeProps) {
         </div>
       </motion.div>
 
-      {/* Streak Restore Banner — shows when streak was lost (before or after check-in) */}
+      {/* Streak Restore Banner — shows for 2 days after streak is lost */}
       {(() => {
         const prevStreak = dbUser?.previous_streak || 0;
-        const lostStreak = prevStreak > 1 && streak <= 1;
+        const streakLostAt = dbUser?.streak_lost_at ? new Date(dbUser.streak_lost_at) : null;
+        const hoursSinceLost = streakLostAt ? (Date.now() - streakLostAt.getTime()) / 3600000 : 999;
+        const withinWindow = hoursSinceLost <= 48;
+
+        const lostStreak = prevStreak > 1 && streak <= 1 && withinWindow;
         const brokeBeforeCheckin = streak > 1 && daysSinceCheckin !== null && daysSinceCheckin >= 2 && daysSinceCheckin <= 4;
         const restoreStreak = lostStreak ? prevStreak : brokeBeforeCheckin ? streak : 0;
         if (restoreStreak <= 0) return null;
+        const hoursLeft = Math.max(0, Math.ceil(48 - hoursSinceLost));
         const cost = getStreakRestoreCost(restoreStreak);
         return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
@@ -256,6 +261,9 @@ export default function Home({ onTabChange }: HomeProps) {
                     {restoreStreakMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Flame className="w-3 h-3 mr-1" />}
                     Restore for {cost.toLocaleString()} DR
                   </Button>
+                  <p className="text-[10px] text-muted-foreground self-center">
+                    {hoursLeft > 24 ? `${Math.ceil(hoursLeft / 24)}d left` : hoursLeft > 1 ? `${hoursLeft}h left` : "Expiring soon!"}
+                  </p>
                 </div>
               </div>
             </div>

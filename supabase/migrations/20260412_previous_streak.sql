@@ -30,9 +30,9 @@ BEGIN
   ELSIF v_user.streak_protected_until IS NOT NULL AND v_user.streak_protected_until >= CURRENT_DATE THEN
     v_new_streak := v_user.streak + 1;
   ELSE
-    -- Streak broken — save old streak before resetting
+    -- Streak broken — save old streak and timestamp before resetting
     IF v_user.streak > 1 THEN
-      UPDATE public.users SET previous_streak = v_user.streak WHERE id = p_user_id;
+      UPDATE public.users SET previous_streak = v_user.streak, streak_lost_at = NOW() WHERE id = p_user_id;
     END IF;
     v_new_streak := 1;
   END IF;
@@ -113,7 +113,8 @@ BEGIN
     streak = v_restore_streak,
     last_check_in = CURRENT_DATE,
     streak_protected_until = CURRENT_DATE + INTERVAL '1 day',
-    previous_streak = 0
+    previous_streak = 0,
+    streak_lost_at = NULL
   WHERE id = p_user_id;
 
   INSERT INTO public.transactions (user_id, type, amount, description)
