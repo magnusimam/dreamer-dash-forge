@@ -1688,6 +1688,38 @@ export function useBuyStreakInsurance() {
   });
 }
 
+export function useFreezeStreak() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (days: number) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("freeze_streak", {
+        p_user_id: dbUser.id,
+        p_days: days,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function getFreezeCost(days: number): number {
+  let cost = 0;
+  for (let i = 1; i <= days; i++) {
+    if (i <= 3) cost += 50;
+    else if (i <= 7) cost += 100;
+    else if (i <= 14) cost += 200;
+    else cost += 500;
+  }
+  return cost;
+}
+
 // ============================================================
 // TRANSACTIONS
 // ============================================================

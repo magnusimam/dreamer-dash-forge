@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import BalanceCard from "@/components/BalanceCard";
 import TransactionList from "@/components/TransactionList";
-import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats, useTransferDR, useRestoreStreak, getStreakRestoreCost } from "@/hooks/useSupabase";
+import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useFreezeStreak, getFreezeCost, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats, useTransferDR, useRestoreStreak, getStreakRestoreCost } from "@/hooks/useSupabase";
 import UserProfileModal from "@/components/UserProfileModal";
 import DreamPairCard from "@/components/DreamPairCard";
 import { useTelegram } from "@/contexts/TelegramContext";
@@ -60,6 +60,9 @@ export default function Home({ onTabChange }: HomeProps) {
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
   const transferMutation = useTransferDR();
   const restoreStreakMutation = useRestoreStreak();
+  const freezeStreakMutation = useFreezeStreak();
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
+  const [freezeDays, setFreezeDays] = useState(1);
   const [showConvoGift, setShowConvoGift] = useState(false);
   const [convoGiftAmount, setConvoGiftAmount] = useState("");
   const [convoGiftRecipient, setConvoGiftRecipient] = useState<string | null>(null);
@@ -174,11 +177,35 @@ export default function Home({ onTabChange }: HomeProps) {
           {/* Streak */}
           {streak > 0 && (
             <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1 bg-orange-500/15 rounded-lg px-2.5 py-1.5">
-                <Flame className="w-4 h-4 text-orange-400" />
-                <span className="text-orange-400 font-bold text-sm">{streak}</span>
+              <div className="relative">
+                {dbUser?.streak_protected_until && new Date(dbUser.streak_protected_until) >= new Date() && (
+                  <>
+                    <motion.div
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0.6, 0.3] }}
+                      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                      className="absolute -inset-2 bg-cyan-400/20 rounded-xl blur-md"
+                    />
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.8, 0.4] }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", delay: 0.3 }}
+                      className="absolute -inset-1 bg-cyan-400/15 rounded-lg blur-sm"
+                    />
+                  </>
+                )}
+                <div className={`relative flex items-center gap-1 rounded-lg px-2.5 py-1.5 ${dbUser?.streak_protected_until && new Date(dbUser.streak_protected_until) >= new Date() ? "bg-cyan-500/20 border border-cyan-400/30" : "bg-orange-500/15"}`}>
+                  {dbUser?.streak_protected_until && new Date(dbUser.streak_protected_until) >= new Date() ? (
+                    <Shield className="w-4 h-4 text-cyan-400" />
+                  ) : (
+                    <Flame className="w-4 h-4 text-orange-400" />
+                  )}
+                  <span className={`font-bold text-sm ${dbUser?.streak_protected_until && new Date(dbUser.streak_protected_until) >= new Date() ? "text-cyan-400" : "text-orange-400"}`}>{streak}</span>
+                </div>
               </div>
-              <span className="text-[10px] text-muted-foreground mt-0.5">streak</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">
+                {dbUser?.streak_protected_until && new Date(dbUser.streak_protected_until) >= new Date()
+                  ? `frozen ${Math.ceil((new Date(dbUser.streak_protected_until).getTime() - Date.now()) / 86400000)}d`
+                  : "streak"}
+              </span>
             </div>
           )}
         </div>
@@ -392,43 +419,84 @@ export default function Home({ onTabChange }: HomeProps) {
       {/* Dream Pair Card */}
       <DreamPairCard onViewProfile={setViewProfileUserId} />
 
-      {/* Streak Insurance */}
-      {streak >= 2 && !alreadyCheckedIn && !dbUser?.streak_protected_until && (
+      {/* Streak Freeze */}
+      {streak >= 2 && alreadyCheckedIn && !(dbUser?.streak_protected_until && new Date(dbUser.streak_protected_until) >= new Date()) && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-          <Card className="border-orange-500/20 bg-orange-500/5 p-3">
+          <Card className="border-cyan-500/20 bg-cyan-500/5 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-orange-500/15 flex items-center justify-center">
-                  <Shield className="w-4 h-4 text-orange-400" />
+                <div className="w-9 h-9 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+                  <Shield className="w-4 h-4 text-cyan-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Protect Streak</p>
-                  <p className="text-xs text-muted-foreground">Keep your {streak}-day streak safe — 50 DR</p>
+                  <p className="text-sm font-medium text-foreground">Freeze Streak</p>
+                  <p className="text-xs text-muted-foreground">Protect your {streak}-day streak for up to 30 days</p>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-orange-500/30 text-orange-400 hover:bg-orange-500/10 h-8"
-                onClick={async () => {
-                  const result = await streakInsuranceMutation.mutateAsync();
-                  if (result?.success) {
-                    hapticNotification("success");
-                    toast({ title: "Streak Protected!", description: `Your ${result.streak}-day streak is safe until tomorrow.` });
-                  } else {
-                    hapticNotification("error");
-                    toast({ title: "Failed", description: result?.error, variant: "destructive" });
-                  }
-                }}
-                disabled={streakInsuranceMutation.isPending || balance < 50}
-              >
-                {streakInsuranceMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3 mr-1" />}
-                50 DR
+              <Button size="sm" variant="outline" className="border-cyan-500/30 text-cyan-400 h-8" onClick={() => setShowFreezeModal(true)}>
+                <Shield className="w-3 h-3 mr-1" /> Freeze
               </Button>
             </div>
           </Card>
         </motion.div>
       )}
+
+      {/* Freeze Modal */}
+      <AnimatePresence>
+        {showFreezeModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setShowFreezeModal(false)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground text-lg flex items-center gap-2"><Shield className="w-5 h-5 text-cyan-400" /> Freeze Streak</h3>
+                <Button size="icon" variant="ghost" onClick={() => setShowFreezeModal(false)}><X className="w-4 h-4" /></Button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">Your {streak}-day streak will be protected. You won't lose it even if you don't check in.</p>
+
+              <label className="text-sm font-medium text-foreground block mb-2">How many days?</label>
+              <div className="flex items-center gap-3 mb-2">
+                <input type="range" min={1} max={30} value={freezeDays} onChange={(e) => setFreezeDays(parseInt(e.target.value))} className="flex-1 accent-cyan-400" />
+                <span className="text-lg font-bold text-cyan-400 w-10 text-center">{freezeDays}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-1">day{freezeDays !== 1 ? "s" : ""}</p>
+
+              <div className="bg-secondary/50 rounded-lg p-3 mb-4 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cost</span>
+                  <span className="text-foreground font-bold">{getFreezeCost(freezeDays).toLocaleString()} DR</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Protected until</span>
+                  <span className="text-foreground">{new Date(Date.now() + freezeDays * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
+                  Days 1-3: 50 DR/day · Days 4-7: 100 DR/day · Days 8-14: 200 DR/day · Days 15-30: 500 DR/day
+                </div>
+              </div>
+
+              <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white" disabled={freezeStreakMutation.isPending || balance < getFreezeCost(freezeDays)}
+                onClick={async () => {
+                  try {
+                    const result = await freezeStreakMutation.mutateAsync(freezeDays);
+                    if (result?.success) {
+                      hapticNotification("success");
+                      toast({ title: "Streak Frozen!", description: `Your ${result.streak}-day streak is protected for ${result.days} days. Cost: ${result.cost} DR` });
+                      setShowFreezeModal(false);
+                    } else {
+                      hapticNotification("error");
+                      toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                    }
+                  } catch (err: any) {
+                    hapticNotification("error");
+                    toast({ title: "Error", description: err?.message, variant: "destructive" });
+                  }
+                }}>
+                {freezeStreakMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+                Freeze for {getFreezeCost(freezeDays).toLocaleString()} DR
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Featured Dreamer Spotlight */}
       {featuredDreamer && featuredDreamer.id !== dbUser?.id && (
