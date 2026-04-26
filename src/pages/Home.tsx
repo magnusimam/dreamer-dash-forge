@@ -469,7 +469,7 @@ export default function Home({ onTabChange }: HomeProps) {
                   <span className="text-foreground">{new Date(Date.now() + freezeDays * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
                 </div>
                 <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
-                  Days 1-3: 50 DR/day · Days 4-7: 100 DR/day · Days 8-14: 200 DR/day · Days 15-30: 500 DR/day
+                  Days 1-3: 50 DR/day · Days 4-7: 100 DR/day · Days 8-14: 150 DR/day · Days 15-30: 2,000 DR/day
                 </div>
               </div>
 

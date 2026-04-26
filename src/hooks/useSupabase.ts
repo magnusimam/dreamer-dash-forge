@@ -1714,8 +1714,8 @@ export function getFreezeCost(days: number): number {
   for (let i = 1; i <= days; i++) {
     if (i <= 3) cost += 50;
     else if (i <= 7) cost += 100;
-    else if (i <= 14) cost += 200;
-    else cost += 500;
+    else if (i <= 14) cost += 150;
+    else cost += 2000;
   }
   return cost;
 }
