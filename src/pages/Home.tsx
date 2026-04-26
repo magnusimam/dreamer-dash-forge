@@ -211,8 +211,15 @@ export default function Home({ onTabChange }: HomeProps) {
         </div>
       </motion.div>
 
-      {/* Streak Restore Banner */}
-      {streak > 0 && daysSinceCheckin !== null && daysSinceCheckin >= 2 && daysSinceCheckin <= 4 && (
+      {/* Streak Restore Banner — shows when streak was lost (before or after check-in) */}
+      {(() => {
+        const prevStreak = dbUser?.previous_streak || 0;
+        const lostStreak = prevStreak > 1 && streak <= 1;
+        const brokeBeforeCheckin = streak > 1 && daysSinceCheckin !== null && daysSinceCheckin >= 2 && daysSinceCheckin <= 4;
+        const restoreStreak = lostStreak ? prevStreak : brokeBeforeCheckin ? streak : 0;
+        if (restoreStreak <= 0) return null;
+        const cost = getStreakRestoreCost(restoreStreak);
+        return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
           <Card className="border-red-500/30 bg-red-500/10 p-4">
             <div className="flex items-start gap-3">
@@ -222,19 +229,20 @@ export default function Home({ onTabChange }: HomeProps) {
               <div className="flex-1">
                 <p className="text-sm font-semibold text-red-400">Streak Lost!</p>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Your {streak}-day streak broke. Restore it for <span className="text-primary font-semibold">{getStreakRestoreCost(streak).toLocaleString()} DR</span> before it's too late!
+                  Your {restoreStreak}-day streak broke. Restore it for <span className="text-primary font-semibold">{cost.toLocaleString()} DR</span> before it's too late!
                 </p>
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     className="bg-red-500 hover:bg-red-600 text-white h-8 text-xs"
-                    disabled={restoreStreakMutation.isPending || balance < getStreakRestoreCost(streak)}
+                    disabled={restoreStreakMutation.isPending || balance < cost}
                     onClick={async () => {
                       try {
                         const result = await restoreStreakMutation.mutateAsync();
                         if (result?.success) {
                           hapticNotification("success");
-                          toast({ title: "Streak Restored!", description: `Your ${result.streak}-day streak is back! Cost: ${result.cost} DR. Check in now!` });
+                          setShowConfetti(true);
+                          toast({ title: "Streak Restored!", description: `Your ${result.streak}-day streak is back!` });
                         } else {
                           hapticNotification("error");
                           toast({ title: "Failed", description: result?.error, variant: "destructive" });
@@ -246,17 +254,15 @@ export default function Home({ onTabChange }: HomeProps) {
                     }}
                   >
                     {restoreStreakMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Flame className="w-3 h-3 mr-1" />}
-                    Restore for {getStreakRestoreCost(streak).toLocaleString()} DR
+                    Restore for {cost.toLocaleString()} DR
                   </Button>
-                  <p className="text-[10px] text-muted-foreground self-center">
-                    {daysSinceCheckin <= 2 ? "24h left" : "Expires soon!"}
-                  </p>
                 </div>
               </div>
             </div>
           </Card>
         </motion.div>
-      )}
+        );
+      })()}
 
       {/* Inactivity Warning */}
       {daysSinceCheckin !== null && daysSinceCheckin >= 5 && (
