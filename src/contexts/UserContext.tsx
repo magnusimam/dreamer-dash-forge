@@ -22,6 +22,7 @@ interface DbUser {
   streak_protected_until: string | null;
   last_active: string | null;
   birthday: string | null;
+  previous_streak: number;
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
