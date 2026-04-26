@@ -27,8 +27,8 @@ BEGIN
   FOR v_i IN 1..p_days LOOP
     IF v_i <= 3 THEN v_day_cost := 50;
     ELSIF v_i <= 7 THEN v_day_cost := 100;
-    ELSIF v_i <= 14 THEN v_day_cost := 200;
-    ELSE v_day_cost := 500;
+    ELSIF v_i <= 14 THEN v_day_cost := 150;
+    ELSE v_day_cost := 2000;
     END IF;
     v_cost := v_cost + v_day_cost;
   END LOOP;
