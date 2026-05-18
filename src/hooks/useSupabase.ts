@@ -95,14 +95,14 @@ export function useSupportCampaigns() {
       if (error) throw error;
       // Get total contributed per campaign
       const ids = (data || []).map((c: any) => c.id);
-      const { data: contribs } = ids.length > 0 ? await supabase.from("support_contributions").select("campaign_id, amount").eq("status", "approved").in("campaign_id", ids) : { data: [] };
-      const totals: Record<string, { amount: number; count: number }> = {};
+      const { data: contribs } = ids.length > 0 ? await supabase.from("support_contributions").select("campaign_id, user_id, amount").eq("status", "approved").in("campaign_id", ids) : { data: [] };
+      const totals: Record<string, { amount: number; uniqueUsers: Set<string> }> = {};
       (contribs || []).forEach((c: any) => {
-        if (!totals[c.campaign_id]) totals[c.campaign_id] = { amount: 0, count: 0 };
+        if (!totals[c.campaign_id]) totals[c.campaign_id] = { amount: 0, uniqueUsers: new Set() };
         totals[c.campaign_id].amount += c.amount;
-        totals[c.campaign_id].count += 1;
+        totals[c.campaign_id].uniqueUsers.add(c.user_id);
       });
-      return (data || []).map((c: any) => ({ ...c, total_raised: totals[c.id]?.amount || 0, contributor_count: totals[c.id]?.count || 0 }));
+      return (data || []).map((c: any) => ({ ...c, total_raised: totals[c.id]?.amount || 0, contributor_count: totals[c.id]?.uniqueUsers.size || 0 }));
     },
   });
 }
