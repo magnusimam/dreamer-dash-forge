@@ -185,7 +185,30 @@ export function useApproveContribution() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pending_contributions"] });
       queryClient.invalidateQueries({ queryKey: ["support_campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign_contributors"] });
     },
+  });
+}
+
+export function useCampaignContributors(campaignId: string | null) {
+  return useQuery({
+    queryKey: ["campaign_contributors", campaignId],
+    queryFn: async () => {
+      if (!campaignId) return [];
+      const { data } = await supabase
+        .from("support_contributions")
+        .select("*")
+        .eq("campaign_id", campaignId)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false });
+      if (!data || data.length === 0) return [];
+      const userIds = [...new Set(data.map((c: any) => c.user_id))];
+      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username").in("id", userIds);
+      const userMap: Record<string, any> = {};
+      (users || []).forEach((u: any) => { userMap[u.id] = u; });
+      return data.map((c: any) => ({ ...c, user: userMap[c.user_id] }));
+    },
+    enabled: !!campaignId,
   });
 }
 
@@ -706,28 +729,32 @@ export function useGiftWall() {
   return useQuery({
     queryKey: ["gift_wall"],
     queryFn: async () => {
-      // Fetch all 4 sources in parallel
-      const [missionRes, promoRes, transferRes, magicBoxRes] = await Promise.all([
+      // Fetch all 5 sources in parallel
+      const [missionRes, promoRes, transferRes, magicBoxRes, contribRes] = await Promise.all([
         supabase.from("mission_completions").select("*").eq("status", "approved").not("proof_url", "is", null).order("completed_at", { ascending: false }).limit(20),
         supabase.from("promo_codes").select("*").eq("is_used", true).order("claimed_at", { ascending: false }).limit(15),
         supabase.from("transactions").select("*").eq("type", "transfer_out").order("created_at", { ascending: false }).limit(15),
         supabase.from("magic_box_entries").select("*").eq("claimed", true).order("claimed_at", { ascending: false }).limit(15),
+        supabase.from("support_contributions").select("*").eq("status", "approved").order("reviewed_at", { ascending: false }).limit(15),
       ]);
 
       // Collect all unique user IDs and mission/box IDs
       const userIds = new Set<string>();
       const missionIds = new Set<string>();
       const boxIds = new Set<string>();
+      const campIds = new Set<string>();
       (missionRes.data || []).forEach((g: any) => { userIds.add(g.user_id); missionIds.add(g.mission_id); });
       (promoRes.data || []).forEach((p: any) => { if (p.claimed_by) userIds.add(p.claimed_by); });
       (transferRes.data || []).forEach((t: any) => { userIds.add(t.user_id); });
       (magicBoxRes.data || []).forEach((b: any) => { userIds.add(b.user_id); boxIds.add(b.box_id); });
+      (contribRes.data || []).forEach((c: any) => { userIds.add(c.user_id); campIds.add(c.campaign_id); });
 
       // Batch fetch users, missions, and boxes
-      const [usersRes, missionsRes, boxesRes] = await Promise.all([
+      const [usersRes, missionsRes, boxesRes, campsRes] = await Promise.all([
         userIds.size > 0 ? supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", [...userIds]) : { data: [] },
         missionIds.size > 0 ? supabase.from("missions").select("id, title").in("id", [...missionIds]) : { data: [] },
         boxIds.size > 0 ? supabase.from("magic_boxes").select("id, title, prize_dr, prize_xp, prize_custom").in("id", [...boxIds]) : { data: [] },
+        campIds.size > 0 ? supabase.from("support_campaigns").select("id, title").in("id", [...campIds]) : { data: [] },
       ]);
 
       const userMap: Record<string, any> = {};
@@ -736,6 +763,8 @@ export function useGiftWall() {
       (missionsRes.data || []).forEach((m: any) => { missionMap[m.id] = m; });
       const boxMap: Record<string, any> = {};
       (boxesRes.data || []).forEach((b: any) => { boxMap[b.id] = b; });
+      const campMap: Record<string, any> = {};
+      ((campsRes as any).data || []).forEach((c: any) => { campMap[c.id] = c; });
 
       // Build feed
       const feed: any[] = [];
@@ -753,6 +782,11 @@ export function useGiftWall() {
         const box = boxMap[b.box_id];
         const prizeText = [box?.prize_dr ? `${box.prize_dr} DR` : null, box?.prize_xp ? `${box.prize_xp} XP` : null, box?.prize_custom].filter(Boolean).join(" + ");
         feed.push({ type: "magicbox", user: userMap[b.user_id], title: `opened ${box?.title || "Magic Box"} — won ${prizeText}`, date: b.claimed_at || b.created_at, id: "mb-" + b.id, user_id: b.user_id });
+      });
+
+      (contribRes.data || []).forEach((c: any) => {
+        const camp = campMap[c.campaign_id];
+        feed.push({ type: "support", user: userMap[c.user_id], title: `contributed ₦${c.amount.toLocaleString()} to ${camp?.title || "Community Support"}`, date: c.reviewed_at || c.created_at, id: "sc-" + c.id, user_id: c.user_id });
       });
 
       feed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
