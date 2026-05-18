@@ -36,6 +36,7 @@ import {
   usePendingContributions,
   useApproveContribution,
   useRejectContribution,
+  useCampaignContributors,
   useRedemptionRequests,
   useProcessRedemption,
   useAllUsers,
@@ -130,6 +131,32 @@ function RaffleEntriesList({ raffleId }: { raffleId: string }) {
         </div>
       ))}
       <p className="text-[10px] text-muted-foreground">{entries.length} total entries</p>
+    </div>
+  );
+}
+
+function CampaignContributorsList({ campaignId }: { campaignId: string }) {
+  const { data: contributors = [], isLoading } = useCampaignContributors(campaignId);
+  if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
+  if (contributors.length === 0) return <p className="text-xs text-muted-foreground mt-2">No contributions yet</p>;
+  const total = contributors.reduce((s: number, c: any) => s + c.amount, 0);
+  return (
+    <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-green-500/20">
+      {contributors.map((c: any) => (
+        <div key={c.id} className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-foreground">
+              {[c.user?.first_name, c.user?.last_name].filter(Boolean).join(" ")}
+            </p>
+            {c.user?.username && <p className="text-[10px] text-muted-foreground">@{c.user.username}</p>}
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-green-400 font-medium">₦{c.amount.toLocaleString()}</p>
+            <p className="text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+          </div>
+        </div>
+      ))}
+      <p className="text-[10px] text-green-400">{contributors.length} contributor{contributors.length !== 1 ? "s" : ""} · ₦{total.toLocaleString()} total</p>
     </div>
   );
 }
@@ -338,6 +365,7 @@ export default function Admin() {
   const [mbUserSuggestions, setMbUserSuggestions] = useState<any[]>([]);
   const [mbShowSuggestions, setMbShowSuggestions] = useState(false);
   const [viewingBoxParticipants, setViewingBoxParticipants] = useState<string | null>(null);
+  const [viewingCampaignContributors, setViewingCampaignContributors] = useState<string | null>(null);
 
   // Support campaign form
   const [scTitle, setScTitle] = useState("");
@@ -1398,6 +1426,26 @@ export default function Admin() {
                               if (c.user?.telegram_id) {
                                 notifyUser(c.user.telegram_id, `✅ <b>Contribution Approved!</b>\n\nYour ₦${c.amount.toLocaleString()} contribution to <b>${result.campaign}</b> has been verified.\n\n+${result.dr_reward} DR + ${result.xp_reward} XP earned! 🎉`);
                               }
+                              // Check if campaign target reached — broadcast celebration
+                              const campId = c.campaign_id;
+                              const { data: camp } = await supabase.from("support_campaigns").select("title, target_amount, beneficiary_name").eq("id", campId).maybeSingle();
+                              if (camp) {
+                                const { data: allContribs } = await supabase.from("support_contributions").select("user_id, amount").eq("campaign_id", campId).eq("status", "approved");
+                                const totalRaised = (allContribs || []).reduce((s: number, x: any) => s + x.amount, 0);
+                                if (totalRaised >= camp.target_amount) {
+                                  // Get contributor names
+                                  const contribUserIds = [...new Set((allContribs || []).map((x: any) => x.user_id))];
+                                  const { data: contribUsers } = await supabase.from("users").select("first_name").in("id", contribUserIds);
+                                  const names = (contribUsers || []).map((u: any) => u.first_name).join(", ");
+                                  // Broadcast to all users
+                                  for (const u of allUsers) {
+                                    if (u.telegram_id && u.telegram_id !== 0) {
+                                      notifyUser(u.telegram_id, `🎉💚 <b>Target Reached!</b>\n\n<b>${camp.title}</b> has reached its ₦${camp.target_amount.toLocaleString()} goal!\n\nThank you to our amazing supporters:\n<b>${names}</b>\n\nYour generosity is changing lives. ${camp.beneficiary_name} sends their heartfelt thanks to each and every one of you. This is what community looks like! 🙏✨`);
+                                    }
+                                  }
+                                  toast({ title: "Target Reached!", description: "Celebration broadcast sent to all users" });
+                                }
+                              }
                             }
                           }}>
                           <CheckCircle className="w-3 h-3 mr-1" /> Approve
@@ -1432,6 +1480,12 @@ export default function Admin() {
                       </div>
                       <p className="text-xs text-muted-foreground">For: {c.beneficiary_name} · Target: ₦{c.target_amount.toLocaleString()}</p>
                       <p className="text-xs text-muted-foreground">{c.dr_reward_per_1000} DR + {c.xp_reward_per_1000} XP per ₦1,000</p>
+                      <Button size="sm" variant="outline" className="mt-2 w-full border-border text-xs" onClick={() => setViewingCampaignContributors(viewingCampaignContributors === c.id ? null : c.id)}>
+                        <Users className="w-3 h-3 mr-1" /> {viewingCampaignContributors === c.id ? "Hide" : "View"} Contributors
+                      </Button>
+                      {viewingCampaignContributors === c.id && (
+                        <CampaignContributorsList campaignId={c.id} />
+                      )}
                     </Card>
                   ))}
                 </div>
