@@ -604,9 +604,16 @@ export default function ActivityLog() {
                     <span>+{campaign.xp_reward_per_1000} XP per ₦1,000</span>
                   </div>
 
-                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => { setSelectedCampaign(campaign); setContribAmount(""); setContribProofFile(null); }}>
-                    <Heart className="w-4 h-4 mr-2" /> Log Contribution
-                  </Button>
+                  {campaign.total_raised >= campaign.target_amount ? (
+                    <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-green-400 font-medium">Goal Reached! Thank you!</span>
+                    </div>
+                  ) : (
+                    <Button className="w-full bg-green-600 hover:bg-green-700 text-white" onClick={() => { setSelectedCampaign(campaign); setContribAmount(""); setContribProofFile(null); }}>
+                      <Heart className="w-4 h-4 mr-2" /> Log Contribution
+                    </Button>
+                  )}
                 </Card>
               );
             })}
