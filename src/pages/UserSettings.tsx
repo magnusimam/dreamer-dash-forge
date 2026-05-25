@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
+import { supabase } from "@/lib/supabase";
 import { useSetBirthday, useSaveBankDetails, useFreezeStreak, getFreezeCost } from "@/hooks/useSupabase";
 import { hapticNotification } from "@/lib/telegram";
-import { Cake, Building2, X, Loader2, Shield, Flame } from "lucide-react";
+import { Cake, Building2, X, Loader2, Shield, Flame, Link2, Copy, Check } from "lucide-react";
 
 export default function UserSettings() {
   const { toast } = useToast();
@@ -22,11 +23,69 @@ export default function UserSettings() {
   const [accountName, setAccountName] = useState(dbUser?.account_name || "");
   const [editingBank, setEditingBank] = useState(!dbUser?.bank_name);
 
+  // Web link code — connects this Dreamer to the ZeroUp Partners web app
+  const [linkCode, setLinkCode] = useState<string | null>(dbUser?.web_link_code ?? null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (linkCode || !dbUser?.id) return;
+    supabase
+      .from("users")
+      .select("web_link_code")
+      .eq("id", dbUser.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.web_link_code) setLinkCode(data.web_link_code);
+      });
+  }, [dbUser?.id, linkCode]);
+
+  const copyLinkCode = async () => {
+    if (!linkCode) return;
+    try {
+      await navigator.clipboard.writeText(linkCode);
+      setCopied(true);
+      hapticNotification("success");
+      toast({ title: "Copied!", description: "Paste it on the ZeroUp Partners web app." });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "Couldn't copy", description: "Long-press the code to copy it.", variant: "destructive" });
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-28 px-4 pt-6">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold text-foreground mb-2">Settings</h1>
         <p className="text-muted-foreground">Manage your personal details</p>
+      </motion.div>
+
+      {/* Web Link Code */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <Card className="gradient-card border-border/50 p-5 mb-4">
+          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-amber-400" /> Web Link Code
+          </h3>
+          <p className="text-[10px] text-muted-foreground mb-3">
+            Use this code to connect your account on the ZeroUp Partners web app and see your dream coins &amp; Dream Card there.
+          </p>
+          {linkCode ? (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-secondary/50 rounded-lg p-3 text-center">
+                <p className="text-xl font-mono font-bold tracking-[0.3em] text-foreground">{linkCode}</p>
+              </div>
+              <Button variant="outline" size="icon" className="h-12 w-12 border-primary/30 text-primary" onClick={copyLinkCode}>
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          <p className="text-[10px] text-muted-foreground mt-3">
+            On the Partners app, open <span className="text-foreground">Dreamers Coin</span> and paste this code to link your account.
+          </p>
+        </Card>
       </motion.div>
 
       {/* Birthday */}

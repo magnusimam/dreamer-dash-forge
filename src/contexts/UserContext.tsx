@@ -27,6 +27,7 @@ interface DbUser {
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
+  web_link_code: string | null;
 }
 
 interface UserContextValue {
