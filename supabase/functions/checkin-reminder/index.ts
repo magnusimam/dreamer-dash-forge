@@ -1,10 +1,21 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const WEBAPP_URL = "https://dist-gamma-tawny.vercel.app";
+const WEBAPP_URL = "https://dreamer-dash-forge.pages.dev";
 
 serve(async (req) => {
   try {
+    // Only the scheduled cron (which sends the matching X-Cron-Secret header)
+    // may trigger the fan-out. Enforced whenever CRON_SECRET is configured,
+    // so the public anon key can no longer trigger mass reminders on demand.
+    const cronSecret = Deno.env.get("CRON_SECRET");
+    if (cronSecret && req.headers.get("X-Cron-Secret") !== cronSecret) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Unauthorized" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

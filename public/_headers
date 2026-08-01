@@ -1,0 +1,4 @@
+/*
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: frame-ancestors 'self' https://web.telegram.org https://*.telegram.org
+  Referrer-Policy: strict-origin-when-cross-origin

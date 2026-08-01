@@ -1,12 +1,20 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const WEBAPP_URL = "https://dist-gamma-tawny.vercel.app";
+const WEBAPP_URL = "https://dreamer-dash-forge.pages.dev";
 const BOT_USERNAME = "ZeroUpDreamersBot";
 
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("OK", { status: 200 });
+  }
+
+  // Verify Telegram's secret token (set via setWebhook?secret_token=...).
+  // Enforced whenever TELEGRAM_WEBHOOK_SECRET is configured, so attackers
+  // who find the URL cannot POST forged updates.
+  const webhookSecret = Deno.env.get("TELEGRAM_WEBHOOK_SECRET");
+  if (webhookSecret && req.headers.get("X-Telegram-Bot-Api-Secret-Token") !== webhookSecret) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   try {
