@@ -96,6 +96,7 @@ export default function Transfer() {
         .from("users")
         .select("id, first_name, last_name, username, telegram_id, last_active")
         .or(`username.ilike.%${escaped}%,first_name.ilike.%${escaped}%`)
+        .not("username", "is", null)
         .neq("id", dbUser?.id || "")
         .limit(10);
       setSuggestions(data || []);

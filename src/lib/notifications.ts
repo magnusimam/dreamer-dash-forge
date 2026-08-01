@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getInitData } from "./telegram";
 
 /**
  * Send an in-chat Telegram message to a user via the bot.
@@ -8,7 +9,7 @@ import { supabase } from "./supabase";
 export function notifyUser(telegramId: number, message: string, photoUrl?: string) {
   supabase.functions
     .invoke("send-notification", {
-      body: { telegram_id: telegramId, message, photo_url: photoUrl || undefined },
+      body: { initData: getInitData(), telegram_id: telegramId, message, photo_url: photoUrl || undefined },
     })
     .catch(() => {
       // Silent fail — notifications are best-effort

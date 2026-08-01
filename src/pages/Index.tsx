@@ -19,7 +19,7 @@ const SupplyDashboard = lazy(() => import("@/pages/SupplyDashboard"));
 const States = lazy(() => import("@/pages/States"));
 const UserSettings = lazy(() => import("@/pages/UserSettings"));
 const Community = lazy(() => import("@/pages/Community"));
-import { showBackButton, hideBackButton } from "@/lib/telegram";
+import { showBackButton, hideBackButton, getInitData } from "@/lib/telegram";
 import { useUser } from "@/contexts/UserContext";
 import { useHeartbeat, useInactivityCheck } from "@/hooks/useSupabase";
 import { notifyUser } from "@/lib/notifications";
@@ -125,7 +125,7 @@ const Index = () => {
       }
 
       if (topUser) {
-        await supabase.from("weekly_mvps").insert({ user_id: topUser, week_start: weekStartStr, engagement_points: topPoints });
+        await supabase.rpc("admin_set_weekly_mvp", { p_init_data: getInitData(), p_user_id: topUser, p_week_start: weekStartStr, p_engagement_points: topPoints });
       }
       localStorage.setItem(mvpKey, "done");
     };
@@ -145,7 +145,7 @@ const Index = () => {
     if (localStorage.getItem(pairKey)) return;
     const runPairing = async () => {
       try {
-        const { data } = await supabase.rpc("auto_pair_dreamers");
+        const { data } = await supabase.rpc("auto_pair_dreamers", { p_init_data: getInitData() });
         if (data?.success) {
           localStorage.setItem(pairKey, "done");
         }

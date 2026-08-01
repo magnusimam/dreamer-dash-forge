@@ -42,72 +42,29 @@ const UserContext = createContext<UserContextValue>({
 });
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { user, initData, isTelegram } = useTelegram();
+  const { initData } = useTelegram();
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
 
-  const validateInitData = async (): Promise<boolean> => {
-    // Skip validation in browser dev mode
-    if (!isTelegram || !initData) {
-      return true;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke("validate-telegram", {
-        body: { initData },
-      });
-
-      if (error) {
-        console.warn("initData validation failed (edge function):", error);
-        // Allow through if edge function not deployed yet
-        return true;
-      }
-
-      return data?.valid === true;
-    } catch (err) {
-      console.warn("initData validation unavailable:", err);
-      // Gracefully degrade — allow through if function not deployed
-      return true;
-    }
-  };
-
   const upsertUser = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    // Validate Telegram initData
-    const isValid = await validateInitData();
-    setVerified(isValid);
-
-    if (!isValid) {
-      console.error("Telegram initData validation failed — blocking user creation");
-      setLoading(false);
-      return;
-    }
-
+    // Identity is established server-side from the signed Telegram initData.
+    // The RPC verifies the HMAC and derives telegram_id from the *verified*
+    // payload — the client no longer asserts who it is. Outside Telegram,
+    // initData is empty and the gateway only resolves a user if the database
+    // has a `dev_user_telegram_id` setting (dev/staging only).
     try {
       const { data, error } = await supabase.rpc("upsert_telegram_user", {
-        p_telegram_id: user.id,
-        p_first_name: user.firstName,
-        p_last_name: user.lastName || null,
-        p_username: user.username || null,
-        p_photo_url: user.photoUrl || null,
-        p_language_code: user.languageCode || "en",
+        p_init_data: initData,
       });
 
       if (error) throw error;
       setDbUser(data);
+      setVerified(true);
     } catch (err) {
-      console.error("Failed to upsert user:", err);
-      const { data } = await supabase
-        .from("users")
-        .select("*")
-        .eq("telegram_id", user.id)
-        .single();
-      if (data) setDbUser(data);
+      console.error("Telegram identity verification failed:", err);
+      setVerified(false);
+      setDbUser(null);
     } finally {
       setLoading(false);
     }
@@ -115,17 +72,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     if (!dbUser) return;
-    const { data } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", dbUser.id)
-      .single();
+    // Read own full row (incl. bank, which is column-revoked for direct selects)
+    // through the verified gateway.
+    const { data } = await supabase.rpc("get_me", { p_init_data: initData });
     if (data) setDbUser(data);
   };
 
   useEffect(() => {
     upsertUser();
-  }, [user]);
+  }, [initData]);
 
   return (
     <UserContext.Provider value={{ dbUser, loading, verified, refreshUser }}>

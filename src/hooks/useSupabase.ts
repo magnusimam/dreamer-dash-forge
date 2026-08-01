@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/contexts/UserContext";
+import { getInitData } from "@/lib/telegram";
 
 // ============================================================
 // HEARTBEAT — updates last_active every 60s
@@ -15,9 +16,7 @@ export function useHeartbeat() {
 
     const ping = () => {
       supabase
-        .from("users")
-        .update({ last_active: new Date().toISOString() })
-        .eq("id", dbUser.id)
+        .rpc("touch_last_active", { p_init_data: getInitData() })
         .then(() => {});
     };
 
@@ -135,7 +134,7 @@ export function useJoinPairQueue() {
   return useMutation({
     mutationFn: async () => {
       if (!dbUser) throw new Error("Not logged in");
-      const { data, error } = await supabase.rpc("join_pair_queue", { p_user_id: dbUser.id });
+      const { data, error } = await supabase.rpc("join_pair_queue", { p_init_data: getInitData() });
       if (error) throw error;
       return data;
     },
@@ -153,7 +152,7 @@ export function useRatePair() {
     mutationFn: async ({ pairId, rating, comment }: { pairId: string; rating: number; comment?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("rate_pair", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_pair_id: pairId,
         p_rating: rating,
         p_comment: comment || null,
@@ -174,7 +173,7 @@ export function useKeepPair() {
     mutationFn: async (pairId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("keep_pair", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_pair_id: pairId,
       });
       if (error) throw error;
@@ -195,7 +194,7 @@ export function useCheckinForPair() {
     mutationFn: async (pairId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("checkin_for_pair", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_pair_id: pairId,
       });
       if (error) throw error;
@@ -355,26 +354,13 @@ export function useFeaturedDreamer() {
       weekStart.setDate(today.getDate() - dayOfWeek);
       const weekStartStr = weekStart.toISOString().split("T")[0];
 
-      const { data: featured } = await supabase
-        .from("featured_dreamers")
-        .select("*")
-        .eq("week_start", weekStartStr)
-        .maybeSingle();
-
-      if (featured) {
-        const { data: user } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, balance, streak, status, last_active").eq("id", featured.user_id).maybeSingle();
-        return user;
-      }
-
-      // Auto-pick a random featured dreamer for this week
-      const { data: users } = await supabase.from("users").select("id").eq("is_admin", false);
-      if (users && users.length > 0) {
-        const randomUser = users[Math.floor(Math.random() * users.length)];
-        await supabase.from("featured_dreamers").insert({ user_id: randomUser.id, week_start: weekStartStr });
-        const { data: user } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, balance, streak, status, last_active").eq("id", randomUser.id).maybeSingle();
-        return user;
-      }
-      return null;
+      // Server picks (and persists) the week's featured dreamer and returns
+      // only public columns. Verified caller required.
+      const { data: featured } = await supabase.rpc("ensure_featured_dreamer", {
+        p_init_data: getInitData(),
+        p_week_start: weekStartStr,
+      });
+      return Array.isArray(featured) ? (featured[0] ?? null) : (featured ?? null);
     },
   });
 }
@@ -383,7 +369,7 @@ export function useCommunityMilestones() {
   return useQuery({
     queryKey: ["community_milestones"],
     queryFn: async () => {
-      const { count: totalUsers } = await supabase.from("users").select("*", { count: "exact", head: true });
+      const { count: totalUsers } = await supabase.from("users").select("id", { count: "exact", head: true });
       const { count: totalCheckins } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true });
       const { count: totalActivities } = await supabase.from("activity_logs").select("*", { count: "exact", head: true });
       const { count: totalTransfers } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("type", "transfer_out");
@@ -454,7 +440,7 @@ export function useInactivityCheck() {
 
     const check = async () => {
       const { data, error } = await supabase.rpc("apply_inactivity_penalty", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
       });
       if (error) return;
       localStorage.setItem(key, "checked");
@@ -465,6 +451,7 @@ export function useInactivityCheck() {
       if (data?.warning === "30_day_warning" && dbUser.telegram_id) {
         supabase.functions.invoke("send-notification", {
           body: {
+            initData: getInitData(),
             telegram_id: dbUser.telegram_id,
             message: `🚨 <b>Account Warning!</b>\n\nYou've been inactive for ${data.days_inactive} days.\n\n-${data.penalty} DR has been deducted.\n\nYour account may be flagged for deletion if you remain inactive. Open the app and check in now!`,
           },
@@ -487,10 +474,10 @@ export function useSetBirthday() {
   return useMutation({
     mutationFn: async (birthday: string | null) => {
       if (!dbUser) throw new Error("Not logged in");
-      const { error } = await supabase
-        .from("users")
-        .update({ birthday })
-        .eq("id", dbUser.id);
+      const { error } = await supabase.rpc("set_my_birthday", {
+        p_init_data: getInitData(),
+        p_birthday: birthday,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -506,10 +493,12 @@ export function useSaveBankDetails() {
   return useMutation({
     mutationFn: async ({ bank_name, account_number, account_name }: { bank_name: string; account_number: string; account_name: string }) => {
       if (!dbUser) throw new Error("Not logged in");
-      const { error } = await supabase
-        .from("users")
-        .update({ bank_name, account_number, account_name })
-        .eq("id", dbUser.id);
+      const { error } = await supabase.rpc("save_my_bank_details", {
+        p_init_data: getInitData(),
+        p_bank_name: bank_name,
+        p_account_number: account_number,
+        p_account_name: account_name,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -547,7 +536,7 @@ export function useUserProfile(userId: string | null) {
       if (!userId) return null;
       const { data, error } = await supabase
         .from("users")
-        .select("id, first_name, last_name, username, photo_url, balance, total_earned, streak, status, state_id, created_at, last_active, birthday, bank_name, account_number, account_name")
+        .select("id, first_name, last_name, username, photo_url, balance, total_earned, streak, status, state_id, created_at, last_active, birthday")
         .eq("id", userId)
         .maybeSingle();
       if (error) throw error;
@@ -709,7 +698,7 @@ export function useLogActivity() {
     mutationFn: async ({ code, proofUrl }: { code: string; proofUrl?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("log_activity", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_code: code,
         p_proof_url: proofUrl || null,
       });
@@ -757,7 +746,7 @@ export function usePerformCheckin() {
     mutationFn: async () => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("perform_daily_checkin", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
       });
       if (error) throw error;
       return data;
@@ -815,7 +804,7 @@ export function useRegisterHackathon() {
     mutationFn: async (hackathonId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("register_hackathon", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_hackathon_id: hackathonId,
       });
       if (error) throw error;
@@ -835,15 +824,13 @@ export function useRegisterHackathon() {
 // RAFFLES
 // ============================================================
 
-export function useRaffles() {
+export function useRaffles(includeArchived = false) {
   return useQuery({
-    queryKey: ["raffles"],
+    queryKey: ["raffles", includeArchived],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("raffles")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
+      let query = supabase.from("raffles").select("*");
+      if (!includeArchived) query = query.eq("is_active", true);
+      const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
       // Batch fetch winner names and entry counts
       const raffleIds = (data || []).map((r: any) => r.id);
@@ -923,7 +910,7 @@ export function useEnterRaffle() {
     mutationFn: async (raffleId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("enter_raffle", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_raffle_id: raffleId,
       });
       if (error) throw error;
@@ -945,11 +932,14 @@ export function useCreateRaffle() {
 
   return useMutation({
     mutationFn: async (raffle: { title: string; description?: string; entry_fee: number; end_date: string; max_entries?: number }) => {
-      const { data, error } = await supabase
-        .from("raffles")
-        .insert({ ...raffle, created_by: dbUser?.id })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_raffle", {
+        p_init_data: getInitData(),
+        p_title: raffle.title,
+        p_entry_fee: raffle.entry_fee,
+        p_end_date: raffle.end_date,
+        p_description: raffle.description ?? null,
+        p_max_entries: raffle.max_entries ?? null,
+      });
       if (error) throw error;
       return data;
     },
@@ -964,10 +954,27 @@ export function useDeleteRaffle() {
 
   return useMutation({
     mutationFn: async (raffleId: string) => {
-      const { error } = await supabase
-        .from("raffles")
-        .update({ is_active: false })
-        .eq("id", raffleId);
+      const { error } = await supabase.rpc("admin_deactivate_raffle", {
+        p_init_data: getInitData(),
+        p_id: raffleId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["raffles"] });
+    },
+  });
+}
+
+export function useUnarchiveRaffle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (raffleId: string) => {
+      const { error } = await supabase.rpc("admin_reactivate_raffle", {
+        p_init_data: getInitData(),
+        p_id: raffleId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -984,7 +991,7 @@ export function useDrawRaffleWinner() {
     mutationFn: async (raffleId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("draw_raffle_winner", {
-        p_admin_id: dbUser.id,
+        p_init_data: getInitData(),
         p_raffle_id: raffleId,
       });
       if (error) throw error;
@@ -1013,7 +1020,7 @@ export function useClaimPromoCode() {
     mutationFn: async (code: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("claim_promo_code", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_code: code,
       });
       if (error) throw error;
@@ -1060,11 +1067,12 @@ export function useCreatePromoCode() {
 
   return useMutation({
     mutationFn: async ({ code, reward, description }: { code: string; reward: number; description?: string }) => {
-      const { data, error } = await supabase
-        .from("promo_codes")
-        .insert({ code: code.toUpperCase().trim(), reward, description, created_by: dbUser?.id })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_promo_code", {
+        p_init_data: getInitData(),
+        p_code: code,
+        p_reward: reward,
+        p_description: description ?? null,
+      });
       if (error) throw error;
       return data;
     },
@@ -1080,17 +1088,31 @@ export function useGeneratePromoCodes() {
 
   return useMutation({
     mutationFn: async ({ count, reward, description }: { count: number; reward: number; description?: string }) => {
-      const codes = [];
-      for (let i = 0; i < count; i++) {
-        const code = "BREATH-" + Math.random().toString(36).substring(2, 6).toUpperCase();
-        codes.push({ code, reward, description, created_by: dbUser?.id });
-      }
-      const { data, error } = await supabase
-        .from("promo_codes")
-        .insert(codes)
-        .select();
+      const { data, error } = await supabase.rpc("admin_generate_promo_codes", {
+        p_init_data: getInitData(),
+        p_count: count,
+        p_reward: reward,
+        p_description: description ?? null,
+      });
       if (error) throw error;
       return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_promo_codes"] });
+    },
+  });
+}
+
+export function useDeletePromoCode() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc("admin_delete_promo_code", {
+        p_init_data: getInitData(),
+        p_id: id,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_promo_codes"] });
@@ -1110,7 +1132,7 @@ export function useBuyStreakInsurance() {
     mutationFn: async () => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("buy_streak_insurance", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
       });
       if (error) throw error;
       return data;
@@ -1161,7 +1183,7 @@ export function useTransferDR() {
     mutationFn: async ({ recipientUsername, amount, note }: { recipientUsername: string; amount: number; note?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("transfer_dr", {
-        p_sender_id: dbUser.id,
+        p_init_data: getInitData(),
         p_recipient_username: recipientUsername,
         p_amount: amount,
         p_note: note || null,
@@ -1254,7 +1276,7 @@ export function useCompleteMission() {
     mutationFn: async ({ missionId, code, note }: { missionId: string; code?: string; note?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("complete_mission", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_mission_id: missionId,
         p_code: code || null,
         p_note: note || null,
@@ -1296,7 +1318,7 @@ export function useUnlockMission() {
     mutationFn: async (missionId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("unlock_mission", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_mission_id: missionId,
       });
       if (error) throw error;
@@ -1319,7 +1341,7 @@ export function useSubmitMissionProof() {
     mutationFn: async ({ missionId, proofUrl }: { missionId: string; proofUrl: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("submit_mission_proof", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_mission_id: missionId,
         p_proof_url: proofUrl,
       });
@@ -1363,7 +1385,7 @@ export function useApproveMissionSubmission() {
     mutationFn: async (completionId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("approve_mission_submission", {
-        p_admin_id: dbUser.id,
+        p_init_data: getInitData(),
         p_completion_id: completionId,
       });
       if (error) throw error;
@@ -1385,7 +1407,7 @@ export function useRejectMissionSubmission() {
     mutationFn: async (completionId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("reject_mission_submission", {
-        p_admin_id: dbUser.id,
+        p_init_data: getInitData(),
         p_completion_id: completionId,
       });
       if (error) throw error;
@@ -1403,11 +1425,16 @@ export function useCreateMission() {
 
   return useMutation({
     mutationFn: async (mission: { title: string; description?: string; category: string; reward: number; unlock_fee: number; completion_code?: string; expires_at?: string }) => {
-      const { data, error } = await supabase
-        .from("missions")
-        .insert(mission)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_mission", {
+        p_init_data: getInitData(),
+        p_title: mission.title,
+        p_category: mission.category,
+        p_reward: mission.reward,
+        p_description: mission.description ?? null,
+        p_unlock_fee: mission.unlock_fee ?? 0,
+        p_completion_code: mission.completion_code ?? null,
+        p_expires_at: mission.expires_at ?? null,
+      });
       if (error) throw error;
       return data;
     },
@@ -1422,11 +1449,17 @@ export function useUpdateMission() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...fields }: { id: string; title?: string; description?: string; reward?: number; unlock_fee?: number; completion_code?: string; expires_at?: string | null }) => {
-      const { error } = await supabase
-        .from("missions")
-        .update(fields)
-        .eq("id", id);
+    mutationFn: async ({ id, title, description, reward, unlock_fee, completion_code, expires_at }: { id: string; title?: string; description?: string; reward?: number; unlock_fee?: number; completion_code?: string; expires_at?: string | null }) => {
+      const { error } = await supabase.rpc("admin_update_mission", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_title: title ?? null,
+        p_description: description ?? null,
+        p_reward: reward ?? null,
+        p_unlock_fee: unlock_fee ?? null,
+        p_completion_code: completion_code ?? null,
+        p_expires_at: expires_at ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1441,10 +1474,11 @@ export function useDeleteMission() {
 
   return useMutation({
     mutationFn: async (missionId: string) => {
-      const { error } = await supabase
-        .from("missions")
-        .update({ is_active: false })
-        .eq("id", missionId);
+      const { error } = await supabase.rpc("admin_set_mission_active", {
+        p_init_data: getInitData(),
+        p_id: missionId,
+        p_is_active: false,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1459,10 +1493,11 @@ export function useUnarchiveMission() {
 
   return useMutation({
     mutationFn: async (missionId: string) => {
-      const { error } = await supabase
-        .from("missions")
-        .update({ is_active: true })
-        .eq("id", missionId);
+      const { error } = await supabase.rpc("admin_set_mission_active", {
+        p_init_data: getInitData(),
+        p_id: missionId,
+        p_is_active: true,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1530,7 +1565,7 @@ export function useProcessReferral() {
     mutationFn: async (referralCode: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("process_referral", {
-        p_referred_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_referral_code: referralCode,
       });
       if (error) throw error;
@@ -1648,7 +1683,7 @@ export function useCheckAchievements() {
     mutationFn: async () => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("check_achievements", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
       });
       if (error) throw error;
       return data;
@@ -1684,14 +1719,13 @@ export function useUpdateRedemptionCategory() {
 
   return useMutation({
     mutationFn: async ({ id, cost, description, is_active }: { id: string; cost?: number; description?: string; is_active?: boolean }) => {
-      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (cost !== undefined) updates.cost = cost;
-      if (description !== undefined) updates.description = description;
-      if (is_active !== undefined) updates.is_active = is_active;
-      const { error } = await supabase
-        .from("redemption_categories")
-        .update(updates)
-        .eq("id", id);
+      const { error } = await supabase.rpc("admin_update_redemption_category", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_cost: cost ?? null,
+        p_description: description ?? null,
+        p_is_active: is_active ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1738,11 +1772,12 @@ export function useCreateMentor() {
 
   return useMutation({
     mutationFn: async (mentor: { name: string; specialty: string; contact_info: string }) => {
-      const { data, error } = await supabase
-        .from("mentors")
-        .insert(mentor)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_mentor", {
+        p_init_data: getInitData(),
+        p_name: mentor.name,
+        p_specialty: mentor.specialty,
+        p_contact_info: mentor.contact_info,
+      });
       if (error) throw error;
       return data;
     },
@@ -1757,13 +1792,15 @@ export function useUpdateMentor() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; specialty?: string; contact_info?: string; is_active?: boolean }) => {
-      const { data, error } = await supabase
-        .from("mentors")
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq("id", id)
-        .select()
-        .single();
+    mutationFn: async ({ id, name, specialty, contact_info, is_active }: { id: string; name?: string; specialty?: string; contact_info?: string; is_active?: boolean }) => {
+      const { data, error } = await supabase.rpc("admin_update_mentor", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_name: name ?? null,
+        p_specialty: specialty ?? null,
+        p_contact_info: contact_info ?? null,
+        p_is_active: is_active ?? null,
+      });
       if (error) throw error;
       return data;
     },
@@ -1779,7 +1816,10 @@ export function useDeleteMentor() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("mentors").delete().eq("id", id);
+      const { error } = await supabase.rpc("admin_delete_mentor", {
+        p_init_data: getInitData(),
+        p_id: id,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1809,7 +1849,7 @@ export function useSubmitRedemption() {
     }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("submit_redemption", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_category: category,
         p_amount: amount,
         p_details: details,
@@ -1836,7 +1876,7 @@ export function useUserRedemptions() {
     queryFn: async () => {
       if (!dbUser) return [];
       const { data, error } = await supabase.rpc("get_user_redemptions", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
       });
       if (error) throw error;
       return data;
@@ -1866,14 +1906,18 @@ export function useCreateActivity() {
       proof_required?: boolean;
     }) => {
       if (!dbUser) throw new Error("Not logged in");
-      const { data, error } = await supabase
-        .from("activities")
-        .insert({
-          ...activity,
-          created_by: dbUser.id,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_activity", {
+        p_init_data: getInitData(),
+        p_title: activity.title,
+        p_category: activity.category,
+        p_date: activity.date,
+        p_reward: activity.reward,
+        p_code: activity.code,
+        p_description: activity.description ?? null,
+        p_max_participants: activity.max_participants ?? null,
+        p_code_required: activity.code_required ?? true,
+        p_proof_required: activity.proof_required ?? false,
+      });
       if (error) throw error;
       return data;
     },
@@ -1891,13 +1935,17 @@ export function useUpdateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; title?: string; description?: string; category?: string; date?: string; reward?: number; is_active?: boolean }) => {
-      const { data, error } = await supabase
-        .from("activities")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+    mutationFn: async ({ id, title, description, category, date, reward, is_active }: { id: string; title?: string; description?: string; category?: string; date?: string; reward?: number; is_active?: boolean }) => {
+      const { data, error } = await supabase.rpc("admin_update_activity", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_title: title ?? null,
+        p_description: description ?? null,
+        p_category: category ?? null,
+        p_date: date ?? null,
+        p_reward: reward ?? null,
+        p_is_active: is_active ?? null,
+      });
       if (error) throw error;
       return data;
     },
@@ -1916,10 +1964,30 @@ export function useDeleteActivity() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("activities")
-        .update({ is_active: false })
-        .eq("id", id);
+      const { error } = await supabase.rpc("admin_set_activity_active", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_is_active: false,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_activities"] });
+    },
+  });
+}
+
+export function useUnarchiveActivity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc("admin_set_activity_active", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_is_active: true,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1934,10 +2002,11 @@ export function useToggleActivityStatus() {
 
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from("activities")
-        .update({ status })
-        .eq("id", id);
+      const { error } = await supabase.rpc("admin_set_activity_status", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_status: status,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1967,14 +2036,17 @@ export function useCreateHackathon() {
       cover_image_url?: string;
     }) => {
       if (!dbUser) throw new Error("Not logged in");
-      const { data, error } = await supabase
-        .from("hackathons")
-        .insert({
-          ...hackathon,
-          created_by: dbUser.id,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_hackathon", {
+        p_init_data: getInitData(),
+        p_title: hackathon.title,
+        p_start_date: hackathon.start_date,
+        p_end_date: hackathon.end_date,
+        p_entry_fee: hackathon.entry_fee,
+        p_prize_pool: hackathon.prize_pool,
+        p_description: hackathon.description ?? null,
+        p_max_teams: hackathon.max_teams ?? null,
+        p_cover_image_url: hackathon.cover_image_url ?? null,
+      });
       if (error) throw error;
       return data;
     },
@@ -1992,13 +2064,20 @@ export function useUpdateHackathon() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; title?: string; description?: string; start_date?: string; end_date?: string; entry_fee?: number; prize_pool?: number; max_teams?: number; status?: string; is_active?: boolean }) => {
-      const { data, error } = await supabase
-        .from("hackathons")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+    mutationFn: async ({ id, title, description, start_date, end_date, entry_fee, prize_pool, max_teams, status, is_active }: { id: string; title?: string; description?: string; start_date?: string; end_date?: string; entry_fee?: number; prize_pool?: number; max_teams?: number; status?: string; is_active?: boolean }) => {
+      const { data, error } = await supabase.rpc("admin_update_hackathon", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_title: title ?? null,
+        p_description: description ?? null,
+        p_start_date: start_date ?? null,
+        p_end_date: end_date ?? null,
+        p_entry_fee: entry_fee ?? null,
+        p_prize_pool: prize_pool ?? null,
+        p_max_teams: max_teams ?? null,
+        p_status: status ?? null,
+        p_is_active: is_active ?? null,
+      });
       if (error) throw error;
       return data;
     },
@@ -2017,7 +2096,10 @@ export function useDeleteHackathon() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("hackathons").delete().eq("id", id);
+      const { error } = await supabase.rpc("admin_delete_hackathon", {
+        p_init_data: getInitData(),
+        p_id: id,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -2052,7 +2134,7 @@ export function useProcessRedemption() {
     mutationFn: async ({ requestId, action, notes }: { requestId: string; action: "approved" | "rejected"; notes?: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("process_redemption", {
-        p_admin_id: dbUser.id,
+        p_init_data: getInitData(),
         p_request_id: requestId,
         p_action: action,
         p_notes: notes || null,
@@ -2076,7 +2158,7 @@ export function useAllUsers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("users")
-        .select("*")
+        .select("id, telegram_id, first_name, last_name, username, photo_url, language_code, balance, total_earned, streak, last_check_in, is_admin, is_super_admin, status, created_at, updated_at, referral_code, state_id, last_active, streak_protected_until, birthday, last_penalty_date")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -2092,7 +2174,7 @@ export function useAdjustBalance() {
     mutationFn: async ({ userId, amount, reason }: { userId: string; amount: number; reason: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("admin_adjust_balance", {
-        p_admin_id: dbUser.id,
+        p_init_data: getInitData(),
         p_user_id: userId,
         p_amount: amount,
         p_reason: reason,
@@ -2115,7 +2197,7 @@ export function useDeleteUser() {
     mutationFn: async ({ userId }: { userId: string }) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("admin_delete_user", {
-        p_admin_id: dbUser.id,
+        p_init_data: getInitData(),
         p_user_id: userId,
       });
       if (error) throw error;
@@ -2184,7 +2266,7 @@ export function useJoinState() {
     mutationFn: async (stateId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("join_state", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
         p_state_id: stateId,
       });
       if (error) throw error;
@@ -2206,7 +2288,7 @@ export function useLeaveState() {
     mutationFn: async () => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("leave_state", {
-        p_user_id: dbUser.id,
+        p_init_data: getInitData(),
       });
       if (error) throw error;
       return data;
@@ -2224,11 +2306,10 @@ export function useCreateState() {
 
   return useMutation({
     mutationFn: async (name: string) => {
-      const { data, error } = await supabase
-        .from("states")
-        .insert({ name })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_state", {
+        p_init_data: getInitData(),
+        p_name: name,
+      });
       if (error) throw error;
       return data;
     },
@@ -2247,7 +2328,7 @@ export function useDeleteState() {
     mutationFn: async (stateId: string) => {
       if (!dbUser) throw new Error("Not logged in");
       const { data, error } = await supabase.rpc("delete_state", {
-        p_admin_id: dbUser.id,
+        p_init_data: getInitData(),
         p_state_id: stateId,
       });
       if (error) throw error;

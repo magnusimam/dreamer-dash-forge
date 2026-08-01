@@ -165,15 +165,6 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                 </div>
               </div>
 
-              {/* Bank Details */}
-              {profile.bank_name && profile.account_number && (
-                <BankDetailsToggle
-                  bankName={profile.bank_name}
-                  accountNumber={profile.account_number}
-                  accountName={profile.account_name}
-                />
-              )}
-
               {/* Achievements */}
               {profile.achievements.length > 0 && (
                 <div className="mb-4">

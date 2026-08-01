@@ -14,6 +14,7 @@ import {
   useCreateActivity,
   useUpdateActivity,
   useDeleteActivity,
+  useUnarchiveActivity,
   useToggleActivityStatus,
   useActivityParticipants,
   useHackathons,
@@ -39,11 +40,13 @@ import {
   useRaffles,
   useCreateRaffle,
   useDeleteRaffle,
+  useUnarchiveRaffle,
   useDrawRaffleWinner,
   useRaffleEntries,
   useAllPromoCodes,
   useCreatePromoCode,
   useGeneratePromoCodes,
+  useDeletePromoCode,
   useMissions,
   useAllMissionsAdmin,
   useCreateMission,
@@ -58,6 +61,7 @@ import {
 } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { supabase } from "@/lib/supabase";
+import { getInitData } from "@/lib/telegram";
 import { uploadImage } from "@/lib/storage";
 import { notifyRedemptionUpdate, notifyMentorshipApproved, notifyProofApproved, notifyProofRejected, notifyUser } from "@/lib/notifications";
 import {
@@ -191,7 +195,7 @@ export default function Admin() {
   const { data: allStates = [] } = useStates();
   const { data: stateRankings = [] } = useStateRankings();
   const { data: allReferrals = [] } = useAllReferrals();
-  const { data: raffles = [] } = useRaffles();
+  const { data: raffles = [] } = useRaffles(true);
   const { data: promoCodes = [] } = useAllPromoCodes();
   const { data: allMissions = [] } = useAllMissionsAdmin();
   const { data: pendingMissionSubs = [] } = usePendingMissionSubmissions();
@@ -216,6 +220,7 @@ export default function Admin() {
   const createActivityMutation = useCreateActivity();
   const updateActivityMutation = useUpdateActivity();
   const deleteActivityMutation = useDeleteActivity();
+  const unarchiveActivityMutation = useUnarchiveActivity();
   const toggleActivityStatusMutation = useToggleActivityStatus();
   const createHackathonMutation = useCreateHackathon();
   const updateHackathonMutation = useUpdateHackathon();
@@ -231,9 +236,11 @@ export default function Admin() {
   const deleteStateMutation = useDeleteState();
   const createRaffleMutation = useCreateRaffle();
   const deleteRaffleMutation = useDeleteRaffle();
+  const unarchiveRaffleMutation = useUnarchiveRaffle();
   const drawWinnerMutation = useDrawRaffleWinner();
   const createPromoCodeMutation = useCreatePromoCode();
   const generatePromoCodesMutation = useGeneratePromoCodes();
+  const deletePromoCodeMutation = useDeletePromoCode();
   const createMissionMutation = useCreateMission();
   const updateMissionMutation = useUpdateMission();
   const deleteMissionMutation = useDeleteMission();
@@ -648,7 +655,7 @@ export default function Admin() {
   const handleProcessProof = async (logId: string, action: "approved" | "rejected") => {
     if (!dbUser) return;
     const { data, error } = await supabase.rpc("process_activity_proof", {
-      p_admin_id: dbUser.id,
+      p_init_data: getInitData(),
       p_log_id: logId,
       p_action: action,
     });
@@ -819,6 +826,11 @@ export default function Admin() {
                                 Archive
                               </Button>
                             </>
+                          )}
+                          {!act.is_active && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" disabled={unarchiveActivityMutation.isPending} onClick={async () => { await unarchiveActivityMutation.mutateAsync(act.id); toast({ title: "Activity Unarchived", description: "Visible to users again" }); }}>
+                              Unarchive
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -1292,13 +1304,20 @@ export default function Admin() {
                             {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
                           </div>
                           <div className="flex items-center gap-1">
-                            <Badge variant="outline" className={isEnded ? "text-xs bg-muted" : "text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}>{isEnded ? "Ended" : "Active"}</Badge>
-                            {!isEnded && (
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Delete" onClick={async () => {
+                            <Badge variant="outline" className={!r.is_active ? "text-xs bg-muted text-muted-foreground" : isEnded ? "text-xs bg-muted" : "text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}>{!r.is_active ? "Archived" : isEnded ? "Ended" : "Active"}</Badge>
+                            {r.is_active ? (
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" aria-label="Archive" disabled={deleteRaffleMutation.isPending} onClick={async () => {
                                 await deleteRaffleMutation.mutateAsync(r.id);
-                                toast({ title: "Raffle deleted" });
+                                toast({ title: "Raffle Archived", description: "Hidden from users but data preserved" });
                               }}>
                                 <Trash2 className="w-3 h-3" />
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" disabled={unarchiveRaffleMutation.isPending} onClick={async () => {
+                                await unarchiveRaffleMutation.mutateAsync(r.id);
+                                toast({ title: "Raffle Unarchived", description: "Visible to users again" });
+                              }}>
+                                Unarchive
                               </Button>
                             )}
                           </div>
@@ -1319,7 +1338,7 @@ export default function Admin() {
                           <Button size="sm" variant="outline" className="flex-1 border-border" onClick={() => setViewingRaffleEntries(viewingRaffleEntries === r.id ? null : r.id)}>
                             <Users className="w-3 h-3 mr-1" /> Entries
                           </Button>
-                          {!isEnded && (
+                          {!isEnded && r.is_active && (
                             <Button size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={drawWinnerMutation.isPending}
                               onClick={async () => {
                                 const result = await drawWinnerMutation.mutateAsync(r.id);
@@ -1420,9 +1439,14 @@ export default function Admin() {
                             </p>
                           )}
                         </div>
-                        <Badge className={p.is_used ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-primary/20 text-primary border-primary/30 text-[10px]"}>
-                          {p.is_used ? "Used" : "Available"}
-                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge className={p.is_used ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-primary/20 text-primary border-primary/30 text-[10px]"}>
+                            {p.is_used ? "Used" : "Available"}
+                          </Badge>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300" aria-label="Delete promo code" disabled={deletePromoCodeMutation.isPending} onClick={async () => { try { await deletePromoCodeMutation.mutateAsync(p.id); toast({ title: "Promo code deleted" }); } catch (err: any) { toast({ title: "Error", description: err?.message || "Failed.", variant: "destructive" }); } }}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     </Card>
                   ))}
