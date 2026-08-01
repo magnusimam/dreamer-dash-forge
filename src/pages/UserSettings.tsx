@@ -1,29 +1,91 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
-import { useSetBirthday, useSaveBankDetails } from "@/hooks/useSupabase";
-import { Cake, Building2, X, Loader2, ChevronRight } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useSetBirthday, useSaveBankDetails, useFreezeStreak, getFreezeCost } from "@/hooks/useSupabase";
+import { hapticNotification } from "@/lib/telegram";
+import { Cake, Building2, X, Loader2, Shield, Flame, Link2, Copy, Check } from "lucide-react";
 
 export default function UserSettings() {
   const { toast } = useToast();
   const { dbUser } = useUser();
   const setBirthdayMutation = useSetBirthday();
   const saveBankMutation = useSaveBankDetails();
+  const freezeStreakMutation = useFreezeStreak();
+  const [freezeDays, setFreezeDays] = useState(1);
 
   const [bankName, setBankName] = useState(dbUser?.bank_name || "");
   const [accountNumber, setAccountNumber] = useState(dbUser?.account_number || "");
   const [accountName, setAccountName] = useState(dbUser?.account_name || "");
   const [editingBank, setEditingBank] = useState(!dbUser?.bank_name);
 
+  // Web link code — connects this Dreamer to the ZeroUp Partners web app
+  const [linkCode, setLinkCode] = useState<string | null>(dbUser?.web_link_code ?? null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (linkCode || !dbUser?.id) return;
+    supabase
+      .from("users")
+      .select("web_link_code")
+      .eq("id", dbUser.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.web_link_code) setLinkCode(data.web_link_code);
+      });
+  }, [dbUser?.id, linkCode]);
+
+  const copyLinkCode = async () => {
+    if (!linkCode) return;
+    try {
+      await navigator.clipboard.writeText(linkCode);
+      setCopied(true);
+      hapticNotification("success");
+      toast({ title: "Copied!", description: "Paste it on the ZeroUp Partners web app." });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "Couldn't copy", description: "Long-press the code to copy it.", variant: "destructive" });
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pb-28 px-4 pt-6">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold text-foreground mb-2">Settings</h1>
         <p className="text-muted-foreground">Manage your personal details</p>
+      </motion.div>
+
+      {/* Web Link Code */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+        <Card className="gradient-card border-border/50 p-5 mb-4">
+          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-amber-400" /> Web Link Code
+          </h3>
+          <p className="text-[10px] text-muted-foreground mb-3">
+            Use this code to connect your account on the ZeroUp Partners web app and see your dream coins &amp; Dream Card there.
+          </p>
+          {linkCode ? (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-secondary/50 rounded-lg p-3 text-center">
+                <p className="text-xl font-mono font-bold tracking-[0.3em] text-foreground">{linkCode}</p>
+              </div>
+              <Button variant="outline" size="icon" className="h-12 w-12 border-primary/30 text-primary" onClick={copyLinkCode}>
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          <p className="text-[10px] text-muted-foreground mt-3">
+            On the Partners app, open <span className="text-foreground">Dreamers Coin</span> and paste this code to link your account.
+          </p>
+        </Card>
       </motion.div>
 
       {/* Birthday */}
@@ -118,6 +180,58 @@ export default function UserSettings() {
                 </Button>
               )}
             </div>
+          )}
+        </Card>
+      </motion.div>
+
+      {/* Streak Freeze */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        <Card className="gradient-card border-border/50 p-5 mb-4">
+          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-cyan-400" /> Streak Freeze
+          </h3>
+
+          {dbUser?.streak_protected_until && new Date(dbUser.streak_protected_until) >= new Date() ? (
+            <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
+              <p className="text-sm text-cyan-400 font-medium flex items-center gap-1.5">
+                <Shield className="w-4 h-4" /> Streak is frozen
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Protected until {new Date(dbUser.streak_protected_until).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                ({Math.ceil((new Date(dbUser.streak_protected_until).getTime() - Date.now()) / 86400000)} days left)
+              </p>
+            </div>
+          ) : (dbUser?.streak ?? 0) >= 2 ? (
+            <>
+              <p className="text-[10px] text-muted-foreground mb-3">Protect your {dbUser?.streak}-day streak. You won't lose it even if you don't check in.</p>
+              <div className="flex items-center gap-3 mb-2">
+                <input type="range" min={1} max={30} value={freezeDays} onChange={(e) => setFreezeDays(parseInt(e.target.value))} className="flex-1 accent-cyan-400" />
+                <span className="text-lg font-bold text-cyan-400 w-10 text-center">{freezeDays}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">{freezeDays} day{freezeDays !== 1 ? "s" : ""} — {getFreezeCost(freezeDays).toLocaleString()} DR</p>
+              <div className="text-[10px] text-muted-foreground mb-3">
+                Days 1-3: 50 DR/day · Days 4-7: 100 DR/day · Days 8-14: 150 DR/day · Days 15-30: 2,000 DR/day
+              </div>
+              <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white" disabled={freezeStreakMutation.isPending || (dbUser?.balance ?? 0) < getFreezeCost(freezeDays)}
+                onClick={async () => {
+                  try {
+                    const result = await freezeStreakMutation.mutateAsync(freezeDays);
+                    if (result?.success) {
+                      hapticNotification("success");
+                      toast({ title: "Streak Frozen!", description: `Protected for ${result.days} days. Cost: ${result.cost} DR` });
+                    } else {
+                      toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                    }
+                  } catch (err: any) {
+                    toast({ title: "Error", description: err?.message, variant: "destructive" });
+                  }
+                }}>
+                {freezeStreakMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+                Freeze for {getFreezeCost(freezeDays).toLocaleString()} DR
+              </Button>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">Need at least 2-day streak to freeze.</p>
           )}
         </Card>
       </motion.div>

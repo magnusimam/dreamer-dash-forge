@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,23 @@ import {
   useCreateHackathon,
   useUpdateHackathon,
   useDeleteHackathon,
+  useHackathonRegistrants,
+  useSetHackathonWinner,
+  useCreateMagicBox,
+  useAllMagicBoxesAdmin,
+  useUnarchiveRaffle,
+  useArchiveHackathon,
+  useUnarchiveHackathon,
+  useArchiveMagicBox,
+  useAllRafflesAdmin,
+  useAllHackathonsAdmin,
+  useMagicBoxParticipants,
+  useCreateSupportCampaign,
+  useAllSupportCampaignsAdmin,
+  usePendingContributions,
+  useApproveContribution,
+  useRejectContribution,
+  useCampaignContributors,
   useRedemptionRequests,
   useProcessRedemption,
   useAllUsers,
@@ -93,6 +110,7 @@ import {
   Sparkles,
   Target,
   Lock,
+  Heart,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -117,6 +135,63 @@ function RaffleEntriesList({ raffleId }: { raffleId: string }) {
         </div>
       ))}
       <p className="text-[10px] text-muted-foreground">{entries.length} total entries</p>
+    </div>
+  );
+}
+
+function CampaignContributorsList({ campaignId }: { campaignId: string }) {
+  const { data: contributors = [], isLoading } = useCampaignContributors(campaignId);
+  if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
+  if (contributors.length === 0) return <p className="text-xs text-muted-foreground mt-2">No contributions yet</p>;
+  const total = contributors.reduce((s: number, c: any) => s + c.amount, 0);
+  return (
+    <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-green-500/20">
+      {contributors.map((c: any) => (
+        <div key={c.id} className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-foreground">
+              {[c.user?.first_name, c.user?.last_name].filter(Boolean).join(" ")}
+            </p>
+            {c.user?.username && <p className="text-[10px] text-muted-foreground">@{c.user.username}</p>}
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-green-400 font-medium">₦{c.amount.toLocaleString()}</p>
+            <p className="text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+          </div>
+        </div>
+      ))}
+      <p className="text-[10px] text-green-400">{contributors.length} contributor{contributors.length !== 1 ? "s" : ""} · ₦{total.toLocaleString()} total</p>
+    </div>
+  );
+}
+
+function MagicBoxParticipantsList({ boxId }: { boxId: string }) {
+  const { data: participants = [], isLoading } = useMagicBoxParticipants(boxId);
+  if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
+  if (participants.length === 0) return <p className="text-xs text-muted-foreground mt-2">No one has entered yet</p>;
+  return (
+    <div className="mt-3 space-y-1.5 pl-3 border-l-2 border-yellow-500/20">
+      {participants.map((p: any) => (
+        <div key={p.id} className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-foreground">
+              {[p.user?.first_name, p.user?.last_name].filter(Boolean).join(" ")}
+            </p>
+            {p.user?.username && <p className="text-[10px] text-muted-foreground">@{p.user.username}</p>}
+          </div>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-muted-foreground/60">
+              {new Date(p.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </p>
+            {p.claimed ? (
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded px-1.5 py-0.5">Claimed</span>
+            ) : (
+              <span className="text-[10px] bg-primary/20 text-primary border border-primary/30 rounded px-1.5 py-0.5">Entered</span>
+            )}
+          </div>
+        </div>
+      ))}
+      <p className="text-[10px] text-muted-foreground">{participants.length} entered · {participants.filter((p: any) => p.claimed).length} claimed</p>
     </div>
   );
 }
@@ -154,6 +229,52 @@ function MissionParticipantsList({ missionId }: { missionId: string }) {
   );
 }
 
+function HackathonWinnerModal({ hackathon, onClose, onPickWinner, isPending }: { hackathon: any; onClose: () => void; onPickWinner: (winnerId: string, winnerName: string, telegramId: number) => void; isPending: boolean }) {
+  const { data: registrants = [], isLoading } = useHackathonRegistrants(hackathon.id);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={onClose}>
+      <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground text-lg">Declare Winner</h3>
+          <Button size="icon" variant="ghost" onClick={onClose}><X className="w-4 h-4" /></Button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">Pick a winner for <span className="text-foreground font-medium">{hackathon.title}</span>. The winner gets {hackathon.prize_pool} DR + 10 XP.</p>
+
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        ) : registrants.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">No registrants for this hackathon</p>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {registrants.map((u: any) => (
+              <button key={u.id} type="button" className={`w-full flex items-center gap-3 p-3 rounded-lg border transition ${selected === u.id ? "border-primary bg-primary/10" : "border-border hover:border-primary/30"}`} onClick={() => setSelected(u.id)}>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium text-foreground">{u.first_name}{u.last_name ? ` ${u.last_name}` : ""}</p>
+                  {u.username && <p className="text-xs text-muted-foreground">@{u.username}</p>}
+                </div>
+                {selected === u.id && <CheckCircle className="w-5 h-5 text-primary" />}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!selected || isPending}
+          onClick={() => {
+            const winner = registrants.find((r: any) => r.id === selected);
+            if (winner) {
+              onPickWinner(winner.id, winner.first_name, (winner as any).telegram_id);
+            }
+          }}>
+          {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trophy className="w-4 h-4 mr-2" />}
+          Declare Winner
+        </Button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function ActivityParticipantsList({ activityId }: { activityId: string }) {
   const { data: participants = [], isLoading } = useActivityParticipants(activityId);
   if (isLoading) return <p className="text-xs text-muted-foreground mt-2">Loading...</p>;
@@ -186,7 +307,7 @@ export default function Admin() {
 
   // Data hooks
   const { data: activities = [] } = useAllActivitiesAdmin();
-  const { data: hackathons = [] } = useHackathons();
+  const { data: hackathons = [] } = useAllHackathonsAdmin();
   const { data: redemptions = [] } = useRedemptionRequests();
   const { data: allUsers = [] } = useAllUsers();
 
@@ -195,10 +316,17 @@ export default function Admin() {
   const { data: allStates = [] } = useStates();
   const { data: stateRankings = [] } = useStateRankings();
   const { data: allReferrals = [] } = useAllReferrals();
-  const { data: raffles = [] } = useRaffles(true);
+  const { data: raffles = [] } = useAllRafflesAdmin();
   const { data: promoCodes = [] } = useAllPromoCodes();
   const { data: allMissions = [] } = useAllMissionsAdmin();
   const { data: pendingMissionSubs = [] } = usePendingMissionSubmissions();
+  const { data: adminMagicBoxes = [] } = useAllMagicBoxesAdmin();
+  const { data: adminSupportCampaigns = [] } = useAllSupportCampaignsAdmin();
+  const { data: pendingContributions = [] } = usePendingContributions();
+  const createSupportCampaignMutation = useCreateSupportCampaign();
+  const approveContributionMutation = useApproveContribution();
+  const rejectContributionMutation = useRejectContribution();
+  const createMagicBoxMutation = useCreateMagicBox();
   const approveMissionMutation = useApproveMissionSubmission();
   const rejectMissionMutation = useRejectMissionSubmission();
 
@@ -225,6 +353,35 @@ export default function Admin() {
   const createHackathonMutation = useCreateHackathon();
   const updateHackathonMutation = useUpdateHackathon();
   const deleteHackathonMutation = useDeleteHackathon();
+  const setHackathonWinnerMutation = useSetHackathonWinner();
+  const [winnerHackathon, setWinnerHackathon] = useState<any | null>(null);
+
+  // Magic Box form
+  const [mbTitle, setMbTitle] = useState("");
+  const [mbDesc, setMbDesc] = useState("");
+  const [mbFee, setMbFee] = useState("");
+  const [mbPrizeDr, setMbPrizeDr] = useState("");
+  const [mbPrizeXp, setMbPrizeXp] = useState("0");
+  const [mbMaxEntries, setMbMaxEntries] = useState("");
+  const [mbPrizeCustom, setMbPrizeCustom] = useState("");
+  const [mbRevealAt, setMbRevealAt] = useState("");
+  const [mbAllowedUsers, setMbAllowedUsers] = useState<{ username: string; name: string }[]>([]);
+  const [mbUserSearch, setMbUserSearch] = useState("");
+  const [mbUserSuggestions, setMbUserSuggestions] = useState<any[]>([]);
+  const [mbShowSuggestions, setMbShowSuggestions] = useState(false);
+  const [viewingBoxParticipants, setViewingBoxParticipants] = useState<string | null>(null);
+  const [viewingCampaignContributors, setViewingCampaignContributors] = useState<string | null>(null);
+
+  // Support campaign form
+  const [scTitle, setScTitle] = useState("");
+  const [scDesc, setScDesc] = useState("");
+  const [scBeneficiary, setScBeneficiary] = useState("");
+  const [scTarget, setScTarget] = useState("");
+  const [scBankName, setScBankName] = useState("");
+  const [scAccNum, setScAccNum] = useState("");
+  const [scAccName, setScAccName] = useState("");
+  const [scDrReward, setScDrReward] = useState("50");
+  const [scXpReward, setScXpReward] = useState("1");
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
   const deleteUserMutation = useDeleteUser();
@@ -237,6 +394,9 @@ export default function Admin() {
   const createRaffleMutation = useCreateRaffle();
   const deleteRaffleMutation = useDeleteRaffle();
   const unarchiveRaffleMutation = useUnarchiveRaffle();
+  const archiveHackathonMutation = useArchiveHackathon();
+  const unarchiveHackathonMutation = useUnarchiveHackathon();
+  const archiveMagicBoxMutation = useArchiveMagicBox();
   const drawWinnerMutation = useDrawRaffleWinner();
   const createPromoCodeMutation = useCreatePromoCode();
   const generatePromoCodesMutation = useGeneratePromoCodes();
@@ -400,6 +560,24 @@ export default function Admin() {
     setBroadcastImgUrl("");
     toast({ title: `Broadcast sent to ${sent} users` });
   };
+
+  // Magic Box user search
+  useEffect(() => {
+    const trimmed = mbUserSearch.trim().replace(/^@/, "");
+    if (trimmed.length < 2) { setMbUserSuggestions([]); setMbShowSuggestions(false); return; }
+    const timer = setTimeout(async () => {
+      const escaped = trimmed.replace(/%/g, "\\%").replace(/_/g, "\\_");
+      const { data } = await supabase
+        .from("users")
+        .select("first_name, last_name, username")
+        .or(`username.ilike.%${escaped}%,first_name.ilike.%${escaped}%`)
+        .limit(8);
+      const existing = mbAllowedUsers.map((u) => u.username.toLowerCase());
+      setMbUserSuggestions((data || []).filter((u: any) => u.username && !existing.includes(u.username.toLowerCase())));
+      setMbShowSuggestions(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [mbUserSearch, mbAllowedUsers]);
 
   const broadcastNewActivity = (title: string, reward: number) => {
     for (const u of allUsers) {
@@ -705,6 +883,8 @@ export default function Admin() {
           <TabsList className="inline-flex w-auto min-w-full gap-1">
             <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="magicbox" className="text-xs px-3">Magic Box</TabsTrigger>}
+            <TabsTrigger value="support" className="text-xs px-3">Support</TabsTrigger>
             <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>
             <TabsTrigger value="redemptions" className="relative text-xs px-3">
               Redeem
@@ -789,7 +969,7 @@ export default function Admin() {
                     <Card key={act.id} className={`gradient-card border-border/50 p-4 ${!act.is_active ? "opacity-60" : ""}`}>
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-medium text-foreground">{act.title}</h4>
                             {!act.is_active ? (
                               <Badge className="bg-muted text-muted-foreground text-[10px]">Archived</Badge>
@@ -798,6 +978,7 @@ export default function Admin() {
                             ) : (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Active</Badge>
                             )}
+                            <Badge variant="secondary" className="text-xs">{act.category}</Badge>
                           </div>
                           {act.description && <p className="text-xs text-muted-foreground mt-1">{act.description}</p>}
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
@@ -806,33 +987,34 @@ export default function Admin() {
                             {act.max_participants && <span className="flex items-center gap-1"><Users className="w-3 h-3" />Max {act.max_participants}</span>}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="secondary" className="text-xs">{act.category}</Badge>
-                          {act.is_active && (
-                            <>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
-                                <Pencil className="w-3 h-3" />
-                              </Button>
-                              {act.status === "ended" ? (
-                                <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "active" }); toast({ title: "Activity Reopened" }); }}>
-                                  Reopen
-                                </Button>
-                              ) : (
-                                <Button size="sm" variant="outline" className="h-7 text-xs border-red-500/30 text-red-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "ended" }); toast({ title: "Activity Ended", description: "Shows as ended for users" }); }}>
-                                  End
-                                </Button>
-                              )}
-                              <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived", description: "Hidden from users but data preserved" }); }}>
-                                Archive
-                              </Button>
-                            </>
-                          )}
-                          {!act.is_active && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" disabled={unarchiveActivityMutation.isPending} onClick={async () => { await unarchiveActivityMutation.mutateAsync(act.id); toast({ title: "Activity Unarchived", description: "Visible to users again" }); }}>
-                              Unarchive
-                            </Button>
-                          )}
-                        </div>
+                      </div>
+
+                      {/* Action buttons — always visible on separate row */}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {act.is_active && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditActivity(act)}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {act.is_active && act.status === "ended" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "active" }); toast({ title: "Activity Reopened" }); }}>
+                            Reopen
+                          </Button>
+                        )}
+                        {act.is_active && act.status !== "ended" && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-red-500/30 text-red-400" onClick={async () => { await toggleActivityStatusMutation.mutateAsync({ id: act.id, status: "ended" }); toast({ title: "Activity Ended" }); }}>
+                            End
+                          </Button>
+                        )}
+                        {act.is_active ? (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={() => { handleDeleteActivity(act.id); toast({ title: "Activity Archived" }); }}>
+                            Archive
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" disabled={unarchiveActivityMutation.isPending} onClick={async () => { await unarchiveActivityMutation.mutateAsync(act.id); toast({ title: "Activity Unarchived" }); }}>
+                            Unarchive
+                          </Button>
+                        )}
                       </div>
                       {act.code_required !== false ? (
                         <div className="flex items-center gap-2 mt-3 p-2 bg-secondary rounded-lg">
@@ -1056,6 +1238,265 @@ export default function Admin() {
           </motion.div>
         </TabsContent>
 
+        {/* ========== MAGIC BOX TAB ========== */}
+        <TabsContent value="magicbox">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <span className="text-lg">🎁</span> Create Magic Box
+              </h3>
+              <div className="space-y-3">
+                <Input placeholder="Box title (e.g. Weekly Mystery Box)" value={mbTitle} onChange={(e) => setMbTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
+                <Textarea placeholder="Description (optional)" value={mbDesc} onChange={(e) => setMbDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Entry Fee (DR)</label><Input type="number" placeholder="e.g. 100" value={mbFee} onChange={(e) => setMbFee(e.target.value)} className="bg-secondary border-border" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Prize (DR)</label><Input type="number" placeholder="e.g. 500" value={mbPrizeDr} onChange={(e) => setMbPrizeDr(e.target.value)} className="bg-secondary border-border" /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Prize XP (optional)</label><Input type="number" placeholder="0" value={mbPrizeXp} onChange={(e) => setMbPrizeXp(e.target.value)} className="bg-secondary border-border" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">Max Entries (optional)</label><Input type="number" placeholder="Unlimited" value={mbMaxEntries} onChange={(e) => setMbMaxEntries(e.target.value)} className="bg-secondary border-border" /></div>
+                </div>
+                <Input placeholder="Custom prize (optional — e.g. ₦5,000 Airtime, Free Book)" value={mbPrizeCustom} onChange={(e) => setMbPrizeCustom(e.target.value)} className="bg-secondary border-border" />
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Reveal Time (when boxes open for everyone)</label>
+                  <Input type="datetime-local" value={mbRevealAt} onChange={(e) => setMbRevealAt(e.target.value)} className="bg-secondary border-border" />
+                </div>
+                <div className="relative">
+                  <label className="text-xs text-muted-foreground mb-1 block">Allowed Users (optional — leave empty for everyone)</label>
+                  {mbAllowedUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {mbAllowedUsers.map((u) => (
+                        <span key={u.username} className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2.5 py-0.5 text-xs">
+                          @{u.username}
+                          <button type="button" className="hover:text-white" onClick={() => setMbAllowedUsers(mbAllowedUsers.filter((x) => x.username !== u.username))}>
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <Input placeholder="Search user to add..." value={mbUserSearch} onChange={(e) => setMbUserSearch(e.target.value)} onFocus={() => { if (mbUserSuggestions.length > 0) setMbShowSuggestions(true); }} className="bg-secondary border-border" />
+                  {mbShowSuggestions && mbUserSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+                      {mbUserSuggestions.map((u: any) => (
+                        <button key={u.username} type="button" className="w-full flex items-center gap-2 px-3 py-2 hover:bg-secondary/80 text-left" onClick={() => {
+                          setMbAllowedUsers([...mbAllowedUsers, { username: u.username, name: u.first_name }]);
+                          setMbUserSearch("");
+                          setMbShowSuggestions(false);
+                        }}>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground">{u.first_name}{u.last_name ? ` ${u.last_name}` : ""}</p>
+                            <p className="text-[10px] text-muted-foreground">@{u.username}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-600 hover:to-amber-700 text-white font-semibold" disabled={!mbTitle || !mbFee || !mbRevealAt || (!mbPrizeDr && !mbPrizeCustom) || createMagicBoxMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      const usernames = mbAllowedUsers.length > 0 ? mbAllowedUsers.map((u) => u.username) : undefined;
+                      await createMagicBoxMutation.mutateAsync({
+                        title: mbTitle,
+                        description: mbDesc || undefined,
+                        entry_fee: parseInt(mbFee),
+                        prize_dr: parseInt(mbPrizeDr) || 0,
+                        prize_xp: parseInt(mbPrizeXp) || 0,
+                        prize_custom: mbPrizeCustom || undefined,
+                        max_entries: mbMaxEntries ? parseInt(mbMaxEntries) : undefined,
+                        reveal_at: new Date(mbRevealAt).toISOString(),
+                        allowed_usernames: usernames,
+                      });
+                      toast({ title: "Magic Box Created!", description: mbTitle });
+                      setMbTitle(""); setMbDesc(""); setMbFee(""); setMbPrizeDr(""); setMbPrizeXp("0"); setMbPrizeCustom(""); setMbMaxEntries(""); setMbRevealAt(""); setMbAllowedUsers([]); setMbUserSearch("");
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                    }
+                  }}>
+                  {createMagicBoxMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                  Create Magic Box
+                </Button>
+              </div>
+            </Card>
+
+            {adminMagicBoxes.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Magic Boxes ({adminMagicBoxes.length})</h3>
+                <div className="space-y-3">
+                  {adminMagicBoxes.map((b: any) => (
+                    <Card key={b.id} className={`gradient-card border-border/50 p-4 ${b.status === "ended" ? "opacity-60" : ""}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-foreground">{b.title}</h4>
+                        <div className="flex items-center gap-1">
+                          <Badge className={b.status === "active" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>{b.status === "active" ? "Active" : "Ended"}</Badge>
+                          {b.status === "active" && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await archiveMagicBoxMutation.mutateAsync(b.id); toast({ title: "Magic Box Ended" }); }}>
+                              End
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>Fee: {b.entry_fee} DR</span>
+                        <span>Prize: {b.prize_dr > 0 ? `${b.prize_dr} DR` : ""}{b.prize_xp > 0 ? ` ${b.prize_xp} XP` : ""}{b.prize_custom ? ` ${b.prize_custom}` : ""}</span>
+                        {b.reveal_at && <span>Reveals: {new Date(b.reveal_at).toLocaleString()}</span>}
+                        {b.max_entries && <span>Max: {b.max_entries}</span>}
+                      </div>
+                      {b.allowed_usernames && b.allowed_usernames.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">Whitelist: {b.allowed_usernames.join(", ")}</p>
+                      )}
+                      <Button size="sm" variant="outline" className="mt-2 w-full border-border text-xs" onClick={() => setViewingBoxParticipants(viewingBoxParticipants === b.id ? null : b.id)}>
+                        <Users className="w-3 h-3 mr-1" /> {viewingBoxParticipants === b.id ? "Hide" : "View"} Participants
+                      </Button>
+                      {viewingBoxParticipants === b.id && (
+                        <MagicBoxParticipantsList boxId={b.id} />
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== SUPPORT TAB ========== */}
+        <TabsContent value="support">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* Create Campaign */}
+            <Card className="gradient-card border-border/50 p-5 mb-4">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Heart className="w-4 h-4 text-green-400" /> Create Support Campaign
+              </h3>
+              <div className="space-y-3">
+                <Input placeholder="Campaign title" value={scTitle} onChange={(e) => setScTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
+                <Textarea placeholder="Description" value={scDesc} onChange={(e) => setScDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
+                <Input placeholder="Beneficiary name" value={scBeneficiary} onChange={(e) => setScBeneficiary(e.target.value)} className="bg-secondary border-border" />
+                <Input type="number" placeholder="Target amount in Naira (e.g. 150000)" value={scTarget} onChange={(e) => setScTarget(e.target.value)} className="bg-secondary border-border" />
+                <div className="grid grid-cols-3 gap-2">
+                  <Input placeholder="Bank name" value={scBankName} onChange={(e) => setScBankName(e.target.value)} className="bg-secondary border-border text-xs" />
+                  <Input placeholder="Account #" value={scAccNum} onChange={(e) => setScAccNum(e.target.value)} className="bg-secondary border-border text-xs" />
+                  <Input placeholder="Account name" value={scAccName} onChange={(e) => setScAccName(e.target.value)} className="bg-secondary border-border text-xs" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-muted-foreground mb-1 block">DR per ₦1,000</label><Input type="number" value={scDrReward} onChange={(e) => setScDrReward(e.target.value)} className="bg-secondary border-border" /></div>
+                  <div><label className="text-xs text-muted-foreground mb-1 block">XP per ₦1,000</label><Input type="number" value={scXpReward} onChange={(e) => setScXpReward(e.target.value)} className="bg-secondary border-border" /></div>
+                </div>
+                <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={!scTitle || !scBeneficiary || !scTarget || createSupportCampaignMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      await createSupportCampaignMutation.mutateAsync({
+                        title: scTitle, description: scDesc || undefined, beneficiary_name: scBeneficiary,
+                        target_amount: parseInt(scTarget), bank_name: scBankName || undefined,
+                        account_number: scAccNum || undefined, account_name: scAccName || undefined,
+                        dr_reward_per_1000: parseInt(scDrReward) || 50, xp_reward_per_1000: parseInt(scXpReward) || 1,
+                      });
+                      toast({ title: "Campaign Created!", description: scTitle });
+                      setScTitle(""); setScDesc(""); setScBeneficiary(""); setScTarget(""); setScBankName(""); setScAccNum(""); setScAccName("");
+                    } catch (err: any) {
+                      toast({ title: "Error", description: err?.message, variant: "destructive" });
+                    }
+                  }}>
+                  {createSupportCampaignMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Heart className="w-4 h-4 mr-2" />}
+                  Create Campaign
+                </Button>
+              </div>
+            </Card>
+
+            {/* Pending Contributions */}
+            {pendingContributions.length > 0 && (
+              <Card className="border-orange-500/20 bg-orange-500/5 p-5 mb-4">
+                <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-400" /> Pending Contributions ({pendingContributions.length})
+                </h3>
+                <div className="space-y-3">
+                  {pendingContributions.map((c: any) => (
+                    <div key={c.id} className="bg-secondary/50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-foreground">{c.user?.first_name} {c.user?.last_name || ""}</p>
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">₦{c.amount.toLocaleString()}</Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mb-2">{c.campaign?.title}</p>
+                      {c.proof_url && (
+                        <img src={c.proof_url} alt="Proof" className="w-full h-32 object-cover rounded-lg border border-border mb-2 cursor-pointer" onClick={() => window.open(c.proof_url, "_blank")} />
+                      )}
+                      <div className="flex gap-2">
+                        <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={approveContributionMutation.isPending}
+                          onClick={async () => {
+                            const result = await approveContributionMutation.mutateAsync(c.id);
+                            if (result?.success) {
+                              toast({ title: "Approved!", description: `+${result.dr_reward} DR + ${result.xp_reward} XP` });
+                              if (c.user?.telegram_id) {
+                                notifyUser(c.user.telegram_id, `✅ <b>Contribution Approved!</b>\n\nYour ₦${c.amount.toLocaleString()} contribution to <b>${result.campaign}</b> has been verified.\n\n+${result.dr_reward} DR + ${result.xp_reward} XP earned! 🎉`);
+                              }
+                              // Check if campaign target reached — broadcast celebration
+                              const campId = c.campaign_id;
+                              const { data: camp } = await supabase.from("support_campaigns").select("title, target_amount, beneficiary_name").eq("id", campId).maybeSingle();
+                              if (camp) {
+                                const { data: allContribs } = await supabase.from("support_contributions").select("user_id, amount").eq("campaign_id", campId).eq("status", "approved");
+                                const totalRaised = (allContribs || []).reduce((s: number, x: any) => s + x.amount, 0);
+                                if (totalRaised >= camp.target_amount) {
+                                  // Get contributor names
+                                  const contribUserIds = [...new Set((allContribs || []).map((x: any) => x.user_id))];
+                                  const { data: contribUsers } = await supabase.from("users").select("first_name").in("id", contribUserIds);
+                                  const names = (contribUsers || []).map((u: any) => u.first_name).join(", ");
+                                  // Broadcast to all users
+                                  for (const u of allUsers) {
+                                    if (u.telegram_id && u.telegram_id !== 0) {
+                                      notifyUser(u.telegram_id, `🎉💚 <b>Target Reached!</b>\n\n<b>${camp.title}</b> has reached its ₦${camp.target_amount.toLocaleString()} goal!\n\nThank you to our amazing supporters:\n<b>${names}</b>\n\nYour generosity is changing lives. ${camp.beneficiary_name} sends their heartfelt thanks to each and every one of you. This is what community looks like! 🙏✨`);
+                                    }
+                                  }
+                                  toast({ title: "Target Reached!", description: "Celebration broadcast sent to all users" });
+                                }
+                              }
+                            }
+                          }}>
+                          <CheckCircle className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 border-destructive/30 text-destructive" disabled={rejectContributionMutation.isPending}
+                          onClick={async () => {
+                            await rejectContributionMutation.mutateAsync(c.id);
+                            toast({ title: "Rejected" });
+                            if (c.user?.telegram_id) {
+                              notifyUser(c.user.telegram_id, `❌ <b>Contribution Rejected</b>\n\nYour contribution proof was not accepted. Please resubmit.`);
+                            }
+                          }}>
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            {/* Campaign List */}
+            {adminSupportCampaigns.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Campaigns ({adminSupportCampaigns.length})</h3>
+                <div className="space-y-3">
+                  {adminSupportCampaigns.map((c: any) => (
+                    <Card key={c.id} className={`gradient-card border-border/50 p-4 ${!c.is_active ? "opacity-60" : ""}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className="font-medium text-foreground">{c.title}</h4>
+                        <Badge className={c.is_active ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]" : "bg-muted text-muted-foreground text-[10px]"}>{c.is_active ? "Active" : "Archived"}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">For: {c.beneficiary_name} · Target: ₦{c.target_amount.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{c.dr_reward_per_1000} DR + {c.xp_reward_per_1000} XP per ₦1,000</p>
+                      <Button size="sm" variant="outline" className="mt-2 w-full border-border text-xs" onClick={() => setViewingCampaignContributors(viewingCampaignContributors === c.id ? null : c.id)}>
+                        <Users className="w-3 h-3 mr-1" /> {viewingCampaignContributors === c.id ? "Hide" : "View"} Contributors
+                      </Button>
+                      {viewingCampaignContributors === c.id && (
+                        <CampaignContributorsList campaignId={c.id} />
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
         {/* ========== HACKATHONS TAB ========== */}
         <TabsContent value="hackathons">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -1102,7 +1543,7 @@ export default function Admin() {
                 <h3 className="font-semibold text-foreground mb-3">All Hackathons ({hackathons.length})</h3>
                 <div className="space-y-3">
                   {hackathons.map((hack: any) => (
-                    <Card key={hack.id} className="gradient-card border-border/50 p-4">
+                    <Card key={hack.id} className={`gradient-card border-border/50 p-4 ${!hack.is_active ? "opacity-60" : ""}`}>
                       {hack.cover_image_url && (
                         <img src={hack.cover_image_url} alt="" className="w-full h-32 object-cover rounded-lg mb-3" />
                       )}
@@ -1112,21 +1553,39 @@ export default function Admin() {
                           {hack.description && <p className="text-xs text-muted-foreground mt-1">{hack.description}</p>}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-xs">{hack.status}</Badge>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditHackathon(hack)}>
-                            <Pencil className="w-3 h-3" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" aria-label="Delete" onClick={() => handleDeleteHackathon(hack.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          <Badge variant="outline" className={!hack.is_active ? "text-xs bg-muted text-muted-foreground" : "text-xs"}>{!hack.is_active ? "Archived" : hack.status}</Badge>
+                          {hack.is_active && (
+                            <>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => handleEditHackathon(hack)}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" onClick={async () => { await archiveHackathonMutation.mutateAsync(hack.id); toast({ title: "Hackathon Archived" }); }}>
+                                Archive
+                              </Button>
+                            </>
+                          )}
+                          {!hack.is_active && (
+                            <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" onClick={async () => { await unarchiveHackathonMutation.mutateAsync(hack.id); toast({ title: "Hackathon Unarchived" }); }}>
+                              Unarchive
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
                         <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{new Date(hack.start_date).toLocaleDateString()} – {new Date(hack.end_date).toLocaleDateString()}</span>
                         <span className="flex items-center gap-1"><Coins className="w-3 h-3 text-primary" />{hack.entry_fee} DR</span>
                         {hack.max_teams && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{hack.registered_count}/{hack.max_teams}</span>}
                         <span className="flex items-center gap-1"><Trophy className="w-3 h-3 text-primary" />{hack.prize_pool} DR</span>
                       </div>
+                      {hack.winner_id ? (
+                        <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 text-xs text-primary flex items-center gap-1">
+                          <Trophy className="w-3 h-3" /> Winner declared
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" className="w-full border-primary/30 text-primary h-7 text-xs" onClick={() => setWinnerHackathon(hack)}>
+                          <Trophy className="w-3 h-3 mr-1" /> Declare Winner
+                        </Button>
+                      )}
                     </Card>
                   ))}
                 </div>
@@ -1297,7 +1756,7 @@ export default function Admin() {
                     const isEnded = r.status === "ended";
                     const winner = r.winner as any;
                     return (
-                      <Card key={r.id} className="gradient-card border-border/50 p-4">
+                      <Card key={r.id} className={`gradient-card border-border/50 p-4 ${!r.is_active ? "opacity-60" : ""}`}>
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <h4 className="font-medium text-foreground">{r.title}</h4>
@@ -1306,17 +1765,11 @@ export default function Admin() {
                           <div className="flex items-center gap-1">
                             <Badge variant="outline" className={!r.is_active ? "text-xs bg-muted text-muted-foreground" : isEnded ? "text-xs bg-muted" : "text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}>{!r.is_active ? "Archived" : isEnded ? "Ended" : "Active"}</Badge>
                             {r.is_active ? (
-                              <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" aria-label="Archive" disabled={deleteRaffleMutation.isPending} onClick={async () => {
-                                await deleteRaffleMutation.mutateAsync(r.id);
-                                toast({ title: "Raffle Archived", description: "Hidden from users but data preserved" });
-                              }}>
-                                <Trash2 className="w-3 h-3" />
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" disabled={deleteRaffleMutation.isPending} onClick={async () => { await deleteRaffleMutation.mutateAsync(r.id); toast({ title: "Raffle Archived" }); }}>
+                                Archive
                               </Button>
                             ) : (
-                              <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" disabled={unarchiveRaffleMutation.isPending} onClick={async () => {
-                                await unarchiveRaffleMutation.mutateAsync(r.id);
-                                toast({ title: "Raffle Unarchived", description: "Visible to users again" });
-                              }}>
+                              <Button size="sm" variant="outline" className="h-7 text-xs border-emerald-500/30 text-emerald-400" disabled={unarchiveRaffleMutation.isPending} onClick={async () => { await unarchiveRaffleMutation.mutateAsync(r.id); toast({ title: "Raffle Unarchived" }); }}>
                                 Unarchive
                               </Button>
                             )}
@@ -2003,6 +2456,33 @@ export default function Admin() {
               </Button>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========== DECLARE WINNER MODAL ========== */}
+      <AnimatePresence>
+        {winnerHackathon && (
+          <HackathonWinnerModal
+            hackathon={winnerHackathon}
+            onClose={() => setWinnerHackathon(null)}
+            onPickWinner={async (winnerId: string, winnerName: string, telegramId: number) => {
+              try {
+                const result = await setHackathonWinnerMutation.mutateAsync({ hackathonId: winnerHackathon.id, winnerId });
+                if (result?.success) {
+                  toast({ title: "Winner Declared!", description: `${result.winner} won ${result.prize} DR` });
+                  if (result.winner_telegram_id) {
+                    notifyUser(result.winner_telegram_id, `🏆 <b>You won the Hackathon!</b>\n\nCongratulations! You've been declared the winner of <b>${winnerHackathon.title}</b>.\n\n+${result.prize} DR has been added to your balance! 🎉`);
+                  }
+                  setWinnerHackathon(null);
+                } else {
+                  toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                }
+              } catch (err: any) {
+                toast({ title: "Error", description: err?.message, variant: "destructive" });
+              }
+            }}
+            isPending={setHackathonWinnerMutation.isPending}
+          />
         )}
       </AnimatePresence>
 

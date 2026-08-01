@@ -1,54 +1,14 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useUserProfile, isUserOnline, useCommunityStats, getDreamerLevel } from "@/hooks/useSupabase";
-import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { useUserProfile, isUserOnline, formatLastSeen, useCommunityStats, getDreamerLevel, useUserPairRating } from "@/hooks/useSupabase";
+import { X, Coins, Flame, Users, MapPin, CalendarDays, Send, Loader2, Award, Star } from "lucide-react";
 
 const achievementIcons: Record<string, string> = {
   star: "⭐", rocket: "🚀", crown: "👑", gem: "💎", flame: "🔥", heart: "❤️", shield: "🛡️",
 };
-
-function BankDetailsToggle({ bankName, accountNumber, accountName }: { bankName: string; accountNumber: string; accountName: string }) {
-  const [visible, setVisible] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(`${accountName}\n${bankName}\n${accountNumber}`);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-      setVisible(false);
-    }, 1500);
-  };
-
-  return (
-    <div className="mb-4 bg-secondary/50 rounded-lg p-3">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-xs font-medium text-muted-foreground">Bank Details</p>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground" onClick={() => setVisible(!visible)}>
-          {visible ? <EyeOff className="w-3 h-3 mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
-          {visible ? "Hide" : "Show"}
-        </Button>
-      </div>
-      {visible ? (
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-foreground font-medium">{accountName}</p>
-            <p className="text-xs text-muted-foreground">{bankName} — {accountNumber}</p>
-          </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleCopy}>
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-          </Button>
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">Tap "Show" to view bank details</p>
-      )}
-    </div>
-  );
-}
 
 interface UserProfileModalProps {
   userId: string | null;
@@ -61,6 +21,7 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
   const { data: communityStats = [] } = useCommunityStats();
   const userEngagement = communityStats.find((u: any) => u.id === userId);
   const userLevel = userEngagement ? getDreamerLevel(userEngagement.engagement) : null;
+  const { data: pairRating } = useUserPairRating(userId);
 
   if (!userId) return null;
 
@@ -107,11 +68,17 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                     {[profile.first_name, profile.last_name].filter(Boolean).join(" ")}
                   </h3>
                   {profile.username && <p className="text-sm text-muted-foreground">@{profile.username}</p>}
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">{profile.status}</Badge>
                     {userLevel && <Badge variant="outline" className="text-[10px]">Lv.{userLevel.level} {userLevel.title}</Badge>}
-                    {isUserOnline(profile.last_active) && <span className="text-[10px] text-emerald-400">Online</span>}
                   </div>
+                  <p className="text-[10px] mt-1">
+                    {isUserOnline(profile.last_active) ? (
+                      <span className="text-emerald-400">● Online</span>
+                    ) : profile.last_active ? (
+                      <span className="text-muted-foreground">Last seen {formatLastSeen(profile.last_active)}</span>
+                    ) : null}
+                  </p>
                   {userLevel && (
                     <div className="mt-1.5">
                       <div className="w-full h-1 bg-secondary rounded-full overflow-hidden">
@@ -164,6 +131,26 @@ export default function UserProfileModal({ userId, onClose, onTransfer }: UserPr
                   <Coins className="w-3 h-3 text-primary" /> Total earned: {profile.total_earned.toLocaleString()} DR
                 </div>
               </div>
+
+              {/* Pair Rating */}
+              {pairRating && pairRating.count > 0 && (
+                <div className="mb-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-medium text-foreground">Pair Rating</p>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star key={n} className={`w-3 h-3 ${n <= Math.round(pairRating.avg) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{pairRating.avg}/5 ({pairRating.count} review{pairRating.count !== 1 ? "s" : ""})</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bank details intentionally not shown here — Phase 2D revoked
+                  cross-user column access; only the owner can read their own via get_me(). */}
 
               {/* Achievements */}
               {profile.achievements.length > 0 && (

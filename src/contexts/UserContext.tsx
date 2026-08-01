@@ -22,9 +22,12 @@ interface DbUser {
   streak_protected_until: string | null;
   last_active: string | null;
   birthday: string | null;
+  previous_streak: number;
+  streak_lost_at: string | null;
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
+  web_link_code: string | null;
 }
 
 interface UserContextValue {

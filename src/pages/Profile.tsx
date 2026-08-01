@@ -7,13 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   Settings, BarChart3, Award, TrendingUp, Shield, Coins, Trophy, Copy,
   Star, Rocket, Crown, Gem, Flame, Users, Megaphone, Baby, CheckCircle,
-  X, Lock,
+  X, Lock, Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
-import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel } from "@/hooks/useSupabase";
+import { useAchievements, useUserAchievements, useCheckAchievements, useUserReferralCount, useReferredBy, useCommunityStats, getDreamerLevel, useLevelRewardsClaimed, useClaimLevelReward, getLevelReward, useStreakBonusesClaimed, useClaimStreakBonus, getStreakReward, useUserPairRating } from "@/hooks/useSupabase";
 
 interface ProfileProps {
   onTabChange?: (tab: string) => void;
@@ -42,6 +42,22 @@ export default function Profile({ onTabChange }: ProfileProps) {
   const myLevel = myEngagement ? getDreamerLevel(myEngagement.engagement) : null;
   const { data: referralCount } = useUserReferralCount();
   const { data: referredBy } = useReferredBy();
+  const { data: myPairRating } = useUserPairRating(dbUser?.id || null);
+  const { data: claimedLevels = [] } = useLevelRewardsClaimed();
+  const claimLevelMutation = useClaimLevelReward();
+  const { data: claimedStreakBonuses = [] } = useStreakBonusesClaimed();
+  const claimStreakMutation = useClaimStreakBonus();
+  const streak = dbUser?.streak ?? 0;
+  // Streak milestones user has reached but not claimed
+  const unclaimedStreakMilestones = (() => {
+    const milestones: number[] = [];
+    for (let m = 30; m <= streak; m += 30) {
+      if (!claimedStreakBonuses.includes(m)) milestones.push(m);
+    }
+    return milestones;
+  })();
+  // Levels user has reached but not claimed
+  const unclaimedLevels = myLevel ? Array.from({ length: myLevel.level }, (_, i) => i + 1).filter((l) => !claimedLevels.includes(l)) : [];
   const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
 
   useEffect(() => {
@@ -60,7 +76,6 @@ export default function Profile({ onTabChange }: ProfileProps) {
 
   const balance = dbUser?.balance ?? 0;
   const totalEarned = dbUser?.total_earned ?? 0;
-  const streak = dbUser?.streak ?? 0;
   const status = dbUser?.status ?? "Bronze";
   const isAdmin = dbUser?.is_admin ?? false;
   const memberSince = dbUser?.created_at
@@ -112,54 +127,88 @@ export default function Profile({ onTabChange }: ProfileProps) {
         transition={{ delay: 0.1 }}
       >
         <Card className="gradient-card border-border/50 p-6 mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative">
-              <Avatar className="w-16 h-16">
+          {/* Settings button */}
+          {onTabChange && (
+            <div className="flex justify-end mb-2">
+              <Button size="icon" variant="outline" className="h-8 w-8 border-border" aria-label="Settings" onClick={() => onTabChange("settings")}>
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Avatar + Name — centered */}
+          <div className="flex flex-col items-center text-center mb-4">
+            <div className="relative mb-3">
+              <Avatar className="w-20 h-20">
                 <AvatarImage src={user?.photoUrl} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-card bg-emerald-400" />
+              <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-card bg-emerald-400" />
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
-              {user?.username && (
-                <p className="text-sm text-muted-foreground">@{user.username}</p>
-              )}
-              <p className="text-muted-foreground">Member since {memberSince}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge className={tierColors[status] || tierColors.Bronze}>
-                  <Award className="w-3 h-3 mr-1" />
-                  {status}
-                </Badge>
-                {streak > 0 && (
-                  <Badge variant="outline">
-                    {streak} day streak 🔥
-                  </Badge>
-                )}
-              </div>
-              {myLevel && (
-                <div className="mt-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Lv.{myLevel.level} {myLevel.title}</Badge>
-                  </div>
-                  <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full bg-primary rounded-full" style={{ width: `${myLevel.progress}%` }} />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{myLevel.currentXP} / {myLevel.nextXP} XP</p>
-                </div>
-              )}
-            </div>
-            {onTabChange && (
-              <Button size="icon" variant="outline" className="self-start h-9 w-9 border-border shrink-0" aria-label="Settings" onClick={() => onTabChange("settings")}>
-                <Settings className="w-4 h-4" />
-              </Button>
+            <h2 className="text-xl font-bold text-foreground">{displayName}</h2>
+            {user?.username && (
+              <p className="text-sm text-muted-foreground">@{user.username}</p>
             )}
+            <p className="text-xs text-muted-foreground mt-0.5">Member since {memberSince}</p>
+
+            {/* Badges */}
+            <div className="flex items-center gap-2 mt-3 flex-wrap justify-center">
+              <Badge className={tierColors[status] || tierColors.Bronze}>
+                <Award className="w-3 h-3 mr-1" />
+                {status}
+              </Badge>
+              {streak > 0 && (
+                <Badge variant="outline">
+                  {streak} day streak 🔥
+                </Badge>
+              )}
+              {myPairRating && myPairRating.count > 0 && (
+                <Badge variant="outline" className="gap-1">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star key={n} className={`w-2.5 h-2.5 ${n <= Math.round(myPairRating.avg) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                    ))}
+                  </div>
+                  <span className="text-[10px]">{myPairRating.avg}</span>
+                </Badge>
+              )}
+            </div>
           </div>
 
+          {/* Level Progress */}
+          {myLevel && (
+            <div className="bg-secondary/50 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Lv.{myLevel.level} {myLevel.title}</Badge>
+                <span className="text-[10px] text-muted-foreground">{myLevel.currentXP} / {myLevel.nextXP} XP</span>
+              </div>
+              <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${myLevel.progress}%` }} />
+              </div>
+            </div>
+          )}
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-secondary/50 rounded-lg p-2.5 text-center">
+              <p className="text-lg font-bold text-primary">{balance.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">Balance</p>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-2.5 text-center">
+              <p className="text-lg font-bold text-foreground">{totalEarned.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">Total Earned</p>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-2.5 text-center">
+              <p className="text-lg font-bold text-foreground">{referralCount ?? 0}</p>
+              <p className="text-[10px] text-muted-foreground">Referrals</p>
+            </div>
+          </div>
+
+          {/* Referral Code */}
           {dbUser?.referral_code && (
-            <div className="mt-4 pt-4 border-t border-border/50">
+            <div className="pt-3 border-t border-border/50">
               <p className="text-xs text-muted-foreground mb-1">Your Referral Code</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 bg-secondary/50 rounded px-3 py-1.5 text-sm font-mono text-foreground">
@@ -196,44 +245,6 @@ export default function Profile({ onTabChange }: ProfileProps) {
         </Card>
       </motion.div>
 
-      {/* Statistics */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-3 gap-3 mb-6"
-      >
-        <Card className="gradient-card border-border/50 p-4">
-          <div className="text-center">
-            <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">
-              {totalEarned.toLocaleString()}
-            </p>
-            <p className="text-xs text-muted-foreground">Total Earned</p>
-          </div>
-        </Card>
-
-        <Card className="gradient-card border-border/50 p-4">
-          <div className="text-center">
-            <Coins className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">
-              {balance.toLocaleString()}
-            </p>
-            <p className="text-xs text-muted-foreground">Balance</p>
-          </div>
-        </Card>
-
-        <Card className="gradient-card border-border/50 p-4">
-          <div className="text-center">
-            <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">
-              {referralCount ?? 0}
-            </p>
-            <p className="text-xs text-muted-foreground">Referrals</p>
-          </div>
-        </Card>
-      </motion.div>
-
       {/* Tier Progress */}
       {nextTier && (
         <motion.div
@@ -251,6 +262,88 @@ export default function Profile({ onTabChange }: ProfileProps) {
               <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
           </Card>
+        </motion.div>
+      )}
+
+      {/* Level Rewards */}
+      {unclaimedLevels.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.27 }} className="mb-6">
+          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-400" /> Level Rewards
+          </h3>
+          <div className="space-y-2">
+            {unclaimedLevels.map((lvl) => (
+              <Card key={lvl} className="gradient-card border-yellow-500/20 bg-yellow-500/5 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Level {lvl} Unlocked!</p>
+                    <p className="text-xs text-muted-foreground">Claim +{getLevelReward(lvl).toLocaleString()} DR reward</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                    disabled={claimLevelMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        const result = await claimLevelMutation.mutateAsync(lvl);
+                        if (result?.success) {
+                          toast({ title: "Level Claimed!", description: `+${result.reward} DR for reaching Level ${result.level}!` });
+                        } else {
+                          toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                        }
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err?.message, variant: "destructive" });
+                      }
+                    }}
+                  >
+                    {claimLevelMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3 mr-1" />}
+                    Claim
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Streak Bonuses */}
+      {unclaimedStreakMilestones.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }} className="mb-6">
+          <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Flame className="w-5 h-5 text-orange-400" /> Streak Bonuses
+          </h3>
+          <div className="space-y-2">
+            {unclaimedStreakMilestones.map((m) => (
+              <Card key={m} className="gradient-card border-orange-500/20 bg-orange-500/5 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{m}-Day Streak!</p>
+                    <p className="text-xs text-muted-foreground">Claim +{getStreakReward(m).toLocaleString()} DR reward</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={claimStreakMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        const result = await claimStreakMutation.mutateAsync(m);
+                        if (result?.success) {
+                          toast({ title: "Streak Bonus Claimed!", description: `+${result.reward} DR for ${result.milestone}-day streak!` });
+                        } else {
+                          toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                        }
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err?.message, variant: "destructive" });
+                      }
+                    }}
+                  >
+                    {claimStreakMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Flame className="w-3 h-3 mr-1" />}
+                    Claim
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
         </motion.div>
       )}
 

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useMyPair, useIsInQueue, useJoinPairQueue, useRatePair, useKeepPair, useCheckinForPair, isUserOnline } from "@/hooks/useSupabase";
+import { useMyPair, useIsInQueue, useJoinPairQueue, useRatePair, useRequestPairExtension, useAcceptPairExtension, useDenyPairExtension, useCheckinForPair, isUserOnline, formatLastSeen } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import { Heart, Star, X, Loader2, CheckCircle, UserPlus, Bell, Clock } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
@@ -23,7 +23,9 @@ export default function DreamPairCard({ onViewProfile }: Props) {
   const { data: inQueue } = useIsInQueue();
   const joinQueueMutation = useJoinPairQueue();
   const rateMutation = useRatePair();
-  const keepMutation = useKeepPair();
+  const requestExtensionMutation = useRequestPairExtension();
+  const acceptExtensionMutation = useAcceptPairExtension();
+  const denyExtensionMutation = useDenyPairExtension();
   const checkinForPartnerMutation = useCheckinForPair();
 
   const [showRating, setShowRating] = useState(false);
@@ -134,8 +136,26 @@ export default function DreamPairCard({ onViewProfile }: Props) {
             <p className="text-[10px] text-muted-foreground">{myPair.partner_activities_this_week} activities this week</p>
             {partner?.username && <p className="text-[10px] text-muted-foreground">@{partner.username}</p>}
             <p className="text-[10px] text-muted-foreground">{partner?.streak || 0} day streak · {partner?.status}</p>
+            {!isUserOnline(partner?.last_active) && partner?.last_active && (
+              <p className="text-[10px] text-muted-foreground/60">Last seen {formatLastSeen(partner.last_active)}</p>
+            )}
           </div>
         </button>
+
+        {/* Show rating received from partner */}
+        {myPair.partner_rated_me && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-foreground font-medium">{partner?.first_name} rated you:</span>
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} className={`w-3.5 h-3.5 ${n <= (myPair.rating_i_received || 0) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`} />
+                ))}
+              </div>
+            </div>
+            <span className="text-xs text-primary font-medium">+{(myPair.rating_i_received || 0) * 10} DR</span>
+          </div>
+        )}
 
         {weekEndedForRating ? (
           <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => setShowRating(true)}>
@@ -170,20 +190,82 @@ export default function DreamPairCard({ onViewProfile }: Props) {
           </div>
         )}
 
-        {daysLeft <= 1 && myPair.i_rated && (
+        {/* Extension Flow */}
+        {daysLeft <= 1 && myPair.i_rated && !myPair.extension_status && (
           <Button size="sm" variant="outline" className="w-full mt-2 border-primary/30 text-primary"
-            disabled={keepMutation.isPending || (dbUser?.balance ?? 0) < 100}
+            disabled={requestExtensionMutation.isPending}
             onClick={async () => {
-              const result = await keepMutation.mutateAsync(myPair.id);
+              const result = await requestExtensionMutation.mutateAsync(myPair.id);
               if (result?.success) {
-                toast({ title: "Pair extended!", description: "You'll stay together next week" });
+                toast({ title: "Extension Requested!", description: `Waiting for ${partner?.first_name} to accept. Both pay 100 DR.` });
+                if (partner?.telegram_id) {
+                  notifyUser(partner.telegram_id, `💫 <b>Pair Extension Request!</b>\n\n<b>${dbUser?.first_name}</b> wants to keep you as their Dream Pair for next week.\n\nBoth of you will pay 100 DR. Open the app to accept or deny!`);
+                }
               } else {
                 toast({ title: "Failed", description: result?.error, variant: "destructive" });
               }
             }}>
-            {keepMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Heart className="w-3 h-3 mr-1" />}
-            Keep This Pair (100 DR each)
+            {requestExtensionMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Heart className="w-3 h-3 mr-1" />}
+            Request Extension (100 DR each)
           </Button>
+        )}
+
+        {myPair.i_requested_extension && myPair.extension_status === "pending" && (
+          <div className="mt-2 bg-primary/10 border border-primary/20 rounded-lg p-2 text-center">
+            <p className="text-xs text-primary font-medium">Extension requested — waiting for {partner?.first_name}</p>
+          </div>
+        )}
+
+        {myPair.partner_requested_extension && myPair.extension_status === "pending" && (
+          <div className="mt-2 space-y-2">
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-2 text-center">
+              <p className="text-xs text-foreground font-medium">{partner?.first_name} wants to keep you as their pair!</p>
+              <p className="text-[10px] text-muted-foreground">Both of you will pay 100 DR</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={acceptExtensionMutation.isPending || (dbUser?.balance ?? 0) < 100}
+                onClick={async () => {
+                  const result = await acceptExtensionMutation.mutateAsync(myPair.id);
+                  if (result?.success) {
+                    hapticNotification("success");
+                    toast({ title: "Pair Extended!", description: "You'll stay together next week" });
+                    if (partner?.telegram_id) {
+                      notifyUser(partner.telegram_id, `✅ <b>${dbUser?.first_name} accepted!</b>\n\nYou'll stay paired for next week. 100 DR deducted from both.`);
+                    }
+                  } else {
+                    toast({ title: "Failed", description: result?.error, variant: "destructive" });
+                  }
+                }}>
+                {acceptExtensionMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                Accept
+              </Button>
+              <Button size="sm" variant="outline" className="border-destructive/30 text-destructive"
+                disabled={denyExtensionMutation.isPending}
+                onClick={async () => {
+                  await denyExtensionMutation.mutateAsync(myPair.id);
+                  toast({ title: "Extension Denied", description: "You'll be reshuffled next week" });
+                  if (partner?.telegram_id) {
+                    notifyUser(partner.telegram_id, `${dbUser?.first_name} declined the extension. You'll both be reshuffled next week.`);
+                  }
+                }}>
+                {denyExtensionMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                Deny
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {myPair.extension_status === "accepted" && (
+          <div className="mt-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-2 text-center">
+            <p className="text-xs text-emerald-400 font-medium">Extended for next week!</p>
+          </div>
+        )}
+
+        {myPair.extension_status === "denied" && (
+          <div className="mt-2 bg-muted/50 border border-border rounded-lg p-2 text-center">
+            <p className="text-xs text-muted-foreground">Extension denied — reshuffling next week</p>
+          </div>
         )}
       </Card>
 

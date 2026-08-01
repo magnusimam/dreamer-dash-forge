@@ -4,10 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useGiftWall, useCommunityStats, useCommunityMilestones, useWeeklyMVP, useLiveTicker, isUserOnline, getDreamerLevel } from "@/hooks/useSupabase";
+import { useGiftWall, useCommunityStats, useCommunityMilestones, useWeeklyMVP, useLiveTicker, isUserOnline, getDreamerLevel, useContributionLeaderboard } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
 import UserProfileModal from "@/components/UserProfileModal";
-import { Gift, Trophy, Target, Ticket, ClipboardList, Flame, Loader2, Crown, TrendingUp, CheckCircle, Send, BookOpen, Rocket, Users, Zap } from "lucide-react";
+import { Gift, Trophy, Target, Ticket, ClipboardList, Flame, Loader2, Crown, TrendingUp, CheckCircle, Send, BookOpen, Rocket, Users, Zap, Heart } from "lucide-react";
 
 function LiveTicker({ items }: { items: { text: string; id: string }[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -68,8 +68,9 @@ export default function Community() {
   const { data: milestones } = useCommunityMilestones();
   const { data: mvpData } = useWeeklyMVP();
   const { data: tickerItems = [] } = useLiveTicker();
+  const { data: contributionLB = [] } = useContributionLeaderboard();
   const [viewProfileUserId, setViewProfileUserId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"gifts" | "stats">("gifts");
+  const [activeTab, setActiveTab] = useState<"gifts" | "stats" | "givers">("gifts");
 
   const isLoading = giftsLoading || statsLoading;
   const topEngaged = communityStats.slice(0, 3);
@@ -102,11 +103,11 @@ export default function Community() {
                 <p className="text-xs text-muted-foreground">{mvpData.current.engagement_points} engagement pts</p>
               </div>
             </div>
-            {mvpData.history.length > 1 && (
+            {mvpData.history.length > 0 && (
               <div className="mt-3 pt-2 border-t border-border/30">
                 <p className="text-[10px] text-muted-foreground mb-1">Hall of Fame</p>
                 <div className="flex gap-2">
-                  {mvpData.history.slice(1).map((m: any) => (
+                  {mvpData.history.map((m: any) => (
                     <button key={m.id} className="relative" onClick={() => setViewProfileUserId(m.user_id)}>
                       <Avatar className="w-7 h-7">
                         <AvatarImage src={m.user?.photo_url} />
@@ -138,6 +139,8 @@ export default function Community() {
               <MilestoneBar label="Transfers" current={milestones.transfers.current} target={milestones.transfers.target} icon={Send} />
               <MilestoneBar label="Missions" current={milestones.missions.current} target={milestones.missions.target} icon={Target} />
               <MilestoneBar label="Raffle Entries" current={milestones.raffles.current} target={milestones.raffles.target} icon={Ticket} />
+              <MilestoneBar label="Contributions" current={milestones.contributions.current} target={milestones.contributions.target} icon={Heart} />
+              <MilestoneBar label="Naira Raised" current={milestones.naira_raised.current} target={milestones.naira_raised.target} icon={Heart} />
             </div>
           </Card>
         </motion.div>
@@ -173,12 +176,15 @@ export default function Community() {
       )}
 
       {/* Toggle */}
-      <div className="flex gap-2 mb-4">
-        <Button size="sm" variant={activeTab === "gifts" ? "default" : "outline"} className={activeTab === "gifts" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setActiveTab("gifts")}>
-          <Gift className="w-3.5 h-3.5 mr-1.5" /> Activity Feed
+      <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide -mx-4 px-4">
+        <Button size="sm" variant={activeTab === "gifts" ? "default" : "outline"} className={`${activeTab === "gifts" ? "bg-primary text-primary-foreground" : "border-border"} shrink-0`} onClick={() => setActiveTab("gifts")}>
+          <Gift className="w-3.5 h-3.5 mr-1.5" /> Feed
         </Button>
-        <Button size="sm" variant={activeTab === "stats" ? "default" : "outline"} className={activeTab === "stats" ? "bg-primary text-primary-foreground" : "border-border"} onClick={() => setActiveTab("stats")}>
+        <Button size="sm" variant={activeTab === "stats" ? "default" : "outline"} className={`${activeTab === "stats" ? "bg-primary text-primary-foreground" : "border-border"} shrink-0`} onClick={() => setActiveTab("stats")}>
           <TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Engagement
+        </Button>
+        <Button size="sm" variant={activeTab === "givers" ? "default" : "outline"} className={`${activeTab === "givers" ? "bg-primary text-primary-foreground" : "border-border"} shrink-0`} onClick={() => setActiveTab("givers")}>
+          <Heart className="w-3.5 h-3.5 mr-1.5" /> Givers
         </Button>
       </div>
 
@@ -191,8 +197,8 @@ export default function Community() {
           ) : (
             <div className="space-y-2">
               {giftWall.map((item: any) => {
-                const iconMap: Record<string, any> = { mission: Target, promo: BookOpen, transfer: Send };
-                const colorMap: Record<string, string> = { mission: "text-pink-400 bg-pink-500/20", promo: "text-purple-400 bg-purple-500/20", transfer: "text-blue-400 bg-blue-500/20" };
+                const iconMap: Record<string, any> = { mission: Target, promo: BookOpen, transfer: Send, magicbox: Gift, support: Heart };
+                const colorMap: Record<string, string> = { mission: "text-pink-400 bg-pink-500/20", promo: "text-purple-400 bg-purple-500/20", transfer: "text-blue-400 bg-blue-500/20", magicbox: "text-yellow-400 bg-yellow-500/20", support: "text-green-400 bg-green-500/20" };
                 const Icon = iconMap[item.type] || Gift;
                 const color = colorMap[item.type] || "text-primary bg-primary/20";
 
@@ -233,7 +239,7 @@ export default function Community() {
             </div>
           )}
         </>
-      ) : (
+      ) : activeTab === "stats" ? (
         <>
           {/* Top 3 Most Engaged */}
           {topEngaged.length > 0 && (
@@ -303,6 +309,45 @@ export default function Community() {
                       </div>
                     </div>
                     <p className="text-xs font-bold text-primary shrink-0">{u.engagement}pts</p>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
+
+      {activeTab === "givers" && (
+        <>
+          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2"><Heart className="w-4 h-4 text-green-400" /> Community Support</h3>
+
+          <div className="space-y-2">
+            {contributionLB.map((entry: any, i: number) => {
+              const hasContributed = entry.amount > 0;
+              return (
+                <Card key={entry.user_id} className={`border-border/50 p-3 ${!hasContributed ? "opacity-50" : i === 0 && hasContributed ? "border-green-500/30 bg-green-500/5" : "gradient-card"}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 text-center text-xs font-bold text-muted-foreground">{hasContributed ? `#${i + 1}` : "—"}</span>
+                    <button className="relative shrink-0" onClick={() => setViewProfileUserId(entry.user_id)}>
+                      <Avatar className="w-9 h-9">
+                        <AvatarImage src={entry.user?.photo_url} />
+                        <AvatarFallback className="text-xs">{[entry.user?.first_name?.[0], entry.user?.last_name?.[0]].filter(Boolean).join("")}</AvatarFallback>
+                      </Avatar>
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-card ${isUserOnline(entry.user?.last_active) ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{[entry.user?.first_name, entry.user?.last_name].filter(Boolean).join(" ")}</p>
+                      {hasContributed ? (
+                        <p className="text-[10px] text-muted-foreground">
+                          {entry.support_count > 0 && `${entry.support_count} support`}
+                          {entry.support_count > 0 && entry.promo_count > 0 && " · "}
+                          {entry.promo_count > 0 && `${entry.promo_count} promo`}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">No contributions yet</p>
+                      )}
+                    </div>
+                    <p className={`text-sm font-bold ${hasContributed ? "text-green-400" : "text-muted-foreground"}`}>₦{entry.amount.toLocaleString()}</p>
                   </div>
                 </Card>
               );

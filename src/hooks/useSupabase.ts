@@ -35,11 +35,34 @@ export function isUserOnline(lastActive: string | null): boolean {
   return new Date(lastActive).getTime() > fiveMinutesAgo;
 }
 
+export function formatLastSeen(lastActive: string | null): string {
+  if (!lastActive) return "never";
+  const now = Date.now();
+  const last = new Date(lastActive).getTime();
+  const diff = now - last;
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) {
+    const time = new Date(lastActive).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    return `today at ${time}`;
+  }
+  if (days === 1) {
+    const time = new Date(lastActive).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    return `yesterday at ${time}`;
+  }
+  if (days < 7) return `${days}d ago`;
+  return new Date(lastActive).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 // ============================================================
 // LEVEL SYSTEM
 // ============================================================
 
-const LEVEL_THRESHOLDS = [0, 10, 25, 50, 100, 175, 275, 400, 550, 750, 1000, 1300, 1650, 2050, 2500, 3000, 3600, 4300, 5100, 6000, 7000, 8200, 9600, 11200, 13000, 15000, 17500, 20500, 24000, 28000, 32500, 37500, 43000, 49000, 56000, 64000, 73000, 83000, 94000, 106000, 120000, 135000, 152000, 170000, 190000, 212000, 236000, 262000, 290000, 320000];
+const LEVEL_THRESHOLDS = [0, 30, 80, 180, 350, 600, 1000, 1600, 2500, 3800, 5500, 7700, 10500, 14000, 18500, 24000, 30500, 38500, 48000, 59000, 72000, 87000, 104500, 125000, 148500, 175500, 206000, 241000, 281000, 326500, 378000, 436000, 501000, 573500, 654500, 744500, 844000, 954000, 1075000, 1208000, 1354000, 1514000, 1689000, 1880000, 2088000, 2314000, 2559000, 2824000, 3110000, 3418000];
 
 export function getDreamerLevel(engagementPoints: number): { level: number; currentXP: number; nextXP: number; progress: number; title: string } {
   let level = 1;
@@ -57,6 +80,449 @@ export function getDreamerLevel(engagementPoints: number): { level: number; curr
   const titleIndex = Math.min(Math.floor((level - 1) / 5), titles.length - 1);
 
   return { level, currentXP: engagementPoints, nextXP: nextThreshold, progress, title: titles[titleIndex] };
+}
+
+// ============================================================
+// COMMUNITY SUPPORT
+// ============================================================
+
+export function useSupportCampaigns() {
+  return useQuery({
+    queryKey: ["support_campaigns"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("support_campaigns").select("*").eq("is_active", true).order("created_at", { ascending: false });
+      if (error) throw error;
+      // Get total contributed per campaign
+      const ids = (data || []).map((c: any) => c.id);
+      const { data: contribs } = ids.length > 0 ? await supabase.from("support_contributions").select("campaign_id, user_id, amount").eq("status", "approved").in("campaign_id", ids) : { data: [] };
+      const totals: Record<string, { amount: number; uniqueUsers: Set<string> }> = {};
+      (contribs || []).forEach((c: any) => {
+        if (!totals[c.campaign_id]) totals[c.campaign_id] = { amount: 0, uniqueUsers: new Set() };
+        totals[c.campaign_id].amount += c.amount;
+        totals[c.campaign_id].uniqueUsers.add(c.user_id);
+      });
+      return (data || []).map((c: any) => ({ ...c, total_raised: totals[c.id]?.amount || 0, contributor_count: totals[c.id]?.uniqueUsers.size || 0 }));
+    },
+  });
+}
+
+export function useAllSupportCampaignsAdmin() {
+  return useQuery({
+    queryKey: ["admin_support_campaigns"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("support_campaigns").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useSubmitContribution() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ campaignId, amount, proofUrl }: { campaignId: string; amount: number; proofUrl: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("submit_contribution", { p_user_id: dbUser.id, p_campaign_id: campaignId, p_amount: amount, p_proof_url: proofUrl });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["support_campaigns"] });
+    },
+  });
+}
+
+export function useCreateSupportCampaign() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (campaign: { title: string; description?: string; beneficiary_name: string; beneficiary_user_id?: string; target_amount: number; bank_name?: string; account_number?: string; account_name?: string; dr_reward_per_1000?: number; xp_reward_per_1000?: number }) => {
+      const { data, error } = await supabase.from("support_campaigns").insert({ ...campaign, created_by: dbUser?.id }).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["support_campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_support_campaigns"] });
+    },
+  });
+}
+
+export function usePendingContributions() {
+  return useQuery({
+    queryKey: ["pending_contributions"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("support_contributions").select("*").eq("status", "pending").order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+      const userIds = [...new Set(data.map((c: any) => c.user_id))];
+      const campIds = [...new Set(data.map((c: any) => c.campaign_id))];
+      const [usersRes, campsRes] = await Promise.all([
+        supabase.from("users").select("id, first_name, last_name, username, telegram_id").in("id", userIds),
+        supabase.from("support_campaigns").select("id, title").in("id", campIds),
+      ]);
+      const userMap: Record<string, any> = {};
+      (usersRes.data || []).forEach((u: any) => { userMap[u.id] = u; });
+      const campMap: Record<string, any> = {};
+      (campsRes.data || []).forEach((c: any) => { campMap[c.id] = c; });
+      return data.map((c: any) => ({ ...c, user: userMap[c.user_id], campaign: campMap[c.campaign_id] }));
+    },
+  });
+}
+
+export function useApproveContribution() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (contributionId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("approve_contribution", { p_admin_id: dbUser.id, p_contribution_id: contributionId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pending_contributions"] });
+      queryClient.invalidateQueries({ queryKey: ["support_campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign_contributors"] });
+    },
+  });
+}
+
+export function useCampaignContributors(campaignId: string | null) {
+  return useQuery({
+    queryKey: ["campaign_contributors", campaignId],
+    queryFn: async () => {
+      if (!campaignId) return [];
+      const { data } = await supabase
+        .from("support_contributions")
+        .select("*")
+        .eq("campaign_id", campaignId)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false });
+      if (!data || data.length === 0) return [];
+      const userIds = [...new Set(data.map((c: any) => c.user_id))];
+      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username").in("id", userIds);
+      const userMap: Record<string, any> = {};
+      (users || []).forEach((u: any) => { userMap[u.id] = u; });
+      return data.map((c: any) => ({ ...c, user: userMap[c.user_id] }));
+    },
+    enabled: !!campaignId,
+  });
+}
+
+export function useRejectContribution() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (contributionId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("reject_contribution", { p_admin_id: dbUser.id, p_contribution_id: contributionId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pending_contributions"] });
+    },
+  });
+}
+
+export function useContributionLeaderboard() {
+  return useQuery({
+    queryKey: ["contribution_leaderboard"],
+    queryFn: async () => {
+      // Get direct support contributions
+      const { data: contribs } = await supabase.from("support_contributions").select("user_id, amount").eq("status", "approved");
+
+      // Get promo claims (each = ₦2,500 spent on The Stolen Breath)
+      const PROMO_NAIRA_VALUE = 2500;
+      const { data: promos } = await supabase.from("promo_codes").select("claimed_by").eq("is_used", true).not("claimed_by", "is", null);
+
+      // Merge both into one leaderboard
+      const totals: Record<string, { amount: number; count: number; support_amount: number; promo_amount: number; support_count: number; promo_count: number }> = {};
+
+      (contribs || []).forEach((c: any) => {
+        if (!totals[c.user_id]) totals[c.user_id] = { amount: 0, count: 0, support_amount: 0, promo_amount: 0, support_count: 0, promo_count: 0 };
+        totals[c.user_id].amount += c.amount;
+        totals[c.user_id].count += 1;
+        totals[c.user_id].support_amount += c.amount;
+        totals[c.user_id].support_count += 1;
+      });
+
+      (promos || []).forEach((p: any) => {
+        if (!totals[p.claimed_by]) totals[p.claimed_by] = { amount: 0, count: 0, support_amount: 0, promo_amount: 0, support_count: 0, promo_count: 0 };
+        totals[p.claimed_by].amount += PROMO_NAIRA_VALUE;
+        totals[p.claimed_by].count += 1;
+        totals[p.claimed_by].promo_amount += PROMO_NAIRA_VALUE;
+        totals[p.claimed_by].promo_count += 1;
+      });
+
+      // Fetch all users (including those with zero contributions)
+      const { data: allUsers } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active");
+      const result = (allUsers || []).map((u: any) => ({
+        user: u,
+        user_id: u.id,
+        amount: totals[u.id]?.amount || 0,
+        count: totals[u.id]?.count || 0,
+        support_amount: totals[u.id]?.support_amount || 0,
+        promo_amount: totals[u.id]?.promo_amount || 0,
+        support_count: totals[u.id]?.support_count || 0,
+        promo_count: totals[u.id]?.promo_count || 0,
+      }));
+
+      return result.sort((a, b) => b.amount - a.amount);
+    },
+    staleTime: 30000,
+  });
+}
+
+// ============================================================
+// STREAK BONUSES
+// ============================================================
+
+export function getStreakReward(milestone: number): number {
+  return 500 + ((milestone / 30) - 1) * 1000;
+}
+
+export function useStreakBonusesClaimed() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["streak_bonuses", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [] as number[];
+      const { data } = await supabase
+        .from("streak_bonuses_claimed")
+        .select("streak_milestone")
+        .eq("user_id", dbUser.id);
+      return (data || []).map((r: any) => r.streak_milestone);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useClaimStreakBonus() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (milestone: number) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_streak_bonus", {
+        p_user_id: dbUser.id,
+        p_milestone: milestone,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["streak_bonuses"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useRestoreStreak() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("restore_streak", {
+        p_user_id: dbUser.id,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["checkin_today"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function getStreakRestoreCost(streak: number): number {
+  if (streak >= 90) return 5000;
+  if (streak >= 61) return 2000;
+  if (streak >= 31) return 1000;
+  if (streak >= 15) return 500;
+  if (streak >= 8) return 250;
+  return 100;
+}
+
+// ============================================================
+// MAGIC BOXES
+// ============================================================
+
+export function useMagicBoxes() {
+  return useQuery({
+    queryKey: ["magic_boxes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("magic_boxes")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      // Get entry counts
+      const ids = (data || []).map((b: any) => b.id);
+      const { data: entries } = ids.length > 0 ? await supabase.from("magic_box_entries").select("box_id").in("box_id", ids) : { data: [] };
+      const counts: Record<string, number> = {};
+      (entries || []).forEach((e: any) => { counts[e.box_id] = (counts[e.box_id] || 0) + 1; });
+      return (data || []).map((b: any) => ({ ...b, entry_count: counts[b.id] || 0 }));
+    },
+  });
+}
+
+export function useUserBoxEntries() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["user_box_entries", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return {};
+      const { data } = await supabase.from("magic_box_entries").select("box_id, claimed").eq("user_id", dbUser.id);
+      const map: Record<string, boolean> = {};
+      (data || []).forEach((e: any) => { map[e.box_id] = e.claimed; });
+      return map;
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useOpenMagicBox() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (boxId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("open_magic_box", { p_user_id: dbUser.id, p_box_id: boxId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["magic_boxes"] });
+      queryClient.invalidateQueries({ queryKey: ["user_box_entries"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useClaimMagicBox() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (boxId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_magic_box", { p_user_id: dbUser.id, p_box_id: boxId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["user_box_entries"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function useCreateMagicBox() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (box: { title: string; description?: string; entry_fee: number; prize_dr: number; prize_xp: number; prize_custom?: string; max_entries?: number; allowed_usernames?: string[]; expires_at?: string; reveal_at?: string }) => {
+      const { data, error } = await supabase
+        .from("magic_boxes")
+        .insert({ ...box, created_by: dbUser?.id })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["magic_boxes"] });
+    },
+  });
+}
+
+export function useAllMagicBoxesAdmin() {
+  return useQuery({
+    queryKey: ["admin_magic_boxes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("magic_boxes")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useMagicBoxParticipants(boxId: string | null) {
+  return useQuery({
+    queryKey: ["magic_box_participants", boxId],
+    queryFn: async () => {
+      if (!boxId) return [];
+      const { data, error } = await supabase
+        .from("magic_box_entries")
+        .select("*")
+        .eq("box_id", boxId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data || data.length === 0) return [];
+      const userIds = data.map((e: any) => e.user_id);
+      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username").in("id", userIds);
+      const userMap: Record<string, any> = {};
+      (users || []).forEach((u: any) => { userMap[u.id] = u; });
+      return data.map((e: any) => ({ ...e, user: userMap[e.user_id] }));
+    },
+    enabled: !!boxId,
+  });
+}
+
+// ============================================================
+// LEVEL REWARDS
+// ============================================================
+
+export function useLevelRewardsClaimed() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["level_rewards_claimed", dbUser?.id],
+    queryFn: async () => {
+      if (!dbUser) return [] as number[];
+      const { data } = await supabase
+        .from("level_rewards_claimed")
+        .select("level")
+        .eq("user_id", dbUser.id);
+      return (data || []).map((r: any) => r.level);
+    },
+    enabled: !!dbUser,
+  });
+}
+
+export function useClaimLevelReward() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (level: number) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_level_reward", {
+        p_user_id: dbUser.id,
+        p_level: level,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["level_rewards_claimed"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function getLevelReward(level: number): number {
+  return Math.min(200 * Math.pow(3, level - 1), 10000);
 }
 
 // ============================================================
@@ -109,6 +575,12 @@ export function useMyPair() {
         i_am_user1: data.user1_id === dbUser.id,
         my_checked_for_partner: data.user1_id === dbUser.id ? data.user1_checked_for_2 : data.user2_checked_for_1,
         i_rated: data.user1_id === dbUser.id ? data.rating_from_1 !== null : data.rating_from_2 !== null,
+        rating_i_received: data.user1_id === dbUser.id ? data.rating_from_2 : data.rating_from_1,
+        partner_rated_me: data.user1_id === dbUser.id ? data.rating_from_2 !== null : data.rating_from_1 !== null,
+        extension_requested_by: data.extension_requested_by,
+        extension_status: data.extension_status,
+        i_requested_extension: data.extension_requested_by === dbUser.id,
+        partner_requested_extension: data.extension_requested_by !== null && data.extension_requested_by !== dbUser.id,
       };
     },
     enabled: !!dbUser,
@@ -166,24 +638,48 @@ export function useRatePair() {
   });
 }
 
-export function useKeepPair() {
+export function useRequestPairExtension() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pairId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("request_pair_extension", { p_user_id: dbUser.id, p_pair_id: pairId });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my_pair"] }); },
+  });
+}
+
+export function useAcceptPairExtension() {
   const { dbUser, refreshUser } = useUser();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (pairId: string) => {
       if (!dbUser) throw new Error("Not logged in");
-      const { data, error } = await supabase.rpc("keep_pair", {
+      const { data, error } = await supabase.rpc("accept_pair_extension", {
         p_init_data: getInitData(),
         p_pair_id: pairId,
       });
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      refreshUser();
-      queryClient.invalidateQueries({ queryKey: ["my_pair"] });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    onSuccess: () => { refreshUser(); queryClient.invalidateQueries({ queryKey: ["my_pair"] }); queryClient.invalidateQueries({ queryKey: ["transactions"] }); },
+  });
+}
+
+export function useDenyPairExtension() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (pairId: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("deny_pair_extension", { p_user_id: dbUser.id, p_pair_id: pairId });
+      if (error) throw error;
+      return data;
     },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my_pair"] }); },
   });
 }
 
@@ -235,30 +731,42 @@ export function useGiftWall() {
   return useQuery({
     queryKey: ["gift_wall"],
     queryFn: async () => {
-      // Fetch all 3 sources in parallel
-      const [missionRes, promoRes, transferRes] = await Promise.all([
+      // Fetch all 5 sources in parallel
+      const [missionRes, promoRes, transferRes, magicBoxRes, contribRes] = await Promise.all([
         supabase.from("mission_completions").select("*").eq("status", "approved").not("proof_url", "is", null).order("completed_at", { ascending: false }).limit(20),
         supabase.from("promo_codes").select("*").eq("is_used", true).order("claimed_at", { ascending: false }).limit(15),
         supabase.from("transactions").select("*").eq("type", "transfer_out").order("created_at", { ascending: false }).limit(15),
+        supabase.from("magic_box_entries").select("*").eq("claimed", true).order("claimed_at", { ascending: false }).limit(15),
+        supabase.from("support_contributions").select("*").eq("status", "approved").order("reviewed_at", { ascending: false }).limit(15),
       ]);
 
-      // Collect all unique user IDs and mission IDs
+      // Collect all unique user IDs and mission/box IDs
       const userIds = new Set<string>();
       const missionIds = new Set<string>();
+      const boxIds = new Set<string>();
+      const campIds = new Set<string>();
       (missionRes.data || []).forEach((g: any) => { userIds.add(g.user_id); missionIds.add(g.mission_id); });
       (promoRes.data || []).forEach((p: any) => { if (p.claimed_by) userIds.add(p.claimed_by); });
       (transferRes.data || []).forEach((t: any) => { userIds.add(t.user_id); });
+      (magicBoxRes.data || []).forEach((b: any) => { userIds.add(b.user_id); boxIds.add(b.box_id); });
+      (contribRes.data || []).forEach((c: any) => { userIds.add(c.user_id); campIds.add(c.campaign_id); });
 
-      // Batch fetch users and missions
-      const [usersRes, missionsRes] = await Promise.all([
+      // Batch fetch users, missions, and boxes
+      const [usersRes, missionsRes, boxesRes, campsRes] = await Promise.all([
         userIds.size > 0 ? supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", [...userIds]) : { data: [] },
         missionIds.size > 0 ? supabase.from("missions").select("id, title").in("id", [...missionIds]) : { data: [] },
+        boxIds.size > 0 ? supabase.from("magic_boxes").select("id, title, prize_dr, prize_xp, prize_custom").in("id", [...boxIds]) : { data: [] },
+        campIds.size > 0 ? supabase.from("support_campaigns").select("id, title").in("id", [...campIds]) : { data: [] },
       ]);
 
       const userMap: Record<string, any> = {};
       (usersRes.data || []).forEach((u: any) => { userMap[u.id] = u; });
       const missionMap: Record<string, any> = {};
       (missionsRes.data || []).forEach((m: any) => { missionMap[m.id] = m; });
+      const boxMap: Record<string, any> = {};
+      (boxesRes.data || []).forEach((b: any) => { boxMap[b.id] = b; });
+      const campMap: Record<string, any> = {};
+      ((campsRes as any).data || []).forEach((c: any) => { campMap[c.id] = c; });
 
       // Build feed
       const feed: any[] = [];
@@ -271,6 +779,16 @@ export function useGiftWall() {
       });
       (transferRes.data || []).forEach((t: any) => {
         feed.push({ type: "transfer", user: userMap[t.user_id], title: t.description, amount: Math.abs(t.amount), date: t.created_at, id: "t-" + t.id, user_id: t.user_id });
+      });
+      (magicBoxRes.data || []).forEach((b: any) => {
+        const box = boxMap[b.box_id];
+        const prizeText = [box?.prize_dr ? `${box.prize_dr} DR` : null, box?.prize_xp ? `${box.prize_xp} XP` : null, box?.prize_custom].filter(Boolean).join(" + ");
+        feed.push({ type: "magicbox", user: userMap[b.user_id], title: `opened ${box?.title || "Magic Box"} — won ${prizeText}`, date: b.claimed_at || b.created_at, id: "mb-" + b.id, user_id: b.user_id });
+      });
+
+      (contribRes.data || []).forEach((c: any) => {
+        const camp = campMap[c.campaign_id];
+        feed.push({ type: "support", user: userMap[c.user_id], title: `contributed ₦${c.amount.toLocaleString()} to ${camp?.title || "Community Support"}`, date: c.reviewed_at || c.created_at, id: "sc-" + c.id, user_id: c.user_id });
       });
 
       feed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -299,6 +817,7 @@ export function useCommunityStats() {
         transfers: Number(u.transfers),
         redeems: Number(u.redeems),
         hackathons: Number(u.hackathons),
+        hackathon_wins: Number(u.hackathon_wins || 0),
         engagement: Number(u.engagement),
       }));
     },
@@ -310,36 +829,37 @@ export function useWeeklyMVP() {
   return useQuery({
     queryKey: ["weekly_mvp"],
     queryFn: async () => {
-      // Get current week's MVP
-      const { data: current } = await supabase
+      const { data: allMvps } = await supabase
         .from("weekly_mvps")
         .select("*")
         .order("week_start", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(20);
 
-      // Get past MVPs for hall of fame
-      const { data: pastMvps } = await supabase
-        .from("weekly_mvps")
-        .select("*")
-        .order("week_start", { ascending: false })
-        .limit(5);
+      if (!allMvps || allMvps.length === 0) return { current: null, history: [] };
 
-      // Fetch user details
-      const withUsers = await Promise.all(
-        (pastMvps || []).map(async (m: any) => {
-          const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", m.user_id).maybeSingle();
-          return { ...m, user };
-        })
-      );
+      const current = allMvps[0];
 
-      let currentUser = null;
-      if (current) {
-        const { data: user } = await supabase.from("users").select("first_name, last_name, username, photo_url, last_active").eq("id", current.user_id).maybeSingle();
-        currentUser = { ...current, user };
+      // History: all past MVPs whose user_id differs from current, deduplicated
+      const seenUsers = new Set<string>();
+      const history: any[] = [];
+      for (let i = 1; i < allMvps.length; i++) {
+        const mvp = allMvps[i];
+        if (mvp.user_id !== current.user_id && !seenUsers.has(mvp.user_id)) {
+          seenUsers.add(mvp.user_id);
+          history.push(mvp);
+        }
       }
 
-      return { current: currentUser, history: withUsers };
+      // Batch fetch users
+      const uniqueIds = [...new Set([current.user_id, ...history.map((m: any) => m.user_id)])];
+      const { data: users } = await supabase.from("users").select("id, first_name, last_name, username, photo_url, last_active").in("id", uniqueIds);
+      const userMap: Record<string, any> = {};
+      (users || []).forEach((u: any) => { userMap[u.id] = u; });
+
+      return {
+        current: { ...current, user: userMap[current.user_id] },
+        history: history.slice(0, 5).map((m: any) => ({ ...m, user: userMap[m.user_id] })),
+      };
     },
   });
 }
@@ -375,6 +895,11 @@ export function useCommunityMilestones() {
       const { count: totalTransfers } = await supabase.from("transactions").select("*", { count: "exact", head: true }).eq("type", "transfer_out");
       const { count: totalMissions } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("status", "approved");
       const { count: totalRaffles } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true });
+      const { count: totalContributions } = await supabase.from("support_contributions").select("*", { count: "exact", head: true }).eq("status", "approved");
+
+      // Get total Naira contributed
+      const { data: contribData } = await supabase.from("support_contributions").select("amount").eq("status", "approved");
+      const totalNaira = (contribData || []).reduce((sum: number, c: any) => sum + c.amount, 0);
 
       return {
         users: { current: totalUsers ?? 0, target: Math.ceil((totalUsers ?? 0) / 50) * 50 || 50 },
@@ -383,6 +908,8 @@ export function useCommunityMilestones() {
         transfers: { current: totalTransfers ?? 0, target: Math.ceil((totalTransfers ?? 0) / 100) * 100 || 100 },
         missions: { current: totalMissions ?? 0, target: Math.ceil((totalMissions ?? 0) / 50) * 50 || 50 },
         raffles: { current: totalRaffles ?? 0, target: Math.ceil((totalRaffles ?? 0) / 100) * 100 || 100 },
+        contributions: { current: totalContributions ?? 0, target: Math.ceil((totalContributions ?? 0) / 50) * 50 || 50 },
+        naira_raised: { current: totalNaira, target: Math.ceil(totalNaira / 100000) * 100000 || 100000 },
       };
     },
   });
@@ -857,6 +1384,38 @@ export function useRaffles(includeArchived = false) {
   });
 }
 
+export function useAllRafflesAdmin() {
+  return useQuery({
+    queryKey: ["admin_raffles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("raffles").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      const raffleIds = (data || []).map((r: any) => r.id);
+      const winnerIds = (data || []).filter((r: any) => r.winner_id).map((r: any) => r.winner_id);
+      const [entriesRes, winnersRes] = await Promise.all([
+        raffleIds.length > 0 ? supabase.from("raffle_entries").select("raffle_id").in("raffle_id", raffleIds) : { data: [] },
+        winnerIds.length > 0 ? supabase.from("users").select("id, first_name, username").in("id", winnerIds) : { data: [] },
+      ]);
+      const entryCounts: Record<string, number> = {};
+      (entriesRes.data || []).forEach((e: any) => { entryCounts[e.raffle_id] = (entryCounts[e.raffle_id] || 0) + 1; });
+      const winnerMap: Record<string, any> = {};
+      (winnersRes.data || []).forEach((w: any) => { winnerMap[w.id] = w; });
+      return (data || []).map((r: any) => ({ ...r, winner: r.winner_id ? winnerMap[r.winner_id] || null : null, entry_count: entryCounts[r.id] || 0 }));
+    },
+  });
+}
+
+export function useAllHackathonsAdmin() {
+  return useQuery({
+    queryKey: ["admin_hackathons"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hackathons").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export function useRaffleEntries(raffleId: string | null) {
   return useQuery({
     queryKey: ["raffle_entries", raffleId],
@@ -980,6 +1539,39 @@ export function useUnarchiveRaffle() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["raffles"] });
     },
+  });
+}
+
+export function useArchiveHackathon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hackathons").update({ is_active: false }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hackathons"] }); },
+  });
+}
+
+export function useUnarchiveHackathon() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hackathons").update({ is_active: true }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["hackathons"] }); },
+  });
+}
+
+export function useArchiveMagicBox() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("magic_boxes").update({ status: "ended" }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["magic_boxes"] }); queryClient.invalidateQueries({ queryKey: ["admin_magic_boxes"] }); },
   });
 }
 
@@ -1142,6 +1734,38 @@ export function useBuyStreakInsurance() {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
   });
+}
+
+export function useFreezeStreak() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (days: number) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("freeze_streak", {
+        p_user_id: dbUser.id,
+        p_days: days,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
+  });
+}
+
+export function getFreezeCost(days: number): number {
+  let cost = 0;
+  for (let i = 1; i <= days; i++) {
+    if (i <= 3) cost += 50;
+    else if (i <= 7) cost += 100;
+    else if (i <= 14) cost += 150;
+    else cost += 2000;
+  }
+  return cost;
 }
 
 // ============================================================
@@ -2104,6 +2728,48 @@ export function useDeleteHackathon() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+    },
+  });
+}
+
+export function useHackathonRegistrants(hackathonId: string | null) {
+  return useQuery({
+    queryKey: ["hackathon_registrants", hackathonId],
+    queryFn: async () => {
+      if (!hackathonId) return [];
+      const { data } = await supabase
+        .from("hackathon_registrations")
+        .select("user_id")
+        .eq("hackathon_id", hackathonId);
+      if (!data || data.length === 0) return [];
+      const userIds = data.map((r: any) => r.user_id);
+      const { data: users } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, username, photo_url")
+        .in("id", userIds);
+      return users || [];
+    },
+    enabled: !!hackathonId,
+  });
+}
+
+export function useSetHackathonWinner() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ hackathonId, winnerId }: { hackathonId: string; winnerId: string }) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("set_hackathon_winner", {
+        p_admin_id: dbUser.id,
+        p_hackathon_id: hackathonId,
+        p_winner_id: winnerId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hackathons"] });
+      queryClient.invalidateQueries({ queryKey: ["community_stats"] });
     },
   });
 }
