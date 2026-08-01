@@ -161,6 +161,11 @@ const Index = () => {
 
   // Check if user has been referred (mandatory gate)
   useEffect(() => {
+    if (!loading && !dbUser) {
+      // Identity verification finished but failed — stop spinning forever.
+      setCheckingReferral(false);
+      return;
+    }
     if (!loading && dbUser) {
       const checkAccess = async () => {
         // Admins always have access
@@ -232,6 +237,25 @@ const Index = () => {
         <div className="text-center">
           <img src={logoImg} alt="Dreamer Dash" className="w-16 h-16 rounded-full shadow-glow mx-auto mb-4 animate-pulse object-cover" />
           <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Identity verification failed — show an error instead of a blank/broken app
+  if (!dbUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-6">
+        <div className="text-center">
+          <img src={logoImg} alt="Dreamer Dash" className="w-16 h-16 rounded-full shadow-glow mx-auto mb-4 object-cover" />
+          <p className="text-foreground font-medium mb-1">Couldn't sign you in</p>
+          <p className="text-sm text-muted-foreground mb-4">Please close and reopen the app from Telegram.</p>
+          <button
+            className="text-sm text-primary underline"
+            onClick={() => window.location.reload()}
+          >
+            Try again
+          </button>
         </div>
       </div>
     );
