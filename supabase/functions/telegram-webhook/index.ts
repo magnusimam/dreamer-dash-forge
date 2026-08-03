@@ -20,7 +20,7 @@ serve(async (req) => {
   try {
     const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseKey = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")!)["default"];
     if (!botToken) return new Response("No token", { status: 500 });
 
     const supabase = createClient(supabaseUrl!, supabaseKey!);
