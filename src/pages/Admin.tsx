@@ -313,14 +313,14 @@ export default function Admin() {
   const { data: activities = [] } = useAllActivitiesAdmin();
   const { data: hackathons = [] } = useAllHackathonsAdmin();
   const { data: redemptions = [] } = useRedemptionRequests();
-  const { data: allUsers = [] } = useAllUsers();
+  const { data: allUsers = [], error: allUsersError, refetch: refetchAllUsers } = useAllUsers();
 
   const { data: redeemCategories = [] } = useRedemptionCategories();
   const { data: allMentors = [] } = useAllMentors();
   const { data: allAds = [] } = useAllAds();
   const { data: allStates = [] } = useStates();
   const { data: stateRankings = [] } = useStateRankings();
-  const { data: allReferrals = [] } = useAllReferrals();
+  const { data: allReferrals = [], error: allReferralsError, refetch: refetchAllReferrals } = useAllReferrals();
   const { data: raffles = [] } = useAllRafflesAdmin();
   const { data: promoCodes = [] } = useAllPromoCodes();
   const { data: allMissions = [] } = useAllMissionsAdmin();
@@ -2105,6 +2105,13 @@ export default function Admin() {
         {/* ========== USERS TAB ========== */}
         <TabsContent value="users">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {allUsersError && (
+              <Card className="border-destructive/50 bg-destructive/10 p-4 mb-4">
+                <p className="text-sm text-destructive font-medium">Failed to load users</p>
+                <p className="text-xs text-destructive/80 mt-1 break-all">{(allUsersError as any)?.message || String(allUsersError)}</p>
+                <Button size="sm" variant="outline" className="mt-2 border-destructive/30" onClick={() => refetchAllUsers()}>Retry</Button>
+              </Card>
+            )}
             <div className="mb-4">
               <p className="text-sm text-muted-foreground">{allUsers.length} registered users</p>
             </div>
@@ -2156,6 +2163,13 @@ export default function Admin() {
         {/* ========== REFERRALS TAB ========== */}
         <TabsContent value="referrals">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {allReferralsError && (
+              <Card className="border-destructive/50 bg-destructive/10 p-4 mb-4">
+                <p className="text-sm text-destructive font-medium">Failed to load referrals</p>
+                <p className="text-xs text-destructive/80 mt-1 break-all">{(allReferralsError as any)?.message || String(allReferralsError)}</p>
+                <Button size="sm" variant="outline" className="mt-2 border-destructive/30" onClick={() => refetchAllReferrals()}>Retry</Button>
+              </Card>
+            )}
             <div className="mb-4">
               <p className="text-sm text-muted-foreground">{allUsers.length} users &middot; {allReferrals.length} referrals</p>
             </div>
