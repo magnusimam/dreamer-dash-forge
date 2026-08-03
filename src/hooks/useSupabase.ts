@@ -2473,6 +2473,107 @@ export function useDeleteMentor() {
 }
 
 // ============================================================
+// ADS
+// ============================================================
+
+export function useActiveAds() {
+  return useQuery({
+    queryKey: ["ads"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ads")
+        .select("*")
+        .eq("is_active", true)
+        .order("display_order")
+        .order("created_at");
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useAllAds() {
+  return useQuery({
+    queryKey: ["all_ads"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ads")
+        .select("*")
+        .order("display_order")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useCreateAd() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ad: { title: string; body: string; cta_label: string; cta_url: string; display_order: number }) => {
+      const { data, error } = await supabase.rpc("admin_create_ad", {
+        p_init_data: getInitData(),
+        p_title: ad.title,
+        p_body: ad.body,
+        p_cta_label: ad.cta_label,
+        p_cta_url: ad.cta_url,
+        p_display_order: ad.display_order,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: ["all_ads"] });
+    },
+  });
+}
+
+export function useUpdateAd() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, title, body, cta_label, cta_url, is_active, display_order }: { id: string; title?: string; body?: string; cta_label?: string; cta_url?: string; is_active?: boolean; display_order?: number }) => {
+      const { data, error } = await supabase.rpc("admin_update_ad", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_title: title ?? null,
+        p_body: body ?? null,
+        p_cta_label: cta_label ?? null,
+        p_cta_url: cta_url ?? null,
+        p_is_active: is_active ?? null,
+        p_display_order: display_order ?? null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: ["all_ads"] });
+    },
+  });
+}
+
+export function useDeleteAd() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc("admin_delete_ad", {
+        p_init_data: getInitData(),
+        p_id: id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: ["all_ads"] });
+    },
+  });
+}
+
+// ============================================================
 // REDEMPTIONS
 // ============================================================
 

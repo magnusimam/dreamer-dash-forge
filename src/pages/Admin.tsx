@@ -49,6 +49,10 @@ import {
   useCreateMentor,
   useUpdateMentor,
   useDeleteMentor,
+  useAllAds,
+  useCreateAd,
+  useUpdateAd,
+  useDeleteAd,
   useStates,
   useStateRankings,
   useCreateState,
@@ -313,6 +317,7 @@ export default function Admin() {
 
   const { data: redeemCategories = [] } = useRedemptionCategories();
   const { data: allMentors = [] } = useAllMentors();
+  const { data: allAds = [] } = useAllAds();
   const { data: allStates = [] } = useStates();
   const { data: stateRankings = [] } = useStateRankings();
   const { data: allReferrals = [] } = useAllReferrals();
@@ -389,6 +394,9 @@ export default function Admin() {
   const createMentorMutation = useCreateMentor();
   const updateMentorMutation = useUpdateMentor();
   const deleteMentorMutation = useDeleteMentor();
+  const createAdMutation = useCreateAd();
+  const updateAdMutation = useUpdateAd();
+  const deleteAdMutation = useDeleteAd();
   const createStateMutation = useCreateState();
   const deleteStateMutation = useDeleteState();
   const createRaffleMutation = useCreateRaffle();
@@ -484,6 +492,14 @@ export default function Admin() {
   const [mentorSpecialty, setMentorSpecialty] = useState("");
   const [mentorContact, setMentorContact] = useState("");
   const [editingMentor, setEditingMentor] = useState<any | null>(null);
+
+  // Ad form
+  const [adTitle, setAdTitle] = useState("");
+  const [adBody, setAdBody] = useState("");
+  const [adCtaLabel, setAdCtaLabel] = useState("");
+  const [adCtaUrl, setAdCtaUrl] = useState("");
+  const [adDisplayOrder, setAdDisplayOrder] = useState("0");
+  const [editingAd, setEditingAd] = useState<any | null>(null);
 
   // State form
   const [stateName, setStateName] = useState("");
@@ -904,6 +920,7 @@ export default function Admin() {
             </TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="raffles" className="text-xs px-3">Raffles</TabsTrigger>}
             {isSuperAdmin && <TabsTrigger value="promos" className="text-xs px-3">Promos</TabsTrigger>}
+            {isSuperAdmin && <TabsTrigger value="ads" className="text-xs px-3">Ads</TabsTrigger>}
             <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
             <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>}
@@ -1897,6 +1914,182 @@ export default function Admin() {
                             {p.is_used ? "Used" : "Available"}
                           </Badge>
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300" aria-label="Delete promo code" disabled={deletePromoCodeMutation.isPending} onClick={async () => { try { await deletePromoCodeMutation.mutateAsync(p.id); toast({ title: "Promo code deleted" }); } catch (err: any) { toast({ title: "Error", description: err?.message || "Failed.", variant: "destructive" }); } }}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </TabsContent>
+
+        {/* ========== ADS TAB ========== */}
+        <TabsContent value="ads">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Megaphone className="w-4 h-4 text-primary" />
+                {editingAd ? "Edit Ad" : "Add Ad"}
+              </h3>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Title"
+                  value={adTitle}
+                  onChange={(e) => setAdTitle(sanitize(e.target.value))}
+                  className="bg-secondary border-border"
+                />
+                <Textarea
+                  placeholder="Body text (shown under the title)"
+                  value={adBody}
+                  onChange={(e) => setAdBody(sanitize(e.target.value))}
+                  className="bg-secondary border-border min-h-[60px]"
+                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Button label (e.g. Get Book)"
+                    value={adCtaLabel}
+                    onChange={(e) => setAdCtaLabel(sanitize(e.target.value))}
+                    className="bg-secondary border-border flex-1"
+                  />
+                  <Input
+                    placeholder="Display order"
+                    type="number"
+                    value={adDisplayOrder}
+                    onChange={(e) => setAdDisplayOrder(e.target.value)}
+                    className="bg-secondary border-border w-32"
+                  />
+                </div>
+                <Input
+                  placeholder="Button link (https://...)"
+                  value={adCtaUrl}
+                  onChange={(e) => setAdCtaUrl(e.target.value.trim())}
+                  className="bg-secondary border-border"
+                />
+                <div className="flex gap-2">
+                  {editingAd ? (
+                    <>
+                      <Button
+                        className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                        disabled={updateAdMutation.isPending || !adTitle}
+                        onClick={async () => {
+                          try {
+                            await updateAdMutation.mutateAsync({
+                              id: editingAd.id,
+                              title: adTitle,
+                              body: adBody,
+                              cta_label: adCtaLabel,
+                              cta_url: adCtaUrl,
+                              display_order: parseInt(adDisplayOrder) || 0,
+                            });
+                            toast({ title: "Ad Updated" });
+                            setEditingAd(null); setAdTitle(""); setAdBody(""); setAdCtaLabel(""); setAdCtaUrl(""); setAdDisplayOrder("0");
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err?.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        {updateAdMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={() => { setEditingAd(null); setAdTitle(""); setAdBody(""); setAdCtaLabel(""); setAdCtaUrl(""); setAdDisplayOrder("0"); }}>
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow"
+                      disabled={createAdMutation.isPending || !adTitle}
+                      onClick={async () => {
+                        try {
+                          await createAdMutation.mutateAsync({
+                            title: adTitle,
+                            body: adBody,
+                            cta_label: adCtaLabel,
+                            cta_url: adCtaUrl,
+                            display_order: parseInt(adDisplayOrder) || 0,
+                          });
+                          toast({ title: "Ad Added" });
+                          setAdTitle(""); setAdBody(""); setAdCtaLabel(""); setAdCtaUrl(""); setAdDisplayOrder("0");
+                        } catch (err: any) {
+                          toast({ title: "Error", description: err?.message, variant: "destructive" });
+                        }
+                      }}
+                    >
+                      {createAdMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                      Add Ad
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {allAds.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">All Ads ({allAds.length})</h3>
+                <p className="text-xs text-muted-foreground mb-3">Up to 2 active ads show at a time on the Activity page, sliding automatically. Use display order to control which pair shows first.</p>
+                <div className="space-y-3">
+                  {allAds.map((ad: any) => (
+                    <Card key={ad.id} className="gradient-card border-border/50 p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-foreground">{ad.title}</h4>
+                            {!ad.is_active && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
+                          </div>
+                          {ad.body && <p className="text-xs text-muted-foreground">{ad.body}</p>}
+                          {ad.cta_label && <p className="text-xs text-muted-foreground mt-1">Button: "{ad.cta_label}" → {ad.cta_url}</p>}
+                          <p className="text-xs text-muted-foreground mt-1">Order: {ad.display_order}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            aria-label="Edit"
+                            onClick={() => {
+                              setEditingAd(ad);
+                              setAdTitle(ad.title);
+                              setAdBody(ad.body || "");
+                              setAdCtaLabel(ad.cta_label || "");
+                              setAdCtaUrl(ad.cta_url || "");
+                              setAdDisplayOrder(String(ad.display_order ?? 0));
+                            }}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className={`h-7 w-7 ${ad.is_active ? "text-muted-foreground" : "text-emerald-400"}`}
+                            aria-label={ad.is_active ? "Turn off" : "Turn on"}
+                            onClick={async () => {
+                              try {
+                                await updateAdMutation.mutateAsync({ id: ad.id, is_active: !ad.is_active });
+                                toast({ title: ad.is_active ? "Ad turned off" : "Ad turned on" });
+                              } catch (err: any) {
+                                toast({ title: "Error", description: err?.message, variant: "destructive" });
+                              }
+                            }}
+                          >
+                            {ad.is_active ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            aria-label="Delete"
+                            onClick={async () => {
+                              try {
+                                await deleteAdMutation.mutateAsync(ad.id);
+                                toast({ title: "Ad Deleted" });
+                              } catch (err: any) {
+                                toast({ title: "Error", description: err?.message, variant: "destructive" });
+                              }
+                            }}
+                          >
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>

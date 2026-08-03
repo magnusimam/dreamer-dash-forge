@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
 import {
   useActivities,
   useUserActivityLogs,
@@ -19,11 +18,11 @@ import {
   useUnlockMission,
   useSubmitMissionProof,
   useCompleteMission,
-  useClaimPromoCode,
   useMagicBoxes,
   useUserBoxEntries,
   useSupportCampaigns,
   useSubmitContribution,
+  useActiveAds,
 } from "@/hooks/useSupabase";
 import MagicBoxComponent from "@/components/MagicBox";
 import {
@@ -38,10 +37,10 @@ import {
   Lock,
   Unlock,
   Target,
-  BookOpen,
-  Gift,
   Heart,
   Copy,
+  Megaphone,
+  ExternalLink,
 } from "lucide-react";
 import { hapticNotification } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
@@ -78,7 +77,6 @@ export default function ActivityLog() {
   const unlockMissionMutation = useUnlockMission();
   const completeMissionMutation = useCompleteMission();
   const submitMissionProofMutation = useSubmitMissionProof();
-  const claimPromoMutation = useClaimPromoCode();
   const { data: magicBoxes = [] } = useMagicBoxes();
   const { data: myBoxEntries = {} } = useUserBoxEntries();
   const { data: supportCampaigns = [] } = useSupportCampaigns();
@@ -87,15 +85,8 @@ export default function ActivityLog() {
   const [contribAmount, setContribAmount] = useState("");
   const [contribProofFile, setContribProofFile] = useState<File | null>(null);
   const [contribUploading, setContribUploading] = useState(false);
-  const [showPromoModal, setShowPromoModal] = useState(false);
-  const [promoCode, setPromoCode] = useState("");
-  const { data: promoClaimCount = 0 } = useQuery({
-    queryKey: ["promo_claim_count"],
-    queryFn: async () => {
-      const { count } = await supabase.from("promo_codes").select("*", { count: "exact", head: true }).eq("is_used", true);
-      return count ?? 0;
-    },
-  });
+  const { data: ads = [] } = useActiveAds();
+  const [adPage, setAdPage] = useState(0);
 
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [codeInput, setCodeInput] = useState("");
@@ -113,6 +104,15 @@ export default function ActivityLog() {
   const [selectedGiftUser, setSelectedGiftUser] = useState<any | null>(null);
   const [showGiftDropdown, setShowGiftDropdown] = useState(false);
   const giftDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Ads slider — shows 2 at a time, auto-advances every 6s when more exist
+  const adPages = [];
+  for (let i = 0; i < ads.length; i += 2) adPages.push(ads.slice(i, i + 2));
+  useEffect(() => {
+    if (adPages.length < 2) return;
+    const timer = setInterval(() => setAdPage((p) => (p + 1) % adPages.length), 6000);
+    return () => clearInterval(timer);
+  }, [adPages.length]);
 
   // Close gift dropdown on outside click
   useEffect(() => {
@@ -496,73 +496,59 @@ export default function ActivityLog() {
         )}
       </AnimatePresence>
 
-      {/* Promo Section */}
-      {(categoryFilter === "all" || categoryFilter === "promo") && (
+      {/* Ads Section — admin-controlled, up to 2 shown at a time as a slider */}
+      {(categoryFilter === "all" || categoryFilter === "promo") && ads.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-pink-400" /> Promos
+            <Megaphone className="w-5 h-5 text-pink-400" /> Promos
           </h2>
-          <Card className="gradient-card border-pink-500/20 p-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center shrink-0">
-                <BookOpen className="w-5 h-5 text-pink-400" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">The Stolen Breath</p>
-                <p className="text-xs text-muted-foreground mb-2">by Abeedah Alabi — Get a copy and earn <span className="text-primary font-semibold">500 DR</span>
-                  {promoClaimCount > 0 && <span className="text-pink-400"> · {promoClaimCount} claimed</span>}
-                </p>
-                <div className="flex gap-2">
-                  <Button size="sm" className="bg-pink-600 hover:bg-pink-700 text-white h-7 text-xs" onClick={() => window.open("https://selar.com/thestolenbreath", "_blank")}>
-                    <BookOpen className="w-3 h-3 mr-1" /> Get Book
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-primary/30 text-primary h-7 text-xs" onClick={() => setShowPromoModal(true)}>
-                    <Gift className="w-3 h-3 mr-1" /> Claim 500 DR
-                  </Button>
-                </div>
-              </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={Math.min(adPage, adPages.length - 1)}
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3"
+            >
+              {(adPages[Math.min(adPage, adPages.length - 1)] || []).map((ad: any) => (
+                <Card key={ad.id} className="gradient-card border-pink-500/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center shrink-0">
+                      <Megaphone className="w-5 h-5 text-pink-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">{ad.title}</p>
+                      {ad.body && <p className="text-xs text-muted-foreground mb-2">{ad.body}</p>}
+                      {ad.cta_label && ad.cta_url && (
+                        <Button
+                          size="sm"
+                          className="bg-pink-600 hover:bg-pink-700 text-white h-7 text-xs"
+                          onClick={() => window.open(ad.cta_url, "_blank")}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" /> {ad.cta_label}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </motion.div>
+          </AnimatePresence>
+          {adPages.length > 1 && (
+            <div className="flex justify-center gap-1.5 mt-3">
+              {adPages.map((_, i) => (
+                <button
+                  key={i}
+                  aria-label={`Show ad slide ${i + 1}`}
+                  onClick={() => setAdPage(i)}
+                  className={`h-1.5 rounded-full transition-all ${i === adPage ? "w-4 bg-pink-400" : "w-1.5 bg-muted-foreground/30"}`}
+                />
+              ))}
             </div>
-          </Card>
+          )}
         </div>
       )}
-
-      {/* Promo Claim Modal */}
-      <AnimatePresence>
-        {showPromoModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setShowPromoModal(false)}>
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground text-lg">Claim Promo Code</h3>
-                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setShowPromoModal(false)}><X className="w-4 h-4" /></Button>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">Enter the code you received after purchasing <span className="text-foreground font-medium">The Stolen Breath</span></p>
-              <Input placeholder="Enter code (e.g. BREATH-A7X2)" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} className="mb-4 bg-secondary border-border text-center text-lg tracking-widest font-mono" />
-              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!promoCode.trim() || claimPromoMutation.isPending}
-                onClick={async () => {
-                  try {
-                    const result = await claimPromoMutation.mutateAsync(promoCode.trim());
-                    if (result?.success) {
-                      hapticNotification("success");
-                      setShowConfetti(true);
-                      toast({ title: "Code Claimed!", description: `+${result.reward} DR — ${result.description || "Promo reward"}` });
-                      setPromoCode("");
-                      setShowPromoModal(false);
-                    } else {
-                      hapticNotification("error");
-                      toast({ title: "Invalid Code", description: result?.error || "Code not recognized", variant: "destructive" });
-                    }
-                  } catch (err: any) {
-                    hapticNotification("error");
-                    toast({ title: "Error", description: err?.message || "Failed to claim code.", variant: "destructive" });
-                  }
-                }}>
-                {claimPromoMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Gift className="w-4 h-4 mr-2" />}
-                Claim Reward
-              </Button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Community Support */}
       {(categoryFilter === "all" || categoryFilter === "support") && supportCampaigns.filter((c: any) => c.status === "active").length > 0 && (
