@@ -32,7 +32,25 @@
       "Bash(echo \":*)",
       "Bash(grep -c \"stmgzykdildmlbvubtvs\" dist/assets/index-*.js)",
       "Bash(find 'C:\\\\Users\\\\HP\\\\Dreamers Telegram Mini App\\\\dreamer-dash-forge' -name *.env* -o -name .env.example)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(grep -E \"\\(main|App|index\\)\\\\.\\(tsx|ts|jsx|js\\)$\")",
+      "Bash(command -v supabase)",
+      "Bash(supabase --version)",
+      "Bash(command -v psql)",
+      "Bash(psql --version)",
+      "Bash(vercel --version)",
+      "Bash(vercel whoami *)",
+      "Bash(vercel project *)",
+      "Bash(vercel teams *)",
+      "Bash(vercel logout *)",
+      "Bash(vercel inspect *)",
+      "Bash(vercel link *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(vercel domains *)",
+      "PowerShell(supabase *)",
+      "PowerShell(npx supabase --version)",
+      "PowerShell(npx supabase secrets set CLOUDINARY_API_KEY=657885322772846 CLOUDINARY_API_SECRET=ybvD8noZp1_msXQfXi8rpXitZYs --project-ref stmgzykdildmlbvubtvs)",
+      "ScheduleWakeup"
     ]
   }
 }

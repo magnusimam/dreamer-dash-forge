@@ -1,15 +1,32 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { TelegramProvider } from "@/contexts/TelegramContext";
 import { UserProvider } from "@/contexts/UserContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { logError } from "@/lib/errorLogger";
 
-const queryClient = new QueryClient();
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (event) => {
+    logError(event.reason, "frontend_unhandled", "unhandledrejection");
+  });
+  window.addEventListener("error", (event) => {
+    logError(event.error ?? event.message, "frontend_unhandled", "window.onerror");
+  });
+}
+
+const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => logError(error, "frontend_query", query.queryHash),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => logError(error, "frontend_mutation", mutation.options.mutationKey?.join(",")),
+  }),
+});
 
 const App = () => (
   <ErrorBoundary>
