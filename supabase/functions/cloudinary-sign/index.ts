@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // Only these upload folders may be signed.
-const ALLOWED_FOLDERS = new Set(["activity-proofs", "mission-proofs", "hackathon-covers"]);
+const ALLOWED_FOLDERS = new Set(["activity-proofs", "mission-proofs", "hackathon-covers", "support-proofs"]);
 
 // Validate signed Telegram initData and return the verified telegram user id.
 function verifiedUserId(initData: string | undefined, botToken: string): number | null {
