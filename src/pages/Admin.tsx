@@ -869,6 +869,8 @@ export default function Admin() {
           }
         }
       }
+    } else {
+      toast({ title: "Error", description: data?.error || "Failed to process proof", variant: "destructive" });
     }
   };
 
@@ -1440,7 +1442,13 @@ export default function Admin() {
                       <div className="flex gap-2">
                         <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={approveContributionMutation.isPending}
                           onClick={async () => {
-                            const result = await approveContributionMutation.mutateAsync(c.id);
+                            let result;
+                            try {
+                              result = await approveContributionMutation.mutateAsync(c.id);
+                            } catch (err: any) {
+                              toast({ title: "Error", description: err?.message || "Failed to approve contribution", variant: "destructive" });
+                              return;
+                            }
                             if (result?.success) {
                               toast({ title: "Approved!", description: `+${result.dr_reward} DR + ${result.xp_reward} XP` });
                               if (c.user?.telegram_id) {
@@ -1466,13 +1474,25 @@ export default function Admin() {
                                   toast({ title: "Target Reached!", description: "Celebration broadcast sent to all users" });
                                 }
                               }
+                            } else {
+                              toast({ title: "Error", description: result?.error || "Failed to approve contribution", variant: "destructive" });
                             }
                           }}>
                           <CheckCircle className="w-3 h-3 mr-1" /> Approve
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 border-destructive/30 text-destructive" disabled={rejectContributionMutation.isPending}
                           onClick={async () => {
-                            await rejectContributionMutation.mutateAsync(c.id);
+                            let result;
+                            try {
+                              result = await rejectContributionMutation.mutateAsync(c.id);
+                            } catch (err: any) {
+                              toast({ title: "Error", description: err?.message || "Failed to reject contribution", variant: "destructive" });
+                              return;
+                            }
+                            if (result?.success === false) {
+                              toast({ title: "Error", description: result?.error || "Failed to reject contribution", variant: "destructive" });
+                              return;
+                            }
                             toast({ title: "Rejected" });
                             if (c.user?.telegram_id) {
                               notifyUser(c.user.telegram_id, `❌ <b>Contribution Rejected</b>\n\nYour contribution proof was not accepted. Please resubmit.`);
