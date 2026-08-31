@@ -294,6 +294,40 @@ export function useClaimAnniversaryTierBonus() {
   });
 }
 
+export function useCommunityGiverBonus() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["community_giver_bonus", dbUser?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_community_giver_bonus", { p_init_data: getInitData() });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!dbUser,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useClaimCommunityGiverBonus() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_community_giver_bonus", { p_init_data: getInitData() });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      if (data?.success) {
+        refreshUser();
+        queryClient.invalidateQueries({ queryKey: ["community_giver_bonus"] });
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      }
+    },
+  });
+}
+
 export function useContributionLeaderboard() {
   return useQuery({
     queryKey: ["contribution_leaderboard"],

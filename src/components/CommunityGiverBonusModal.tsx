@@ -3,29 +3,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Confetti } from "@/components/Confetti";
-import { useAnniversaryTier, useClaimAnniversaryTierBonus } from "@/hooks/useSupabase";
+import { useCommunityGiverBonus, useClaimCommunityGiverBonus } from "@/hooks/useSupabase";
 import { useUser } from "@/contexts/UserContext";
-import { PartyPopper, Loader2, X } from "lucide-react";
-
-const TIER_COPY: Record<string, { label: string; blurb: string }> = {
-  top20: { label: "Top 20% Most Active", blurb: "Nobody kept the streak alive like you did." },
-  next30: { label: "Top 50% Most Active", blurb: "Solid run this season — you showed up." },
-  active: { label: "Active Dreamer", blurb: "You've been part of the momentum. Thank you." },
-};
+import { HeartHandshake, Loader2, X } from "lucide-react";
 
 interface Props {
   active: boolean;
   onDone: () => void;
 }
 
-export default function AnniversaryBonusModal({ active, onDone }: Props) {
+export default function CommunityGiverBonusModal({ active, onDone }: Props) {
   const { dbUser } = useUser();
-  const { data } = useAnniversaryTier();
-  const claimMutation = useClaimAnniversaryTierBonus();
-  const [claimedResult, setClaimedResult] = useState<{ tier: string; dr_reward: number } | null>(null);
+  const { data } = useCommunityGiverBonus();
+  const claimMutation = useClaimCommunityGiverBonus();
+  const [claimedResult, setClaimedResult] = useState<{ naira_given: number; dr_reward: number } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
-  // Skip straight to the next popup in the queue once we know this one doesn't apply.
   useEffect(() => {
     if (!active || data === undefined || claimedResult) return;
     if (!data?.eligible || data?.claimed) onDone();
@@ -36,20 +29,19 @@ export default function AnniversaryBonusModal({ active, onDone }: Props) {
 
   if (!shouldShow && !showSuccess) return null;
 
-  const tier = claimedResult?.tier ?? data?.tier;
+  const nairaGiven = claimedResult?.naira_given ?? data?.naira_given;
   const drReward = claimedResult?.dr_reward ?? data?.dr_reward;
-  const copy = TIER_COPY[tier] ?? TIER_COPY.active;
   const initials = [dbUser?.first_name?.[0], dbUser?.last_name?.[0]].filter(Boolean).join("");
 
   const handleClaim = async () => {
     try {
       const result = await claimMutation.mutateAsync();
       if (result?.success) {
-        setClaimedResult({ tier: result.tier, dr_reward: result.dr_reward });
+        setClaimedResult({ naira_given: result.naira_given, dr_reward: result.dr_reward });
         setShowConfetti(true);
       }
     } catch {
-      // toast not needed here — button re-enables and user can retry
+      // button re-enables; user can retry
     }
   };
 
@@ -69,7 +61,7 @@ export default function AnniversaryBonusModal({ active, onDone }: Props) {
           transition={{ type: "spring", damping: 22, stiffness: 300 }}
           className="relative w-full max-w-sm bg-card border border-border rounded-2xl p-6 pt-10 text-center overflow-hidden"
         >
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/20 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-amber-500/20 to-transparent pointer-events-none" />
 
           {!showSuccess && (
             <button
@@ -82,26 +74,28 @@ export default function AnniversaryBonusModal({ active, onDone }: Props) {
           )}
 
           <div className="relative">
-            <Avatar className="w-20 h-20 mx-auto mb-4 border-2 border-primary shadow-glow">
+            <Avatar className="w-20 h-20 mx-auto mb-4 border-2 border-amber-500 shadow-glow">
               <AvatarImage src={dbUser?.photo_url ?? undefined} />
-              <AvatarFallback className="bg-primary/20 text-primary text-2xl">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-amber-500/20 text-amber-500 text-2xl">{initials}</AvatarFallback>
             </Avatar>
 
-            <div className="inline-flex items-center gap-1.5 bg-primary/15 text-primary text-xs font-semibold px-3 py-1 rounded-full mb-3">
-              <PartyPopper className="w-3.5 h-3.5" />
-              {copy.label}
+            <div className="inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-500 text-xs font-semibold px-3 py-1 rounded-full mb-3">
+              <HeartHandshake className="w-3.5 h-3.5" />
+              Community Giver
             </div>
 
             <h2 className="text-xl font-bold text-foreground mb-1">
-              {showSuccess ? "Bonus Claimed! 🎉" : "Happy Anniversary! 🎉"}
+              {showSuccess ? "Bonus Claimed! 🎉" : "Thank You For Giving! 💝"}
             </h2>
-            <p className="text-sm text-muted-foreground mb-5">{copy.blurb}</p>
+            <p className="text-sm text-muted-foreground mb-5">
+              You've put ₦{nairaGiven?.toLocaleString()} of your own money into this community. Here's a little back.
+            </p>
 
             <div className="bg-secondary rounded-xl p-4 mb-5">
               <p className="text-xs text-muted-foreground mb-1">
                 {showSuccess ? "Added to your balance" : "You've earned"}
               </p>
-              <p className="text-3xl font-bold text-primary">+{drReward?.toLocaleString()} DR</p>
+              <p className="text-3xl font-bold text-amber-500">+{drReward?.toLocaleString()} DR</p>
             </div>
 
             {showSuccess ? (
