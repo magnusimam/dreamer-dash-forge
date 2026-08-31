@@ -9,6 +9,7 @@ import Profile from "@/pages/Profile";
 import Onboarding from "@/pages/Onboarding";
 import AnniversaryBonusModal from "@/components/AnniversaryBonusModal";
 import CommunityGiverBonusModal from "@/components/CommunityGiverBonusModal";
+import WeeklyMvpBonusModal from "@/components/WeeklyMvpBonusModal";
 
 // Lazy load sub-pages (only loaded when navigated to)
 const Hackathons = lazy(() => import("@/pages/Hackathons"));
@@ -37,7 +38,7 @@ const Index = () => {
   const { dbUser, loading } = useUser();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checkingReferral, setCheckingReferral] = useState(true);
-  const [popupStep, setPopupStep] = useState<"anniversary" | "giver" | "done">("anniversary");
+  const [popupStep, setPopupStep] = useState<"anniversary" | "giver" | "mvp" | "done">("anniversary");
   const scrollPositions = useRef<Record<string, number>>({});
 
   // Heartbeat — updates last_active every 60s while app is open
@@ -313,7 +314,8 @@ const Index = () => {
       </Suspense>
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} notifications={0} />
       <AnniversaryBonusModal active={popupStep === "anniversary"} onDone={() => setPopupStep("giver")} />
-      <CommunityGiverBonusModal active={popupStep === "giver"} onDone={() => setPopupStep("done")} />
+      <CommunityGiverBonusModal active={popupStep === "giver"} onDone={() => setPopupStep("mvp")} />
+      <WeeklyMvpBonusModal active={popupStep === "mvp"} onDone={() => setPopupStep("done")} />
     </div>
   );
 };
