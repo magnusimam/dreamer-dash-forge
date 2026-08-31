@@ -105,6 +105,9 @@ const Index = () => {
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - dayOfWeek);
     const weekStartStr = weekStart.toISOString().split("T")[0];
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    const weekEndStr = weekEnd.toISOString().split("T")[0];
     const mvpKey = `mvp_calculated_${weekStartStr}`;
     if (localStorage.getItem(mvpKey)) return;
 
@@ -120,10 +123,13 @@ const Index = () => {
       let topUser = null;
       let topPoints = 0;
       for (const u of users) {
-        const { count: mc } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("status", "approved");
-        const { count: ac } = await supabase.from("activity_logs").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-        const { count: rc } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true }).eq("user_id", u.id);
-        const { count: cc } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true }).eq("user_id", u.id);
+        // Scoped to THIS week's activity only — not lifetime totals — so the
+        // trophy reflects who showed up most in this window, not just whoever
+        // built the biggest all-time lead first.
+        const { count: mc } = await supabase.from("mission_completions").select("*", { count: "exact", head: true }).eq("user_id", u.id).eq("status", "approved").gte("completed_at", weekStartStr).lt("completed_at", weekEndStr);
+        const { count: ac } = await supabase.from("activity_logs").select("*", { count: "exact", head: true }).eq("user_id", u.id).gte("logged_at", weekStartStr).lt("logged_at", weekEndStr);
+        const { count: rc } = await supabase.from("raffle_entries").select("*", { count: "exact", head: true }).eq("user_id", u.id).gte("created_at", weekStartStr).lt("created_at", weekEndStr);
+        const { count: cc } = await supabase.from("daily_checkins").select("*", { count: "exact", head: true }).eq("user_id", u.id).gte("check_in_date", weekStartStr).lt("check_in_date", weekEndStr);
         const points = ((mc ?? 0) * 3) + ((ac ?? 0) * 2) + (rc ?? 0) + (cc ?? 0);
         if (points > topPoints) { topPoints = points; topUser = u.id; }
       }
