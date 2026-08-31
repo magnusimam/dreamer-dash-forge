@@ -37,6 +37,7 @@ import {
   usePendingContributions,
   useApproveContribution,
   useRejectContribution,
+  useGrantAnniversaryBonus,
   useCampaignContributors,
   useRedemptionRequests,
   useProcessRedemption,
@@ -331,6 +332,7 @@ export default function Admin() {
   const createSupportCampaignMutation = useCreateSupportCampaign();
   const approveContributionMutation = useApproveContribution();
   const rejectContributionMutation = useRejectContribution();
+  const grantAnniversaryBonusMutation = useGrantAnniversaryBonus();
   const createMagicBoxMutation = useCreateMagicBox();
   const approveMissionMutation = useApproveMissionSubmission();
   const rejectMissionMutation = useRejectMissionSubmission();
@@ -483,6 +485,7 @@ export default function Admin() {
 
   // DR calculator
   const [calcDR, setCalcDR] = useState("");
+  const [anniversaryBonusResult, setAnniversaryBonusResult] = useState<{ users_credited: number; total_credited: number; date: string } | null>(null);
 
   // Redemption settings (editable costs)
   const [editingCosts, setEditingCosts] = useState<Record<string, string>>({});
@@ -2241,6 +2244,49 @@ export default function Admin() {
         {/* ========== SETTINGS TAB ========== */}
         <TabsContent value="settings">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* Anniversary 2x Bonus */}
+            <Card className="gradient-card border-border/50 p-5 mb-6">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Anniversary 2x Bonus
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Doubles everything every user earned on 2026-08-31 by crediting a matching bonus
+                transaction. Safe to run multiple times — already-credited earnings are never
+                doubled twice.
+              </p>
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                disabled={grantAnniversaryBonusMutation.isPending}
+                onClick={async () => {
+                  let result;
+                  try {
+                    result = await grantAnniversaryBonusMutation.mutateAsync(undefined);
+                  } catch (err: any) {
+                    toast({ title: "Error", description: err?.message || "Failed to grant anniversary bonus", variant: "destructive" });
+                    return;
+                  }
+                  if (result?.success) {
+                    setAnniversaryBonusResult(result);
+                    toast({ title: "Anniversary Bonus Granted! 🎉", description: `${result.users_credited} users credited, ${result.total_credited} DR total` });
+                  } else {
+                    toast({ title: "Error", description: result?.error || "Failed to grant anniversary bonus", variant: "destructive" });
+                  }
+                }}
+              >
+                {grantAnniversaryBonusMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                Grant 2x Bonus for 2026-08-31
+              </Button>
+              {anniversaryBonusResult && (
+                <div className="bg-secondary rounded-lg p-3 mt-3 text-center">
+                  <p className="text-sm text-muted-foreground">Last run ({anniversaryBonusResult.date})</p>
+                  <p className="text-lg font-bold text-primary">
+                    {anniversaryBonusResult.users_credited} users · {anniversaryBonusResult.total_credited.toLocaleString()} DR credited
+                  </p>
+                </div>
+              )}
+            </Card>
+
             {/* DR / Naira Calculator */}
             <Card className="gradient-card border-border/50 p-5 mb-6">
               <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">

@@ -238,6 +238,62 @@ export function useRejectContribution() {
   });
 }
 
+export function useGrantAnniversaryBonus() {
+  const { dbUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (date?: string) => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("grant_anniversary_bonus", {
+        p_init_data: getInitData(),
+        ...(date ? { p_date: date } : {}),
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      if (data?.success) {
+        queryClient.invalidateQueries({ queryKey: ["users"] });
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      }
+    },
+  });
+}
+
+export function useAnniversaryTier() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["anniversary_tier", dbUser?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_anniversary_tier", { p_init_data: getInitData() });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!dbUser,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useClaimAnniversaryTierBonus() {
+  const { dbUser, refreshUser } = useUser();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (!dbUser) throw new Error("Not logged in");
+      const { data, error } = await supabase.rpc("claim_anniversary_tier_bonus", { p_init_data: getInitData() });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      if (data?.success) {
+        refreshUser();
+        queryClient.invalidateQueries({ queryKey: ["anniversary_tier"] });
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      }
+    },
+  });
+}
+
 export function useContributionLeaderboard() {
   return useQuery({
     queryKey: ["contribution_leaderboard"],

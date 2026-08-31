@@ -7,6 +7,7 @@ import Raffles from "@/pages/Raffles";
 import Redeem from "@/pages/Redeem";
 import Profile from "@/pages/Profile";
 import Onboarding from "@/pages/Onboarding";
+import AnniversaryBonusModal from "@/components/AnniversaryBonusModal";
 
 // Lazy load sub-pages (only loaded when navigated to)
 const Hackathons = lazy(() => import("@/pages/Hackathons"));
@@ -309,6 +310,7 @@ const Index = () => {
         <AnimatePresence mode="wait">{renderCurrentPage()}</AnimatePresence>
       </Suspense>
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} notifications={0} />
+      <AnniversaryBonusModal />
     </div>
   );
 };
