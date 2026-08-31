@@ -16,28 +16,29 @@ export default function CommunityGiverBonusModal({ active, onDone }: Props) {
   const { dbUser } = useUser();
   const { data } = useCommunityGiverBonus();
   const claimMutation = useClaimCommunityGiverBonus();
-  const [claimedResult, setClaimedResult] = useState<{ naira_given: number; dr_reward: number } | null>(null);
+  const [claimedResult, setClaimedResult] = useState<{ naira_given: number; dr_reward: number; is_topup: boolean } | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
     if (!active || data === undefined || claimedResult) return;
-    if (!data?.eligible || data?.claimed) onDone();
+    if (!data?.eligible) onDone();
   }, [active, data, claimedResult, onDone]);
 
   const showSuccess = !!claimedResult;
-  const shouldShow = active && data?.eligible && !data?.claimed;
+  const shouldShow = active && data?.eligible;
 
   if (!shouldShow && !showSuccess) return null;
 
   const nairaGiven = claimedResult?.naira_given ?? data?.naira_given;
   const drReward = claimedResult?.dr_reward ?? data?.dr_reward;
+  const isTopup = claimedResult?.is_topup ?? data?.is_topup;
   const initials = [dbUser?.first_name?.[0], dbUser?.last_name?.[0]].filter(Boolean).join("");
 
   const handleClaim = async () => {
     try {
       const result = await claimMutation.mutateAsync();
       if (result?.success) {
-        setClaimedResult({ naira_given: result.naira_given, dr_reward: result.dr_reward });
+        setClaimedResult({ naira_given: result.naira_given, dr_reward: result.dr_reward, is_topup: result.is_topup });
         setShowConfetti(true);
       }
     } catch {
@@ -81,14 +82,16 @@ export default function CommunityGiverBonusModal({ active, onDone }: Props) {
 
             <div className="inline-flex items-center gap-1.5 bg-amber-500/15 text-amber-500 text-xs font-semibold px-3 py-1 rounded-full mb-3">
               <HeartHandshake className="w-3.5 h-3.5" />
-              Community Giver
+              {isTopup ? "New Bonus Unlocked" : "Community Giver"}
             </div>
 
             <h2 className="text-xl font-bold text-foreground mb-1">
-              {showSuccess ? "Bonus Claimed! 🎉" : "Thank You For Giving! 💝"}
+              {showSuccess ? "Bonus Claimed! 🎉" : isTopup ? "You've Got More Coming! 💝" : "Thank You For Giving! 💝"}
             </h2>
             <p className="text-sm text-muted-foreground mb-5">
-              You've put ₦{nairaGiven?.toLocaleString()} of your own money into this community. Here's a little back.
+              {isTopup
+                ? `We updated your giving total — you've now got ${drReward?.toLocaleString()} more DR waiting.`
+                : `You've put ₦${nairaGiven?.toLocaleString()} of your own money into this community. Here's a little back.`}
             </p>
 
             <div className="bg-secondary rounded-xl p-4 mb-5">
