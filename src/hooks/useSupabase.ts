@@ -724,7 +724,7 @@ export function useMyPair() {
       const partnerId = data.user1_id === dbUser.id ? data.user2_id : data.user1_id;
       const { data: partner } = await supabase
         .from("users")
-        .select("id, first_name, last_name, username, photo_url, last_active, streak, status, last_check_in")
+        .select("id, telegram_id, first_name, last_name, username, photo_url, last_active, streak, status, last_check_in")
         .eq("id", partnerId)
         .maybeSingle();
 

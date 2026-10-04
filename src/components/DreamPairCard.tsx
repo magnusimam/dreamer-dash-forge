@@ -100,9 +100,11 @@ export default function DreamPairCard({ onViewProfile }: Props) {
   const weekEndedForRating = daysLeft === 0 && !myPair.i_rated;
 
   const handlePoke = () => {
-    if (partner?.telegram_id) {
-      notifyUser(partner.telegram_id, `👋 <b>${dbUser?.first_name} poked you!</b>\n\nYour Dream Pair is reminding you to check in. Open the app and claim your daily reward!`);
+    if (!partner?.telegram_id) {
+      toast({ title: "Couldn't poke", description: "Your partner can't be reached right now", variant: "destructive" });
+      return;
     }
+    notifyUser(partner.telegram_id, `👋 <b>${dbUser?.first_name} poked you!</b>\n\nYour Dream Pair is reminding you to check in. Open the app and claim your daily reward!`);
     hapticNotification("success");
     toast({ title: "Poke sent!", description: `${partner?.first_name} has been notified` });
   };
