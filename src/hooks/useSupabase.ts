@@ -3102,7 +3102,7 @@ export function useAllUsers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("users")
-        .select("id, telegram_id, first_name, last_name, username, photo_url, language_code, balance, total_earned, streak, last_check_in, is_admin, is_super_admin, status, created_at, updated_at, referral_code, state_id, last_active, streak_protected_until, birthday, last_penalty_date")
+        .select("id, telegram_id, first_name, last_name, username, photo_url, language_code, balance, total_earned, streak, last_check_in, is_admin, is_super_admin, admin_permissions, status, created_at, updated_at, referral_code, state_id, last_active, streak_protected_until, birthday, last_penalty_date")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -3151,6 +3151,26 @@ export function useDeleteUser() {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
       queryClient.invalidateQueries({ queryKey: ["state_rankings"] });
+    },
+  });
+}
+
+export function useSetUserAccess() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, isAdmin, permissions }: { userId: string; isAdmin: boolean; permissions: string[] }) => {
+      const { data, error } = await supabase.rpc("admin_set_user_access", {
+        p_init_data: getInitData(),
+        p_user_id: userId,
+        p_is_admin: isAdmin,
+        p_permissions: permissions,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
     },
   });
 }

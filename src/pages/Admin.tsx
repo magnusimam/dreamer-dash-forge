@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -44,6 +46,7 @@ import {
   useAllUsers,
   useAdjustBalance,
   useDeleteUser,
+  useSetUserAccess,
   useRedemptionCategories,
   useUpdateRedemptionCategory,
   useAllMentors,
@@ -116,6 +119,7 @@ import {
   Target,
   Lock,
   Heart,
+  Search,
 } from "lucide-react";
 
 const sanitize = (input: string) => input.replace(/<[^>]*>/g, "").trim();
@@ -304,11 +308,32 @@ function ActivityParticipantsList({ activityId }: { activityId: string }) {
   );
 }
 
+// Admin-panel sections a super admin can delegate. Keys match the Tabs values
+// below and the permission keys checked server-side (admin_can).
+const ADMIN_SECTIONS: { key: string; label: string }[] = [
+  { key: "activities", label: "Activities" },
+  { key: "missions", label: "Missions" },
+  { key: "magicbox", label: "Magic Box" },
+  { key: "support", label: "Support" },
+  { key: "hackathons", label: "Hackathons" },
+  { key: "redemptions", label: "Redemptions" },
+  { key: "proofs", label: "Proofs" },
+  { key: "raffles", label: "Raffles" },
+  { key: "promos", label: "Promos" },
+  { key: "ads", label: "Ads" },
+  { key: "users", label: "Users" },
+  { key: "referrals", label: "Referrals" },
+  { key: "settings", label: "Settings" },
+  { key: "states", label: "States" },
+  { key: "broadcast", label: "Broadcast" },
+];
+
 export default function Admin() {
   const { toast } = useToast();
   const { dbUser } = useUser();
   const queryClient = useQueryClient();
   const isSuperAdmin = !!dbUser?.is_super_admin;
+  const can = (section: string) => isSuperAdmin || (dbUser?.admin_permissions ?? []).includes(section);
 
   // Data hooks
   const { data: activities = [] } = useAllActivitiesAdmin();
@@ -392,6 +417,7 @@ export default function Admin() {
   const processRedemptionMutation = useProcessRedemption();
   const adjustBalanceMutation = useAdjustBalance();
   const deleteUserMutation = useDeleteUser();
+  const setUserAccessMutation = useSetUserAccess();
   const updateCategoryMutation = useUpdateRedemptionCategory();
   const createMentorMutation = useCreateMentor();
   const updateMentorMutation = useUpdateMentor();
@@ -470,6 +496,12 @@ export default function Admin() {
 
   // Delete user confirmation
   const [deleteUserTarget, setDeleteUserTarget] = useState<any | null>(null);
+
+  // Admin access editor
+  const [accessUser, setAccessUser] = useState<any | null>(null);
+  const [accessIsAdmin, setAccessIsAdmin] = useState(false);
+  const [accessPerms, setAccessPerms] = useState<string[]>([]);
+  const [userSearch, setUserSearch] = useState("");
 
 
   // Redemption notes modal
@@ -847,6 +879,30 @@ export default function Admin() {
     }
   };
 
+  // ---- ADMIN ACCESS ----
+
+  const openAccessEditor = (u: any) => {
+    setAccessUser(u);
+    setAccessIsAdmin(!!u.is_admin);
+    setAccessPerms(u.admin_permissions ?? []);
+  };
+
+  const handleSaveAccess = async () => {
+    if (!accessUser) return;
+    try {
+      const result = await setUserAccessMutation.mutateAsync({ userId: accessUser.id, isAdmin: accessIsAdmin, permissions: accessPerms });
+      if (result?.success) {
+        const name = accessUser.first_name;
+        toast({ title: "Access Updated ✅", description: result.is_admin ? `${name} can now manage: ${result.permissions.length} section(s)` : `${name} is no longer an admin` });
+        setAccessUser(null);
+      } else {
+        toast({ title: "Error", description: result?.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Failed to update access.", variant: "destructive" });
+    }
+  };
+
   // ---- PROOF PROCESSING ----
 
   const handleProcessProof = async (logId: string, action: "approved" | "rejected") => {
@@ -899,38 +955,38 @@ export default function Admin() {
         <p className="text-muted-foreground">Manage activities, hackathons, redemptions, and users</p>
       </motion.div>
 
-      <Tabs defaultValue="activities" className="w-full">
+      <Tabs defaultValue={ADMIN_SECTIONS.find((sec) => can(sec.key))?.key ?? "activities"} className="w-full">
         <div className="mb-6 overflow-x-auto scrollbar-hide -mx-4 px-4">
           <TabsList className="inline-flex w-auto min-w-full gap-1">
-            <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>}
-            {isSuperAdmin && <TabsTrigger value="magicbox" className="text-xs px-3">Magic Box</TabsTrigger>}
-            <TabsTrigger value="support" className="text-xs px-3">Support</TabsTrigger>
-            <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>
-            <TabsTrigger value="redemptions" className="relative text-xs px-3">
+            {can("activities") && <TabsTrigger value="activities" className="text-xs px-3">Activities</TabsTrigger>}
+            {can("missions") && <TabsTrigger value="missions" className="text-xs px-3">Missions</TabsTrigger>}
+            {can("magicbox") && <TabsTrigger value="magicbox" className="text-xs px-3">Magic Box</TabsTrigger>}
+            {can("support") && <TabsTrigger value="support" className="text-xs px-3">Support</TabsTrigger>}
+            {can("hackathons") && <TabsTrigger value="hackathons" className="text-xs px-3">Hacks</TabsTrigger>}
+            {can("redemptions") && <TabsTrigger value="redemptions" className="relative text-xs px-3">
               Redeem
               {pendingCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
                   {pendingCount}
                 </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="proofs" className="relative text-xs px-3">
+            </TabsTrigger>}
+            {can("proofs") && <TabsTrigger value="proofs" className="relative text-xs px-3">
               Proofs
               {pendingProofCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
                   {pendingProofCount}
                 </span>
               )}
-            </TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="raffles" className="text-xs px-3">Raffles</TabsTrigger>}
-            {isSuperAdmin && <TabsTrigger value="promos" className="text-xs px-3">Promos</TabsTrigger>}
-            {isSuperAdmin && <TabsTrigger value="ads" className="text-xs px-3">Ads</TabsTrigger>}
-            <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>
-            <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>
-            {isSuperAdmin && <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>}
-            {isSuperAdmin && <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>}
-            <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>
+            </TabsTrigger>}
+            {can("raffles") && <TabsTrigger value="raffles" className="text-xs px-3">Raffles</TabsTrigger>}
+            {can("promos") && <TabsTrigger value="promos" className="text-xs px-3">Promos</TabsTrigger>}
+            {can("ads") && <TabsTrigger value="ads" className="text-xs px-3">Ads</TabsTrigger>}
+            {can("users") && <TabsTrigger value="users" className="text-xs px-3">Users</TabsTrigger>}
+            {can("referrals") && <TabsTrigger value="referrals" className="text-xs px-3">Referrals</TabsTrigger>}
+            {can("settings") && <TabsTrigger value="settings" className="text-xs px-3">Settings</TabsTrigger>}
+            {can("states") && <TabsTrigger value="states" className="text-xs px-3">States</TabsTrigger>}
+            {can("broadcast") && <TabsTrigger value="broadcast" className="text-xs px-3">Broadcast</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -2136,10 +2192,18 @@ export default function Admin() {
               </Card>
             )}
             <div className="mb-4">
-              <p className="text-sm text-muted-foreground">{allUsers.length} registered users</p>
+              <p className="text-sm text-muted-foreground mb-2">{allUsers.length} registered users</p>
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Search by name or @username" value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="pl-9 bg-secondary border-border" />
+              </div>
             </div>
             <div className="space-y-3">
-              {allUsers.map((u: any) => (
+              {allUsers.filter((u: any) => {
+                const q = userSearch.trim().replace(/^@/, "").toLowerCase();
+                if (!q) return true;
+                return [u.first_name, u.last_name, u.username].filter(Boolean).join(" ").toLowerCase().includes(q);
+              }).map((u: any) => (
                 <Card key={u.id} className="gradient-card border-border/50 p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -2148,7 +2212,9 @@ export default function Admin() {
                         <p className="font-medium text-foreground text-sm">
                           {[u.first_name, u.last_name].filter(Boolean).join(" ")}
                         </p>
-                        {u.is_admin && <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Admin</Badge>}
+                        {u.is_super_admin
+                          ? <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Super Admin</Badge>
+                          : u.is_admin && <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px]">Admin</Badge>}
                       </div>
                       {u.username && <p className="text-xs text-muted-foreground">@{u.username}</p>}
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
@@ -2168,6 +2234,11 @@ export default function Admin() {
                       {isSuperAdmin && (
                         <Button size="icon" variant="outline" className="h-8 w-8 border-primary/30" aria-label="Adjust balance" onClick={() => { setAdjustUser(u); setAdjustAmount(""); setAdjustReason(""); }}>
                           <Coins className="w-3.5 h-3.5 text-primary" />
+                        </Button>
+                      )}
+                      {isSuperAdmin && !u.is_super_admin && u.id !== dbUser?.id && (
+                        <Button size="icon" variant="outline" className="h-8 w-8 border-primary/30" aria-label="Admin access" onClick={() => openAccessEditor(u)}>
+                          <ShieldCheck className="w-3.5 h-3.5 text-primary" />
                         </Button>
                       )}
                       {isSuperAdmin && !u.is_admin && (
@@ -2785,6 +2856,52 @@ export default function Admin() {
                   Delete User
                 </Button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========== ADMIN ACCESS MODAL ========== */}
+      <AnimatePresence>
+        {accessUser && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center" onClick={() => setAccessUser(null)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-card border-t border-border rounded-t-2xl p-6 pb-16" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground text-lg">Admin Access</h3>
+                <Button size="icon" variant="ghost" aria-label="Close" onClick={() => setAccessUser(null)}><X className="w-4 h-4" /></Button>
+              </div>
+              <p className="text-sm text-foreground">{[accessUser.first_name, accessUser.last_name].filter(Boolean).join(" ")}</p>
+              {accessUser.username && <p className="text-xs text-muted-foreground mb-4">@{accessUser.username}</p>}
+              <label className="flex items-center justify-between bg-secondary rounded-lg p-3 mb-4 cursor-pointer">
+                <span className="text-sm font-medium text-foreground">Admin access</span>
+                <Switch checked={accessIsAdmin} onCheckedChange={setAccessIsAdmin} />
+              </label>
+              {accessIsAdmin && (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-muted-foreground">What can they manage?</p>
+                    <button type="button" className="text-xs text-primary" onClick={() => setAccessPerms(accessPerms.length === ADMIN_SECTIONS.length ? [] : ADMIN_SECTIONS.map((sec) => sec.key))}>
+                      {accessPerms.length === ADMIN_SECTIONS.length ? "Clear all" : "Select all"}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    {ADMIN_SECTIONS.map((sec) => (
+                      <label key={sec.key} className="flex items-center gap-2 bg-secondary/60 rounded-md px-3 py-2 cursor-pointer">
+                        <Checkbox
+                          checked={accessPerms.includes(sec.key)}
+                          onCheckedChange={(checked) => setAccessPerms(checked ? [...accessPerms, sec.key] : accessPerms.filter((k) => k !== sec.key))}
+                        />
+                        <span className="text-sm text-foreground">{sec.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mb-4">Balance adjustments, user deletion and granting access stay super-admin only.</p>
+                </>
+              )}
+              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow mt-2" onClick={handleSaveAccess} disabled={setUserAccessMutation.isPending || (accessIsAdmin && accessPerms.length === 0)}>
+                {setUserAccessMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+                Save Access
+              </Button>
             </motion.div>
           </motion.div>
         )}

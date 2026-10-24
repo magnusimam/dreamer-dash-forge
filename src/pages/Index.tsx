@@ -117,8 +117,8 @@ const Index = () => {
       const { data: existing } = await supabase.from("weekly_mvps").select("id").eq("week_start", weekStartStr).maybeSingle();
       if (existing) { localStorage.setItem(mvpKey, "done"); return; }
 
-      // Get all users' engagement
-      const { data: users } = await supabase.from("users").select("id").eq("is_admin", false);
+      // Get all users' engagement (admins included — they're users too)
+      const { data: users } = await supabase.from("users").select("id");
       if (!users || users.length === 0) return;
 
       let topUser = null;

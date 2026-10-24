@@ -15,6 +15,7 @@ interface DbUser {
   last_check_in: string | null;
   is_admin: boolean;
   is_super_admin: boolean;
+  admin_permissions: string[];
   status: string;
   created_at: string;
   referral_code: string | null;
