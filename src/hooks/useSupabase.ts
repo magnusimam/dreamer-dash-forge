@@ -1702,6 +1702,32 @@ export function useDeleteRaffle() {
   });
 }
 
+export function useUpdateRaffle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, title, description, entry_fee, end_date, max_entries }: { id: string; title?: string; description?: string; entry_fee?: number; end_date?: string; max_entries?: number | null }) => {
+      const { data, error } = await supabase.rpc("admin_update_raffle", {
+        p_init_data: getInitData(),
+        p_id: id,
+        p_title: title ?? null,
+        p_description: description ?? null,
+        p_entry_fee: entry_fee ?? null,
+        p_end_date: end_date ?? null,
+        p_max_entries: max_entries ?? null,
+        p_clear_max_entries: max_entries === null,
+      });
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string } | null;
+      if (!result?.success) throw new Error(result?.error || "Failed to update raffle");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["raffles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_raffles"] });
+    },
+  });
+}
+
 export function useUnarchiveRaffle() {
   const queryClient = useQueryClient();
 

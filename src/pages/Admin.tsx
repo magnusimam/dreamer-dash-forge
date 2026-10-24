@@ -64,6 +64,7 @@ import {
   useAllReferrals,
   useRaffles,
   useCreateRaffle,
+  useUpdateRaffle,
   useDeleteRaffle,
   useUnarchiveRaffle,
   useDrawRaffleWinner,
@@ -428,6 +429,7 @@ export default function Admin() {
   const createStateMutation = useCreateState();
   const deleteStateMutation = useDeleteState();
   const createRaffleMutation = useCreateRaffle();
+  const updateRaffleMutation = useUpdateRaffle();
   const deleteRaffleMutation = useDeleteRaffle();
   const unarchiveRaffleMutation = useUnarchiveRaffle();
   const archiveHackathonMutation = useArchiveHackathon();
@@ -485,6 +487,11 @@ export default function Admin() {
   const [raffleEnd, setRaffleEnd] = useState("");
   const [raffleMaxEntries, setRaffleMaxEntries] = useState("");
   const [viewingRaffleEntries, setViewingRaffleEntries] = useState<string | null>(null);
+  const [editingRaffle, setEditingRaffle] = useState<any | null>(null);
+  const resetRaffleForm = () => {
+    setEditingRaffle(null);
+    setRaffleTitle(""); setRaffleDesc(""); setRaffleFee(""); setRaffleEnd(""); setRaffleMaxEntries("");
+  };
   const [viewingActivityParticipants, setViewingActivityParticipants] = useState<string | null>(null);
   const [viewingMissionParticipants, setViewingMissionParticipants] = useState<string | null>(null);
 
@@ -1810,37 +1817,68 @@ export default function Admin() {
             <Card className="gradient-card border-border/50 p-5 mb-6">
               <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Ticket className="w-4 h-4 text-primary" />
-                Create Raffle
+                {editingRaffle ? "Edit Raffle" : "Create Raffle"}
               </h3>
               <div className="space-y-3">
                 <Input placeholder="Raffle title" value={raffleTitle} onChange={(e) => setRaffleTitle(sanitize(e.target.value))} className="bg-secondary border-border" />
                 <Textarea placeholder="Description (optional)" value={raffleDesc} onChange={(e) => setRaffleDesc(e.target.value)} className="bg-secondary border-border min-h-[60px]" />
-                <Input type="number" placeholder="Entry fee in DR (e.g. 50)" value={raffleFee} onChange={(e) => setRaffleFee(e.target.value)} className="bg-secondary border-border" />
+                <Input type="number" placeholder="Entry fee in DR (e.g. 50)" value={raffleFee} onChange={(e) => setRaffleFee(e.target.value)} className="bg-secondary border-border" disabled={editingRaffle?.entry_count > 0} />
+                {editingRaffle?.entry_count > 0 && (
+                  <p className="text-[10px] text-muted-foreground -mt-2">Entry fee is locked — {editingRaffle.entry_count} {editingRaffle.entry_count === 1 ? "person has" : "people have"} already paid to enter.</p>
+                )}
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">End Date & Time</label>
                   <Input type="datetime-local" value={raffleEnd} onChange={(e) => setRaffleEnd(e.target.value)} className="bg-secondary border-border" />
                 </div>
                 <Input type="number" placeholder="Max entries (optional)" value={raffleMaxEntries} onChange={(e) => setRaffleMaxEntries(e.target.value)} className="bg-secondary border-border" />
-                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!raffleTitle || !raffleFee || !raffleEnd || createRaffleMutation.isPending}
-                  onClick={async () => {
-                    try {
-                      await createRaffleMutation.mutateAsync({
-                        title: raffleTitle,
-                        description: raffleDesc || undefined,
-                        entry_fee: parseInt(raffleFee),
-                        end_date: new Date(raffleEnd).toISOString(),
-                        max_entries: raffleMaxEntries ? parseInt(raffleMaxEntries) : undefined,
-                      });
-                      toast({ title: "Raffle Created", description: raffleTitle });
-                      broadcastNewRaffle(raffleTitle, parseInt(raffleFee));
-                      setRaffleTitle(""); setRaffleDesc(""); setRaffleFee(""); setRaffleEnd(""); setRaffleMaxEntries("");
-                    } catch (err: any) {
-                      toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
-                    }
-                  }}>
-                  {createRaffleMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Ticket className="w-4 h-4 mr-2" />}
-                  Create Raffle
-                </Button>
+                <div className="flex gap-2">
+                  {editingRaffle ? (
+                    <>
+                      <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!raffleTitle || !raffleFee || !raffleEnd || updateRaffleMutation.isPending}
+                        onClick={async () => {
+                          try {
+                            await updateRaffleMutation.mutateAsync({
+                              id: editingRaffle.id,
+                              title: raffleTitle,
+                              description: raffleDesc,
+                              entry_fee: parseInt(raffleFee),
+                              end_date: new Date(raffleEnd).toISOString(),
+                              max_entries: raffleMaxEntries ? parseInt(raffleMaxEntries) : null,
+                            });
+                            toast({ title: "Raffle Updated", description: raffleTitle });
+                            resetRaffleForm();
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                          }
+                        }}>
+                        {updateRaffleMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
+                        Save Changes
+                      </Button>
+                      <Button variant="outline" onClick={resetRaffleForm}>Cancel</Button>
+                    </>
+                  ) : (
+                  <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-glow" disabled={!raffleTitle || !raffleFee || !raffleEnd || createRaffleMutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await createRaffleMutation.mutateAsync({
+                          title: raffleTitle,
+                          description: raffleDesc || undefined,
+                          entry_fee: parseInt(raffleFee),
+                          end_date: new Date(raffleEnd).toISOString(),
+                          max_entries: raffleMaxEntries ? parseInt(raffleMaxEntries) : undefined,
+                        });
+                        toast({ title: "Raffle Created", description: raffleTitle });
+                        broadcastNewRaffle(raffleTitle, parseInt(raffleFee));
+                        setRaffleTitle(""); setRaffleDesc(""); setRaffleFee(""); setRaffleEnd(""); setRaffleMaxEntries("");
+                      } catch (err: any) {
+                        toast({ title: "Error", description: err?.message || "Failed", variant: "destructive" });
+                      }
+                    }}>
+                    {createRaffleMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Ticket className="w-4 h-4 mr-2" />}
+                    Create Raffle
+                  </Button>
+                  )}
+                </div>
               </div>
             </Card>
 
@@ -1859,6 +1897,21 @@ export default function Admin() {
                             {r.description && <p className="text-xs text-muted-foreground mt-1">{r.description}</p>}
                           </div>
                           <div className="flex items-center gap-1">
+                            {r.is_active && !isEnded && (
+                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={() => {
+                                const end = new Date(r.end_date);
+                                const pad = (n: number) => String(n).padStart(2, "0");
+                                setEditingRaffle(r);
+                                setRaffleTitle(r.title);
+                                setRaffleDesc(r.description || "");
+                                setRaffleFee(String(r.entry_fee));
+                                setRaffleEnd(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`);
+                                setRaffleMaxEntries(r.max_entries ? String(r.max_entries) : "");
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                            )}
                             <Badge variant="outline" className={!r.is_active ? "text-xs bg-muted text-muted-foreground" : isEnded ? "text-xs bg-muted" : "text-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30"}>{!r.is_active ? "Archived" : isEnded ? "Ended" : "Active"}</Badge>
                             {r.is_active ? (
                               <Button size="sm" variant="outline" className="h-7 text-xs border-muted-foreground/30 text-muted-foreground" disabled={deleteRaffleMutation.isPending} onClick={async () => { await deleteRaffleMutation.mutateAsync(r.id); toast({ title: "Raffle Archived" }); }}>
