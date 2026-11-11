@@ -20,6 +20,26 @@ function timeLeft(iso: string, now: number) {
   return `${Math.max(1, Math.floor(ms / 60000))}m left`;
 }
 
+const DISMISSED_KEY = "rescue_banner_dismissed";
+
+function loadDismissed(): string[] {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDismissed(ids: string[]) {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
+  } catch {
+    /* storage unavailable — dismissal lasts for this session only */
+  }
+}
+
 /**
  * Lists members whose account hit 0 DR through inactivity and will be
  * deleted when their 5-day window ends, with a one-tap way to send them DR.
@@ -33,6 +53,7 @@ export default function AccountRescueBanner({ onRescued }: { onRescued?: () => v
   const [target, setTarget] = useState<AtRiskAccount | null>(null);
   const [amount, setAmount] = useState("");
   const [now, setNow] = useState(Date.now());
+  const [dismissed, setDismissed] = useState<string[]>(loadDismissed);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 60000);
@@ -43,6 +64,16 @@ export default function AccountRescueBanner({ onRescued }: { onRescued?: () => v
 
   const me = atRisk.find((a) => a.is_me);
   const others = atRisk.filter((a) => !a.is_me);
+  // Hide the "Save a Dreamer" card once dismissed; it comes back only when a
+  // new account (one not on screen at dismissal time) goes at risk.
+  const showOthers = others.some((a) => !dismissed.includes(a.watch_id));
+
+  const dismissOthers = () => {
+    // Keep only ids still at risk so the stored list doesn't grow forever.
+    const next = others.map((a) => a.watch_id);
+    setDismissed(next);
+    saveDismissed(next);
+  };
 
   const send = async () => {
     if (!target) return;
@@ -89,12 +120,23 @@ export default function AccountRescueBanner({ onRescued }: { onRescued?: () => v
         </motion.div>
       )}
 
-      {others.length > 0 && (
+      {showOthers && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
           <Card className="border-red-500/30 bg-red-500/10 p-4">
-            <p className="text-sm font-semibold text-red-400 flex items-center gap-1.5">
-              <Heart className="w-4 h-4" /> Save a Dreamer
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold text-red-400 flex items-center gap-1.5">
+                <Heart className="w-4 h-4" /> Save a Dreamer
+              </p>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6 -mt-1 -mr-1 text-muted-foreground hover:text-foreground"
+                aria-label="Dismiss"
+                onClick={dismissOthers}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground mb-3">
               These accounts hit 0 DR from inactivity and will be deleted when the timer ends. Send any amount to save them.
             </p>
