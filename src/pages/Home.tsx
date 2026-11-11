@@ -14,6 +14,7 @@ import TransactionList from "@/components/TransactionList";
 import { useTransactions, useTodayCheckin, usePerformCheckin, useStateRankings, useBuyStreakInsurance, useFreezeStreak, getFreezeCost, useTodaysBirthdays, isUserOnline, useFeaturedDreamer, getDreamerLevel, useCommunityStats, useTransferDR, useRestoreStreak, getStreakRestoreCost } from "@/hooks/useSupabase";
 import UserProfileModal from "@/components/UserProfileModal";
 import DreamPairCard from "@/components/DreamPairCard";
+import AccountRescueBanner from "@/components/AccountRescueBanner";
 import { useTelegram } from "@/contexts/TelegramContext";
 import { useUser } from "@/contexts/UserContext";
 import { useToast } from "@/hooks/use-toast";
@@ -284,17 +285,17 @@ export default function Home({ onTabChange }: HomeProps) {
                 {daysSinceCheckin >= 30 ? (
                   <>
                     <p className="text-sm font-semibold text-destructive">Entire Balance Wiped!</p>
-                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days inactive. Your entire DR balance has been deducted and distributed to active Dreamers in your state.</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days inactive. Your entire DR balance has been shared among active Dreamers in your state. At 0 DR your account goes on a 5-day deletion countdown — check in now!</p>
                   </>
                 ) : daysSinceCheckin >= 14 ? (
                   <>
                     <p className="text-sm font-semibold text-red-400">-500 DR Penalty!</p>
-                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. 500 DR deducted and given to top active Dreamers in your state. Check in now!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. 500 DR is deducted every day and shared among active Dreamers in your state. Check in now!</p>
                   </>
                 ) : daysSinceCheckin >= 7 ? (
                   <>
                     <p className="text-sm font-semibold text-orange-400">-100 DR Penalty!</p>
-                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. 100 DR deducted and given to active Dreamers. Check in daily!</p>
+                    <p className="text-xs text-muted-foreground">{daysSinceCheckin} days without check-in. 100 DR is deducted every day and shared among active Dreamers in your state. Check in daily!</p>
                   </>
                 ) : (
                   <>
@@ -307,6 +308,9 @@ export default function Home({ onTabChange }: HomeProps) {
           </Card>
         </motion.div>
       )}
+
+      {/* Accounts on the 5-day deletion watch */}
+      <AccountRescueBanner onRescued={() => setShowConfetti(true)} />
 
       {/* Convocation Celebration Banner */}
       {showConvoBanner && (

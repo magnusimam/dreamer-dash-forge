@@ -2027,6 +2027,62 @@ export function useTransferDR() {
 }
 
 // ============================================================
+// ACCOUNT RESCUE (5-day deletion watch for 0-DR inactive members)
+// ============================================================
+
+export interface AtRiskAccount {
+  watch_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+  photo_url: string | null;
+  state: string | null;
+  balance: number;
+  rescued_dr: number;
+  delete_after: string;
+  is_me: boolean;
+}
+
+export function useAccountsAtRisk() {
+  const { dbUser } = useUser();
+  return useQuery({
+    queryKey: ["accounts-at-risk"],
+    enabled: !!dbUser?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_accounts_at_risk", {
+        p_init_data: getInitData(),
+      });
+      if (error) throw error;
+      return (data || []) as AtRiskAccount[];
+    },
+    refetchInterval: 60000,
+  });
+}
+
+export function useRescueTransfer() {
+  const { refreshUser } = useUser();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ watchId, amount }: { watchId: string; amount: number }) => {
+      const { data, error } = await supabase.rpc("rescue_transfer", {
+        p_init_data: getInitData(),
+        p_watch_id: watchId,
+        p_amount: amount,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["accounts-at-risk"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+  });
+}
+
+// ============================================================
 // LEADERBOARD
 // ============================================================
 
